@@ -85,10 +85,18 @@ gold diagonal with the top of the head about 15 mm from the card top.
 
 ### 5. Signature
 
-The new hire signs in the box with a finger, pen or mouse. **Clear** starts
-over. The signature is trimmed, fitted into its slot under the title and
-printed in white. A slow, deliberate signature prints thicker; a fast one
-thinner, like a real pen.
+Two ways:
+
+* **On screen** — the new hire signs in the box with a finger, pen or mouse.
+  A slow, deliberate signature prints thicker, a fast one thinner, like a
+  real pen.
+* **From paper** — **Upload a scan**: the person signs in dark ink on white
+  paper, you photograph or scan it straight on, and the app lifts the ink
+  off the paper and prints it in white. Crop roughly to the signature; even
+  light helps.
+
+Either way the signature is trimmed, fitted into its slot under the title
+and printed in white. **Clear** starts over.
 
 ### 6. Review & Generate
 
@@ -99,6 +107,9 @@ Generate**. Check both sides against the list in the dialog:
 * title and employee number right;
 * the photo looks like the person and is not blurry;
 * the signature is visible below the title.
+
+**Save images (PNG)** gives you the two sides as pictures instead, for
+printer software that prefers images to PDF.
 
 **Back to edit** returns to the form. **Download PDF** saves
 `APG-<year>-<number>_<Lastname>.pdf` (e.g. `APG-2026-122_Aureo.pdf`) to the
@@ -124,6 +135,48 @@ this on that computer.
 
 Click **Start a new ID**. Everything is cleared, including the photo and
 signature.
+
+If the page is reloaded or the browser restarts mid-entry, the typed name,
+title, year and number come back automatically (they are kept for that tab
+only); the photo and signature have to be added again.
+
+---
+
+## Making many cards at once
+
+Open **Batch from CSV** under the form.
+
+1. **Download the CSV template** and fill it in, one person per row:
+
+   | column | |
+   | --- | --- |
+   | `name`, `title`, `seq` | required |
+   | `year` | optional, defaults to this year |
+   | `photo` | the photo's file name, e.g. `aureo.png` |
+   | `signature` | file name of a scanned signature (optional) |
+   | `replacement` | `yes` to allow a number that is already issued |
+
+2. **Select the CSV**, then **all the photo files**, then the scanned
+   signatures if you have them. Files are matched by name, ignoring
+   capitals and even the extension, so `Aureo.JPG` finds `aureo.png`.
+3. Choose the **print layout**:
+   * *One card per page* — for the card printer, two pages per person.
+   * *A4 sheets of 9, with crop marks* — for an outside printer. Fronts and
+     backs alternate, and the backs sheet mirrors the columns so the sides
+     line up after flipping on the long edge. **Print one sheet and check
+     both sides before running the whole batch.**
+4. **Generate batch.** Each row is checked exactly as a single card is:
+   duplicate numbers, text too long for the card, missing or unusable
+   photos. Good rows go into one PDF and are written to the register;
+   problem rows are listed underneath with the reason and are simply left
+   out — nothing is half-issued. Fix those rows and run them as a second,
+   smaller batch.
+
+A row whose `signature` file is missing fails rather than quietly printing a
+card without it. A row with no `signature` column at all is accepted and
+produces a card with an empty signature slot, flagged in the report.
+
+Up to 200 rows per batch.
 
 ---
 
@@ -266,20 +319,56 @@ are snapped to whole 300 DPI pixels so the print is crisp.
 ### 2.6 PDF (`src/pdf.js`)
 
 Both sides are rendered to 638 × 1004 px canvases (54 × 85 mm at 300 DPI)
-and written into a hand-built PDF 1.4: two pages whose MediaBox is the card
-size, each containing one full-bleed `/DeviceRGB` image compressed losslessly
-with `/FlateDecode` (via the browser's `CompressionStream`). The document
-title is `APG-<year>-<number> <Full name>`. The file name uses the last
+and written into a hand-built PDF 1.4 by `buildPdf`: one page per side, each
+page's MediaBox set to that page's size (card or A4) and holding a single
+full-bleed `/DeviceRGB` image compressed losslessly with `/FlateDecode` (via
+the browser's `CompressionStream`). Pages may be passed as thunks so a batch
+renders them one at a time. The document title is
+`APG-<year>-<number> <Full name>`, and the Producer field carries the app
+version, so you can tell which build printed a card. The file name uses the last
 word of the name, after dropping Jr./Sr./II/III/IV/V, taking the part after
 the last hyphen, and stripping accents and non-letters:
 `María Dela Cruz-Santos Jr.` → `APG-2026-007_Santos.pdf`.
 
-### 2.6a Maintainer guides
+### 2.5a Scanned signatures
+
+`signatureFromImage` (in `src/signature.js`) flattens the picture onto white,
+reduces it to luminance, and picks the ink/paper threshold with **Otsu's
+method** (the threshold that maximises the variance between the two groups,
+so it adapts to grey paper or a dim photo). Pixels darker than the threshold
+become fully opaque ink; those within about a third of it above fade out, to
+keep the stroke edges smooth. The mask is trimmed to its bounding box and
+rejected if it is effectively blank (under 0.04 % coverage), mostly dark
+(over 50 %, usually a photo of a shadowed page) or tiny. On the card it is
+fitted into the same box as a drawn signature, without stretching, and
+tinted white through a cached `source-in` fill.
+
+### 2.6a A4 sheets
+
+`composeSheet` (in `src/card.js`) lays rendered cards on an A4 canvas at 300
+DPI using `CONFIG.sheet` — a 3 × 3 grid with 4 mm gutters, centred, with 3 mm
+crop marks 1 mm outside each card corner. The backs sheet is composed with
+`mirrorColumns: true`, which places each card at the mirrored column so that
+flipping the paper on its long edge brings front and back together. This has
+not been verified on a physical duplex printer; test one sheet first.
+
+### 2.6b Maintainer guides
 
 Press **Ctrl + Shift + G** (or open the app with `#guides` on the URL) to
 outline the photo area in pink and the front-outline polygons in blue on
 the preview. Use it after replacing the template artwork to re-trace
 `CONFIG.photoArea` and `CONFIG.frontOutline` in `src/config.js`.
+
+### 2.6c Batch (`src/batch.js`)
+
+A small RFC-4180 CSV parser (quoted fields, doubled quotes, CR/LF) feeds
+`prepareBatchRow`, which runs each row through the same validation, photo
+pipeline and text fitting as the form, plus the register check. Successful
+rows are turned into **page thunks** rather than canvases: `buildPdf` calls
+each thunk when it reaches that page and releases the bitmap immediately
+afterwards, so a 200-card batch never holds more than one page of pixels in
+memory. The register is written only after the PDF has been handed to the
+browser.
 
 ### 2.7 Register (`src/register.js`, `register/`)
 
@@ -297,7 +386,9 @@ CORS requests are used because Apps Script cannot answer preflights.
 The app makes no network requests (the optional Google Fonts stylesheet
 only affects the form's typography and fails silently offline). Photos,
 names and signatures exist only in the open tab and in the PDF you download.
-Closing the tab or clicking **Start a new ID** discards them. Stored on the computer: the "Turn the back 180°" preference and the
-register of issued IDs (number, name, title, date — no photos or
+Closing the tab or clicking **Start a new ID** discards them. Stored on the computer: the "Turn the back 180°" preference, the in-progress
+text of the card being typed (that browser tab only, cleared when the card is
+downloaded or "Start a new ID" is clicked — photos and signatures are never
+stored), and the register of issued IDs (number, name, title, date — no photos or
 signatures). With a shared register, those same fields are also written to
 the company Google Sheet.

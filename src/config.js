@@ -6,6 +6,9 @@
    card.js reads them and never hard-codes a position.
    ------------------------------------------------------------------ */
 
+const APP_NAME = 'Alpha Premier ID Maker';
+const APP_VERSION = '1.2.0';          // stamped into every PDF's metadata
+
 const CONFIG = {
   card: {
     widthMm: 54,
@@ -70,6 +73,16 @@ const CONFIG = {
     placeholder: '___',
     yearsBack: 2,                               // year selector offers current-2 … current+1
     yearsAhead: 1,
+  },
+
+  // Printing several cards on one A4 sheet (for an outside printer).
+  // Cards are laid out in a grid with crop marks; the backs sheet mirrors
+  // the column order so the sides line up after flipping on the long edge.
+  sheet: {
+    widthMm: 210, heightMm: 297,      // A4
+    cols: 3, rows: 3,
+    gapMm: 4,                         // space between cards
+    markMm: 3, markOffsetMm: 1,       // crop-mark length and distance from the card
   },
 
   // Register of issued IDs, used to catch duplicate numbers.

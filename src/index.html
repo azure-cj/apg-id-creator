@@ -146,18 +146,22 @@
             <div class="sig" id="sig">
               <div class="sig-pad">
                 <canvas id="f-signature" aria-label="Signature pad. Draw the signature with a finger, pen or mouse."></canvas>
+                <img id="sig-image" class="sig-image" alt="Scanned signature" hidden />
                 <span class="sig-hint" id="sig-hint" aria-hidden="true">Sign here</span>
                 <span class="sig-line" aria-hidden="true"></span>
               </div>
               <div class="sig-actions">
                 <button type="button" id="btn-clear-sig" class="ghost" disabled>Clear</button>
-                <span class="msg">The new hire signs here; it appears in white on the card.</span>
+                <input id="f-sig-image" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" class="visually-hidden" />
+                <label for="f-sig-image" class="ghost sig-upload" id="sig-upload-btn">Upload a scan</label>
+                <span class="msg" id="sig-help">The new hire signs here; it appears in white on the card.</span>
               </div>
             </div>
             <p class="msg msg-error" id="sig-msg" hidden></p>
           </div>
 
           <div class="generate">
+            <p class="msg msg-warn" id="restored-note" hidden>Text restored after the page reloaded. The photo and signature still need to be added.</p>
             <p class="card-line" id="card-line" aria-label="Number line on the card"></p>
             <button type="button" id="btn-review" class="primary big" disabled>Review &amp; Generate</button>
             <p class="msg" id="status" role="status" aria-live="polite"></p>
@@ -173,6 +177,38 @@
           </div>
         </details>
 
+        <details class="block printer" id="batch-block">
+          <summary>Batch from CSV</summary>
+          <p class="msg">Make many cards in one go. <button type="button" id="btn-csv-template" class="link">Download the CSV template</button></p>
+
+          <div class="field">
+            <label for="f-csv">1. The list (CSV)</label>
+            <input id="f-csv" type="file" accept=".csv,text/csv" />
+            <p class="msg" id="csv-msg">Columns: name, title, seq, and optionally year, photo, signature, replacement.</p>
+          </div>
+          <div class="field">
+            <label for="f-photos">2. The photos</label>
+            <input id="f-photos" type="file" accept="image/png,image/jpeg,image/webp" multiple />
+            <p class="msg" id="photos-msg">Select every photo file. They are matched to the CSV by file name.</p>
+          </div>
+          <div class="field">
+            <label for="f-sigs">3. Scanned signatures (optional)</label>
+            <input id="f-sigs" type="file" accept="image/png,image/jpeg,image/webp" multiple />
+            <p class="msg" id="sigs-msg">Photos or scans of signatures on white paper. Rows without one get a card with no signature.</p>
+          </div>
+          <div class="field">
+            <label for="f-layout">Print layout</label>
+            <select id="f-layout">
+              <option value="cards">One card per page — for the card printer</option>
+              <option value="sheets">A4 sheets of 9, with crop marks — for an outside printer</option>
+            </select>
+          </div>
+
+          <button type="button" id="btn-batch" class="primary" disabled>Generate batch</button>
+          <p class="msg" id="batch-status" role="status" aria-live="polite"></p>
+          <ul class="batch-report" id="batch-report"></ul>
+        </details>
+
         <details class="block printer">
           <summary>Printer setting</summary>
           <label class="toggle" for="opt-rotate">
@@ -185,6 +221,8 @@
         </details>
       </aside>
     </main>
+
+    <footer class="colophon"><span id="app-version"></span></footer>
   </div>
 
   <!-- ---------------- review dialog ---------------- -->
@@ -209,6 +247,7 @@
         <p class="msg msg-error" id="review-error" role="alert" hidden></p>
         <div class="dialog-actions">
           <button type="button" id="btn-download" class="primary">Download PDF</button>
+          <button type="button" id="btn-png" class="ghost">Save images (PNG)</button>
           <button type="button" id="btn-back-edit" class="ghost">Back to edit</button>
         </div>
         <p class="msg" id="review-file"></p>
@@ -234,6 +273,7 @@
   <script src="card.js"></script>
   <script src="photo.js"></script>
   <script src="pdf.js"></script>
+  <script src="batch.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

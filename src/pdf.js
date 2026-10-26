@@ -55,13 +55,31 @@ function pdfDate(d = new Date()) {
 }
 
 /**
- * buildCardPdf(frontCanvas, backCanvas, title) -> Blob
+ * buildPdf(pages, title, opts) -> Blob
+ *
+ *   pages   array of canvases, or of thunks `() => canvas` so a large
+ *           batch renders one page at a time instead of holding them all
+ *           in memory. Each page may also be { canvas, widthMm, heightMm }
+ *           to give it its own page size (used by the A4 sheet layout).
+ *   opts.onProgress(done, total)
  */
-async function buildCardPdf(frontCanvas, backCanvas, title) {
+async function buildPdf(pages, title, opts = {}) {
   const enc = new TextEncoder();
-  const W = (CONFIG.card.widthMm * MM_TO_PT).toFixed(4);
-  const H = (CONFIG.card.heightMm * MM_TO_PT).toFixed(4);
-  const images = [await encodeCanvas(frontCanvas), await encodeCanvas(backCanvas)];
+  const cardW = (CONFIG.card.widthMm * MM_TO_PT).toFixed(4);
+  const cardH = (CONFIG.card.heightMm * MM_TO_PT).toFixed(4);
+
+  const images = [];
+  for (let i = 0; i < pages.length; i++) {
+    let page = pages[i];
+    if (typeof page === 'function') page = await page();
+    const canvas = page.canvas ?? page;
+    const im = await encodeCanvas(canvas);
+    im.W = page.widthMm ? (page.widthMm * MM_TO_PT).toFixed(4) : cardW;
+    im.H = page.heightMm ? (page.heightMm * MM_TO_PT).toFixed(4) : cardH;
+    images.push(im);
+    canvas.width = canvas.height = 0;            // let the bitmap go
+    opts.onProgress?.(i + 1, pages.length);
+  }
 
   const parts = [];
   let length = 0;
@@ -80,21 +98,22 @@ async function buildCardPdf(frontCanvas, backCanvas, title) {
 
   // object numbers
   //   1 catalog, 2 pages, 3 info
-  //   per page i (0,1): 4+3i page, 5+3i image, 6+3i content
+  //   per page i: 4+3i page, 5+3i image, 6+3i content
+  const kids = images.map((_, i) => `${4 + 3 * i} 0 R`).join(' ');
   push('%PDF-1.4\n%âãÏÓ\n');
   object(1, '<< /Type /Catalog /Pages 2 0 R >>');
-  object(2, `<< /Type /Pages /Kids [4 0 R 7 0 R] /Count 2 >>`);
-  object(3, `<< /Title ${pdfText(title)} /Creator (Alpha Premier ID Maker) /Producer (Alpha Premier ID Maker) /CreationDate (${pdfDate()}) >>`);
+  object(2, `<< /Type /Pages /Kids [${kids}] /Count ${images.length} >>`);
+  object(3, `<< /Title ${pdfText(title)} /Creator (${APP_NAME}) /Producer (${APP_NAME} ${APP_VERSION}) /CreationDate (${pdfDate()}) >>`);
 
   images.forEach((im, i) => {
     const page = 4 + 3 * i, image = 5 + 3 * i, content = 6 + 3 * i;
-    object(page, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im1 ${image} 0 R >> >> /Contents ${content} 0 R >>`);
+    object(page, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${im.W} ${im.H}] /Resources << /XObject << /Im1 ${image} 0 R >> >> /Contents ${content} 0 R >>`);
     object(image, `<< /Type /XObject /Subtype /Image /Width ${im.width} /Height ${im.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter ${im.filter} /Length ${im.bytes.length} >>`, im.bytes);
-    const draw = enc.encode(`q ${W} 0 0 ${H} 0 0 cm /Im1 Do Q`);
+    const draw = enc.encode(`q ${im.W} 0 0 ${im.H} 0 0 cm /Im1 Do Q`);
     object(content, `<< /Length ${draw.length} >>`, draw);
   });
 
-  const count = 10;
+  const count = 4 + 3 * images.length;
   const xref = length;
   let table = `xref\n0 ${count}\n0000000000 65535 f \n`;
   for (let n = 1; n < count; n++) table += `${String(offsets[n]).padStart(10, '0')} 00000 n \n`;

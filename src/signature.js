@@ -6,7 +6,10 @@
    strokes can be re-fitted into the box on the card at any resolution.
    ------------------------------------------------------------------ */
 
-const hasInk = (sig) => !!(sig && sig.strokes.some((s) => s.length > 0));
+// A signature is either drawn — { strokes: [[{x,y}…]…] } — or scanned,
+// { kind: 'image', mask } where mask is a trimmed canvas holding the ink
+// as alpha. Both are fitted into the same box and printed in white.
+const hasInk = (sig) => !!(sig && (sig.kind === 'image' ? sig.mask : sig.strokes?.some((s) => s.length > 0)));
 
 // Drop near-duplicate points (< 0.5 px apart) and run two passes of a
 // 1-2-1 smoothing kernel so hand jitter does not print as wobble.
@@ -87,9 +90,113 @@ function strokeSignature(ctx, sig, { toX, toY, scale, minW, maxW, color }) {
   }
 }
 
+/* ---- scanned signatures ------------------------------------------ */
+
+const SIG_IMAGE_MAX_PX = 1600;
+
+// Otsu's method: the luminance threshold that best separates ink from paper.
+function otsuThreshold(hist, total) {
+  let sum = 0;
+  for (let i = 0; i < 256; i++) sum += i * hist[i];
+  let sumB = 0, wB = 0, best = 0, bestVar = -1;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t];
+    if (!wB) continue;
+    const wF = total - wB;
+    if (!wF) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB, mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) ** 2;
+    if (between > bestVar) { bestVar = between; best = t; }
+  }
+  return best;
+}
+
+/**
+ * Turn a photo or scan of a signature on paper into an ink mask.
+ * Returns { kind:'image', mask, fileName } or { error }.
+ */
+async function signatureFromImage(file) {
+  if (/\.(heic|heif)$/i.test(file.name) || /^image\/hei[cf]$/.test(file.type)) {
+    return { error: 'This is an iPhone HEIC photo, which browsers can’t open. Save or share it as JPEG and try again.' };
+  }
+  if (!/\.(png|jpe?g|webp)$/i.test(file.name) && !/^image\/(png|jpeg|webp)$/.test(file.type)) {
+    return { error: 'Please upload a PNG, JPG or WebP picture of the signature.' };
+  }
+  const url = URL.createObjectURL(file);
+  let img;
+  try { img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; }); }
+  catch { URL.revokeObjectURL(url); return { error: 'This file couldn’t be opened as an image.' }; }
+
+  const k = Math.min(1, SIG_IMAGE_MAX_PX / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
+  const src = document.createElement('canvas');
+  src.width = w; src.height = h;
+  const sctx = src.getContext('2d', { willReadFrequently: true });
+  sctx.fillStyle = '#fff'; sctx.fillRect(0, 0, w, h);      // flatten any transparency onto paper white
+  sctx.drawImage(img, 0, 0, w, h);
+  URL.revokeObjectURL(url);
+  const px = sctx.getImageData(0, 0, w, h);
+
+  const lum = new Uint8ClampedArray(w * h);
+  const hist = new Uint32Array(256);
+  for (let i = 0, j = 0; i < px.data.length; i += 4, j++) {
+    const v = (px.data[i] * 299 + px.data[i + 1] * 587 + px.data[i + 2] * 114) / 1000 | 0;
+    lum[j] = v; hist[v]++;
+  }
+  const t = otsuThreshold(hist, w * h);
+  const soft = Math.max(8, t * 0.35);          // ink fades out over this range
+
+  let minX = w, minY = h, maxX = -1, maxY = -1, solid = 0;
+  const alpha = new Uint8ClampedArray(w * h);
+  for (let y = 0, j = 0; y < h; y++) {
+    for (let x = 0; x < w; x++, j++) {
+      const a = Math.max(0, Math.min(1, (t + soft - lum[j]) / soft));
+      if (a <= 0.06) continue;
+      alpha[j] = Math.round(a * 255);
+      if (a > 0.5) solid++;
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+  }
+  const coverage = solid / (w * h);
+  if (maxX < 0 || coverage < 0.0004) return { error: 'No signature found in this picture. Sign in dark ink on white paper and photograph it straight on.' };
+  if (coverage > 0.5) return { error: 'This picture is too dark overall. Crop it to the signature on white paper, in even light, and try again.' };
+  if (maxX - minX < 20 || maxY - minY < 8) return { error: 'The signature is too small in this picture. Crop closer to it and try again.' };
+
+  const mw = maxX - minX + 1, mh = maxY - minY + 1;
+  const mask = document.createElement('canvas');
+  mask.width = mw; mask.height = mh;
+  const out = new ImageData(mw, mh);
+  for (let y = 0; y < mh; y++) {
+    for (let x = 0; x < mw; x++) {
+      out.data[(y * mw + x) * 4 + 3] = alpha[(y + minY) * w + (x + minX)];
+    }
+  }
+  mask.getContext('2d').putImageData(out, 0, 0);
+  return { kind: 'image', mask, fileName: file.name };
+}
+
+// White version of the mask, cached on the signature object.
+function tintedSignature(sig) {
+  if (sig._white) return sig._white;
+  const c = document.createElement('canvas');
+  c.width = sig.mask.width; c.height = sig.mask.height;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(sig.mask, 0, 0);
+  ctx.globalCompositeOperation = 'source-in';
+  ctx.fillStyle = CONFIG.signature.color;
+  ctx.fillRect(0, 0, c.width, c.height);
+  sig._white = c;
+  return c;
+}
+
+/* ---- onto the card ----------------------------------------------- */
+
 /** Draw the signature in white inside CONFIG.signature.box on the card. */
 function drawSignatureOnCard(ctx, sig, pxPerMm) {
   if (!hasInk(sig)) return;
+  if (sig.kind === 'image') return drawSignatureImage(ctx, sig, pxPerMm);
   const pts = sig.strokes.flat();
   const minX = Math.min(...pts.map((p) => p.x)), maxX = Math.max(...pts.map((p) => p.x));
   const minY = Math.min(...pts.map((p) => p.y)), maxY = Math.max(...pts.map((p) => p.y));
@@ -110,6 +217,20 @@ function drawSignatureOnCard(ctx, sig, pxPerMm) {
     maxW: strokeMm,
     color,
   });
+}
+
+/** Scanned signature: fit the trimmed mask into the box, no stretching. */
+function drawSignatureImage(ctx, sig, pxPerMm) {
+  const { box, strokeMm } = CONFIG.signature;
+  const pad = strokeMm / 2;
+  const availW = box.w - 2 * pad, availH = box.h - 2 * pad;
+  const scale = Math.min(availW / sig.mask.width, availH / sig.mask.height);
+  const drawW = sig.mask.width * scale, drawH = sig.mask.height * scale;
+  const x = box.x + pad + (availW - drawW) / 2;
+  const y = box.y + pad + (availH - drawH) / 2;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(tintedSignature(sig), x * pxPerMm, y * pxPerMm, drawW * pxPerMm, drawH * pxPerMm);
 }
 
 /* ---- the on-screen pad ------------------------------------------- */
@@ -207,7 +328,8 @@ function createSignaturePad(canvas, onChange) {
   return {
     clear() { strokes = []; current = null; redraw(); onChange(null); },
     setValue(sig) {
-      strokes = sig ? sig.strokes.map((s) => s.map((p) => ({ x: p.x, y: p.y }))) : [];
+      // a scanned signature is shown as a picture, not re-drawn in the pad
+      strokes = sig && sig.kind !== 'image' ? sig.strokes.map((s) => s.map((p) => ({ x: p.x, y: p.y }))) : [];
       current = null;
       const w = cssW; cssW = 0; resize();            // force a re-fit
       if (!w) redraw();

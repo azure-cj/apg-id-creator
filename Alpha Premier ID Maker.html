@@ -199,6 +199,25 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .ghost { min-height: 36px; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: none; color: var(--ink); font: 600 0.95rem var(--font-body); cursor: pointer; }
 .ghost:disabled { opacity: 0.5; cursor: default; }
 
+.sig-image { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); object-fit: contain; }
+.sig-upload { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; cursor: pointer; }
+#f-sig-image:focus-visible + .sig-upload { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---- batch ---- */
+#batch-block .field input[type="file"] { padding: 8px; font: 400 0.9rem var(--font-body); }
+#batch-block .field select { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: 400 1rem var(--font-body); }
+#btn-batch { min-height: 48px; padding: 0 20px; border: 1px solid var(--gold-strong); border-radius: 10px; background: var(--gold-strong); color: var(--on-gold); font: 700 1rem var(--font-body); cursor: pointer; }
+#btn-batch:disabled { opacity: 0.55; cursor: default; }
+.batch-report { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 0.9rem; }
+.batch-report li { display: grid; gap: 2px; padding-bottom: 6px; border-bottom: 1px dashed var(--line); }
+.batch-report li:last-child { border-bottom: 0; }
+.batch-report .row-ok { color: var(--muted); }
+.batch-report .row-bad { color: var(--danger); }
+.batch-report .row-warn { color: var(--gold); }
+.batch-report strong { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500; }
+
+.colophon { color: var(--muted); font-size: 0.8rem; font-family: var(--font-mono); text-align: center; }
+
 /* ---- generate ---- */
 .generate { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 .generate .primary, .dialog .primary {
@@ -372,18 +391,22 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
             <div class="sig" id="sig">
               <div class="sig-pad">
                 <canvas id="f-signature" aria-label="Signature pad. Draw the signature with a finger, pen or mouse."></canvas>
+                <img id="sig-image" class="sig-image" alt="Scanned signature" hidden />
                 <span class="sig-hint" id="sig-hint" aria-hidden="true">Sign here</span>
                 <span class="sig-line" aria-hidden="true"></span>
               </div>
               <div class="sig-actions">
                 <button type="button" id="btn-clear-sig" class="ghost" disabled>Clear</button>
-                <span class="msg">The new hire signs here; it appears in white on the card.</span>
+                <input id="f-sig-image" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" class="visually-hidden" />
+                <label for="f-sig-image" class="ghost sig-upload" id="sig-upload-btn">Upload a scan</label>
+                <span class="msg" id="sig-help">The new hire signs here; it appears in white on the card.</span>
               </div>
             </div>
             <p class="msg msg-error" id="sig-msg" hidden></p>
           </div>
 
           <div class="generate">
+            <p class="msg msg-warn" id="restored-note" hidden>Text restored after the page reloaded. The photo and signature still need to be added.</p>
             <p class="card-line" id="card-line" aria-label="Number line on the card"></p>
             <button type="button" id="btn-review" class="primary big" disabled>Review &amp; Generate</button>
             <p class="msg" id="status" role="status" aria-live="polite"></p>
@@ -399,6 +422,38 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
           </div>
         </details>
 
+        <details class="block printer" id="batch-block">
+          <summary>Batch from CSV</summary>
+          <p class="msg">Make many cards in one go. <button type="button" id="btn-csv-template" class="link">Download the CSV template</button></p>
+
+          <div class="field">
+            <label for="f-csv">1. The list (CSV)</label>
+            <input id="f-csv" type="file" accept=".csv,text/csv" />
+            <p class="msg" id="csv-msg">Columns: name, title, seq, and optionally year, photo, signature, replacement.</p>
+          </div>
+          <div class="field">
+            <label for="f-photos">2. The photos</label>
+            <input id="f-photos" type="file" accept="image/png,image/jpeg,image/webp" multiple />
+            <p class="msg" id="photos-msg">Select every photo file. They are matched to the CSV by file name.</p>
+          </div>
+          <div class="field">
+            <label for="f-sigs">3. Scanned signatures (optional)</label>
+            <input id="f-sigs" type="file" accept="image/png,image/jpeg,image/webp" multiple />
+            <p class="msg" id="sigs-msg">Photos or scans of signatures on white paper. Rows without one get a card with no signature.</p>
+          </div>
+          <div class="field">
+            <label for="f-layout">Print layout</label>
+            <select id="f-layout">
+              <option value="cards">One card per page — for the card printer</option>
+              <option value="sheets">A4 sheets of 9, with crop marks — for an outside printer</option>
+            </select>
+          </div>
+
+          <button type="button" id="btn-batch" class="primary" disabled>Generate batch</button>
+          <p class="msg" id="batch-status" role="status" aria-live="polite"></p>
+          <ul class="batch-report" id="batch-report"></ul>
+        </details>
+
         <details class="block printer">
           <summary>Printer setting</summary>
           <label class="toggle" for="opt-rotate">
@@ -411,6 +466,8 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
         </details>
       </aside>
     </main>
+
+    <footer class="colophon"><span id="app-version"></span></footer>
   </div>
 
   <!-- ---------------- review dialog ---------------- -->
@@ -435,6 +492,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
         <p class="msg msg-error" id="review-error" role="alert" hidden></p>
         <div class="dialog-actions">
           <button type="button" id="btn-download" class="primary">Download PDF</button>
+          <button type="button" id="btn-png" class="ghost">Save images (PNG)</button>
           <button type="button" id="btn-back-edit" class="ghost">Back to edit</button>
         </div>
         <p class="msg" id="review-file"></p>
@@ -2763,6 +2821,9 @@ const ASSETS = {"front":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAn4AAAPsC
    card.js reads them and never hard-codes a position.
    ------------------------------------------------------------------ */
 
+const APP_NAME = 'Alpha Premier ID Maker';
+const APP_VERSION = '1.2.0';          // stamped into every PDF's metadata
+
 const CONFIG = {
   card: {
     widthMm: 54,
@@ -2827,6 +2888,16 @@ const CONFIG = {
     placeholder: '___',
     yearsBack: 2,                               // year selector offers current-2 … current+1
     yearsAhead: 1,
+  },
+
+  // Printing several cards on one A4 sheet (for an outside printer).
+  // Cards are laid out in a grid with crop marks; the backs sheet mirrors
+  // the column order so the sides line up after flipping on the long edge.
+  sheet: {
+    widthMm: 210, heightMm: 297,      // A4
+    cols: 3, rows: 3,
+    gapMm: 4,                         // space between cards
+    markMm: 3, markOffsetMm: 1,       // crop-mark length and distance from the card
   },
 
   // Register of issued IDs, used to catch duplicate numbers.
@@ -3164,7 +3235,10 @@ function drawFittedText(ctx, spec, fit, pxPerMm) {
    strokes can be re-fitted into the box on the card at any resolution.
    ------------------------------------------------------------------ */
 
-const hasInk = (sig) => !!(sig && sig.strokes.some((s) => s.length > 0));
+// A signature is either drawn — { strokes: [[{x,y}…]…] } — or scanned,
+// { kind: 'image', mask } where mask is a trimmed canvas holding the ink
+// as alpha. Both are fitted into the same box and printed in white.
+const hasInk = (sig) => !!(sig && (sig.kind === 'image' ? sig.mask : sig.strokes?.some((s) => s.length > 0)));
 
 // Drop near-duplicate points (< 0.5 px apart) and run two passes of a
 // 1-2-1 smoothing kernel so hand jitter does not print as wobble.
@@ -3245,9 +3319,113 @@ function strokeSignature(ctx, sig, { toX, toY, scale, minW, maxW, color }) {
   }
 }
 
+/* ---- scanned signatures ------------------------------------------ */
+
+const SIG_IMAGE_MAX_PX = 1600;
+
+// Otsu's method: the luminance threshold that best separates ink from paper.
+function otsuThreshold(hist, total) {
+  let sum = 0;
+  for (let i = 0; i < 256; i++) sum += i * hist[i];
+  let sumB = 0, wB = 0, best = 0, bestVar = -1;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t];
+    if (!wB) continue;
+    const wF = total - wB;
+    if (!wF) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB, mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) ** 2;
+    if (between > bestVar) { bestVar = between; best = t; }
+  }
+  return best;
+}
+
+/**
+ * Turn a photo or scan of a signature on paper into an ink mask.
+ * Returns { kind:'image', mask, fileName } or { error }.
+ */
+async function signatureFromImage(file) {
+  if (/\.(heic|heif)$/i.test(file.name) || /^image\/hei[cf]$/.test(file.type)) {
+    return { error: 'This is an iPhone HEIC photo, which browsers can’t open. Save or share it as JPEG and try again.' };
+  }
+  if (!/\.(png|jpe?g|webp)$/i.test(file.name) && !/^image\/(png|jpeg|webp)$/.test(file.type)) {
+    return { error: 'Please upload a PNG, JPG or WebP picture of the signature.' };
+  }
+  const url = URL.createObjectURL(file);
+  let img;
+  try { img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; }); }
+  catch { URL.revokeObjectURL(url); return { error: 'This file couldn’t be opened as an image.' }; }
+
+  const k = Math.min(1, SIG_IMAGE_MAX_PX / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
+  const src = document.createElement('canvas');
+  src.width = w; src.height = h;
+  const sctx = src.getContext('2d', { willReadFrequently: true });
+  sctx.fillStyle = '#fff'; sctx.fillRect(0, 0, w, h);      // flatten any transparency onto paper white
+  sctx.drawImage(img, 0, 0, w, h);
+  URL.revokeObjectURL(url);
+  const px = sctx.getImageData(0, 0, w, h);
+
+  const lum = new Uint8ClampedArray(w * h);
+  const hist = new Uint32Array(256);
+  for (let i = 0, j = 0; i < px.data.length; i += 4, j++) {
+    const v = (px.data[i] * 299 + px.data[i + 1] * 587 + px.data[i + 2] * 114) / 1000 | 0;
+    lum[j] = v; hist[v]++;
+  }
+  const t = otsuThreshold(hist, w * h);
+  const soft = Math.max(8, t * 0.35);          // ink fades out over this range
+
+  let minX = w, minY = h, maxX = -1, maxY = -1, solid = 0;
+  const alpha = new Uint8ClampedArray(w * h);
+  for (let y = 0, j = 0; y < h; y++) {
+    for (let x = 0; x < w; x++, j++) {
+      const a = Math.max(0, Math.min(1, (t + soft - lum[j]) / soft));
+      if (a <= 0.06) continue;
+      alpha[j] = Math.round(a * 255);
+      if (a > 0.5) solid++;
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+  }
+  const coverage = solid / (w * h);
+  if (maxX < 0 || coverage < 0.0004) return { error: 'No signature found in this picture. Sign in dark ink on white paper and photograph it straight on.' };
+  if (coverage > 0.5) return { error: 'This picture is too dark overall. Crop it to the signature on white paper, in even light, and try again.' };
+  if (maxX - minX < 20 || maxY - minY < 8) return { error: 'The signature is too small in this picture. Crop closer to it and try again.' };
+
+  const mw = maxX - minX + 1, mh = maxY - minY + 1;
+  const mask = document.createElement('canvas');
+  mask.width = mw; mask.height = mh;
+  const out = new ImageData(mw, mh);
+  for (let y = 0; y < mh; y++) {
+    for (let x = 0; x < mw; x++) {
+      out.data[(y * mw + x) * 4 + 3] = alpha[(y + minY) * w + (x + minX)];
+    }
+  }
+  mask.getContext('2d').putImageData(out, 0, 0);
+  return { kind: 'image', mask, fileName: file.name };
+}
+
+// White version of the mask, cached on the signature object.
+function tintedSignature(sig) {
+  if (sig._white) return sig._white;
+  const c = document.createElement('canvas');
+  c.width = sig.mask.width; c.height = sig.mask.height;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(sig.mask, 0, 0);
+  ctx.globalCompositeOperation = 'source-in';
+  ctx.fillStyle = CONFIG.signature.color;
+  ctx.fillRect(0, 0, c.width, c.height);
+  sig._white = c;
+  return c;
+}
+
+/* ---- onto the card ----------------------------------------------- */
+
 /** Draw the signature in white inside CONFIG.signature.box on the card. */
 function drawSignatureOnCard(ctx, sig, pxPerMm) {
   if (!hasInk(sig)) return;
+  if (sig.kind === 'image') return drawSignatureImage(ctx, sig, pxPerMm);
   const pts = sig.strokes.flat();
   const minX = Math.min(...pts.map((p) => p.x)), maxX = Math.max(...pts.map((p) => p.x));
   const minY = Math.min(...pts.map((p) => p.y)), maxY = Math.max(...pts.map((p) => p.y));
@@ -3268,6 +3446,20 @@ function drawSignatureOnCard(ctx, sig, pxPerMm) {
     maxW: strokeMm,
     color,
   });
+}
+
+/** Scanned signature: fit the trimmed mask into the box, no stretching. */
+function drawSignatureImage(ctx, sig, pxPerMm) {
+  const { box, strokeMm } = CONFIG.signature;
+  const pad = strokeMm / 2;
+  const availW = box.w - 2 * pad, availH = box.h - 2 * pad;
+  const scale = Math.min(availW / sig.mask.width, availH / sig.mask.height);
+  const drawW = sig.mask.width * scale, drawH = sig.mask.height * scale;
+  const x = box.x + pad + (availW - drawW) / 2;
+  const y = box.y + pad + (availH - drawH) / 2;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(tintedSignature(sig), x * pxPerMm, y * pxPerMm, drawW * pxPerMm, drawH * pxPerMm);
 }
 
 /* ---- the on-screen pad ------------------------------------------- */
@@ -3365,7 +3557,8 @@ function createSignaturePad(canvas, onChange) {
   return {
     clear() { strokes = []; current = null; redraw(); onChange(null); },
     setValue(sig) {
-      strokes = sig ? sig.strokes.map((s) => s.map((p) => ({ x: p.x, y: p.y }))) : [];
+      // a scanned signature is shown as a picture, not re-drawn in the pad
+      strokes = sig && sig.kind !== 'image' ? sig.strokes.map((s) => s.map((p) => ({ x: p.x, y: p.y }))) : [];
       current = null;
       const w = cssW; cssW = 0; resize();            // force a re-fit
       if (!w) redraw();
@@ -3585,6 +3778,73 @@ function drawBack(ctx, templates, pxPerMm, rotate180 = false) {
   if (rotate180) { ctx.translate(w, h); ctx.rotate(Math.PI); }
   ctx.drawImage(templates.back, 0, 0, w, h);
   ctx.restore();
+}
+
+/* ---- A4 sheets --------------------------------------------------- */
+
+/** Top-left corner (mm) of each card slot on the sheet, row-major. */
+function sheetSlots() {
+  const S = CONFIG.sheet, C = CONFIG.card;
+  const gridW = S.cols * C.widthMm + (S.cols - 1) * S.gapMm;
+  const gridH = S.rows * C.heightMm + (S.rows - 1) * S.gapMm;
+  const left = (S.widthMm - gridW) / 2, top = (S.heightMm - gridH) / 2;
+  const slots = [];
+  for (let r = 0; r < S.rows; r++) {
+    for (let c = 0; c < S.cols; c++) {
+      slots.push({ col: c, row: r, x: left + c * (C.widthMm + S.gapMm), y: top + r * (C.heightMm + S.gapMm) });
+    }
+  }
+  return slots;
+}
+
+const sheetCapacity = () => CONFIG.sheet.cols * CONFIG.sheet.rows;
+
+function drawCropMarks(ctx, slot, pxPerMm) {
+  const S = CONFIG.sheet, C = CONFIG.card;
+  const o = S.markOffsetMm, len = S.markMm;
+  const xs = [slot.x, slot.x + C.widthMm], ys = [slot.y, slot.y + C.heightMm];
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = Math.max(1, 0.1 * pxPerMm);
+  ctx.beginPath();
+  for (const x of xs) {
+    for (const y of ys) {
+      const sx = x === xs[0] ? -1 : 1, sy = y === ys[0] ? -1 : 1;
+      ctx.moveTo((x + sx * o) * pxPerMm, y * pxPerMm);
+      ctx.lineTo((x + sx * (o + len)) * pxPerMm, y * pxPerMm);
+      ctx.moveTo(x * pxPerMm, (y + sy * o) * pxPerMm);
+      ctx.lineTo(x * pxPerMm, (y + sy * (o + len)) * pxPerMm);
+    }
+  }
+  ctx.stroke();
+}
+
+/**
+ * composeSheet(cards, { mirrorColumns, marks }) -> canvas (A4 at print DPI)
+ * `cards` holds up to sheetCapacity() card canvases, in reading order.
+ * With mirrorColumns the columns are reversed, so a backs sheet lines up
+ * with its fronts sheet after the paper is flipped on its long edge.
+ */
+function composeSheet(cards, { mirrorColumns = false, marks = true } = {}) {
+  const S = CONFIG.sheet, C = CONFIG.card;
+  const pxPerMm = printPxPerMm();
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(S.widthMm * pxPerMm);
+  canvas.height = Math.round(S.heightMm * pxPerMm);
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const slots = sheetSlots();
+  cards.forEach((card, i) => {
+    const slot = slots[i];
+    const target = mirrorColumns
+      ? slots.find((s) => s.row === slot.row && s.col === S.cols - 1 - slot.col)
+      : slot;
+    ctx.drawImage(card, target.x * pxPerMm, target.y * pxPerMm, C.widthMm * pxPerMm, C.heightMm * pxPerMm);
+    if (marks) drawCropMarks(ctx, target, pxPerMm);
+  });
+  return canvas;
 }
 
 /** Render one side at print resolution (300 DPI) into a fresh canvas. */
@@ -3928,13 +4188,31 @@ function pdfDate(d = new Date()) {
 }
 
 /**
- * buildCardPdf(frontCanvas, backCanvas, title) -> Blob
+ * buildPdf(pages, title, opts) -> Blob
+ *
+ *   pages   array of canvases, or of thunks `() => canvas` so a large
+ *           batch renders one page at a time instead of holding them all
+ *           in memory. Each page may also be { canvas, widthMm, heightMm }
+ *           to give it its own page size (used by the A4 sheet layout).
+ *   opts.onProgress(done, total)
  */
-async function buildCardPdf(frontCanvas, backCanvas, title) {
+async function buildPdf(pages, title, opts = {}) {
   const enc = new TextEncoder();
-  const W = (CONFIG.card.widthMm * MM_TO_PT).toFixed(4);
-  const H = (CONFIG.card.heightMm * MM_TO_PT).toFixed(4);
-  const images = [await encodeCanvas(frontCanvas), await encodeCanvas(backCanvas)];
+  const cardW = (CONFIG.card.widthMm * MM_TO_PT).toFixed(4);
+  const cardH = (CONFIG.card.heightMm * MM_TO_PT).toFixed(4);
+
+  const images = [];
+  for (let i = 0; i < pages.length; i++) {
+    let page = pages[i];
+    if (typeof page === 'function') page = await page();
+    const canvas = page.canvas ?? page;
+    const im = await encodeCanvas(canvas);
+    im.W = page.widthMm ? (page.widthMm * MM_TO_PT).toFixed(4) : cardW;
+    im.H = page.heightMm ? (page.heightMm * MM_TO_PT).toFixed(4) : cardH;
+    images.push(im);
+    canvas.width = canvas.height = 0;            // let the bitmap go
+    opts.onProgress?.(i + 1, pages.length);
+  }
 
   const parts = [];
   let length = 0;
@@ -3953,21 +4231,22 @@ async function buildCardPdf(frontCanvas, backCanvas, title) {
 
   // object numbers
   //   1 catalog, 2 pages, 3 info
-  //   per page i (0,1): 4+3i page, 5+3i image, 6+3i content
+  //   per page i: 4+3i page, 5+3i image, 6+3i content
+  const kids = images.map((_, i) => `${4 + 3 * i} 0 R`).join(' ');
   push('%PDF-1.4\n%âãÏÓ\n');
   object(1, '<< /Type /Catalog /Pages 2 0 R >>');
-  object(2, `<< /Type /Pages /Kids [4 0 R 7 0 R] /Count 2 >>`);
-  object(3, `<< /Title ${pdfText(title)} /Creator (Alpha Premier ID Maker) /Producer (Alpha Premier ID Maker) /CreationDate (${pdfDate()}) >>`);
+  object(2, `<< /Type /Pages /Kids [${kids}] /Count ${images.length} >>`);
+  object(3, `<< /Title ${pdfText(title)} /Creator (${APP_NAME}) /Producer (${APP_NAME} ${APP_VERSION}) /CreationDate (${pdfDate()}) >>`);
 
   images.forEach((im, i) => {
     const page = 4 + 3 * i, image = 5 + 3 * i, content = 6 + 3 * i;
-    object(page, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im1 ${image} 0 R >> >> /Contents ${content} 0 R >>`);
+    object(page, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${im.W} ${im.H}] /Resources << /XObject << /Im1 ${image} 0 R >> >> /Contents ${content} 0 R >>`);
     object(image, `<< /Type /XObject /Subtype /Image /Width ${im.width} /Height ${im.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter ${im.filter} /Length ${im.bytes.length} >>`, im.bytes);
-    const draw = enc.encode(`q ${W} 0 0 ${H} 0 0 cm /Im1 Do Q`);
+    const draw = enc.encode(`q ${im.W} 0 0 ${im.H} 0 0 cm /Im1 Do Q`);
     object(content, `<< /Length ${draw.length} >>`, draw);
   });
 
-  const count = 10;
+  const count = 4 + 3 * images.length;
   const xref = length;
   let table = `xref\n0 ${count}\n0000000000 65535 f \n`;
   for (let n = 1; n < count; n++) table += `${String(offsets[n]).padStart(10, '0')} 00000 n \n`;
@@ -4006,6 +4285,206 @@ function downloadBlob(fileName, blob) {
 </script>
   <script>
 /* ------------------------------------------------------------------
+   Batch issuing from a CSV
+   ------------------------------------------------------------------
+   HR picks a CSV, the photo files and (optionally) scanned signature
+   files. Each row is validated and rendered exactly like a single card;
+   the result is ONE PDF — either two pages per person, or A4 sheets of
+   nine cards with crop marks — plus a report of what was skipped.
+
+   CSV columns (header row required, order free, extra columns ignored):
+     name, title, seq            required
+     year                        optional, defaults to this year
+     photo                       file name of the photo
+     signature                   file name of a scanned signature (optional)
+     replacement                 yes/true to allow an already-issued number
+
+   Rows are never half-issued: a row that fails is skipped and reported,
+   and only the rows that made it into the PDF are written to the register.
+   ------------------------------------------------------------------ */
+
+const BATCH_MAX_ROWS = 200;
+
+/* ---- CSV --------------------------------------------------------- */
+
+// Minimal RFC-4180 parser: quoted fields, doubled quotes, CR/LF/CRLF.
+function parseCsv(text) {
+  const rows = [];
+  let row = [], field = '', quoted = false;
+  const s = text.replace(/^﻿/, '');
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (quoted) {
+      if (c === '"') {
+        if (s[i + 1] === '"') { field += '"'; i++; } else quoted = false;
+      } else field += c;
+      continue;
+    }
+    if (c === '"') { quoted = true; continue; }
+    if (c === ',') { row.push(field); field = ''; continue; }
+    if (c === '\r') continue;
+    if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; continue; }
+    field += c;
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.some((v) => v.trim() !== ''));
+}
+
+function csvToObjects(text) {
+  const rows = parseCsv(text);
+  if (!rows.length) return { error: 'This CSV is empty.' };
+  const headers = rows[0].map((h) => h.trim().toLowerCase());
+  for (const need of ['name', 'title', 'seq']) {
+    if (!headers.includes(need)) return { error: `The CSV needs a “${need}” column. Found: ${headers.join(', ')}.` };
+  }
+  const out = rows.slice(1).map((r, i) => {
+    const o = { _line: i + 2 };
+    headers.forEach((h, c) => { o[h] = (r[c] ?? '').trim(); });
+    return o;
+  });
+  if (!out.length) return { error: 'The CSV has a header row but no people in it.' };
+  if (out.length > BATCH_MAX_ROWS) return { error: `That is ${out.length} rows. Please split it into batches of ${BATCH_MAX_ROWS} or fewer.` };
+  return { rows: out };
+}
+
+const CSV_TEMPLATE = 'name,title,seq,year,photo,signature,replacement\r\n'
+  + '"Christopher Joseph V. Aureo","IT Associate",122,2026,aureo.png,aureo-sign.jpg,\r\n'
+  + '"Ana Reyes","HR Associate",123,2026,reyes.png,,\r\n';
+
+/* ---- matching uploaded files ------------------------------------- */
+
+// Files are matched on the file name, ignoring case, folders and — as a
+// fallback — the extension, so "Aureo.JPG" finds "aureo.png".
+function fileIndex(fileList) {
+  const byName = new Map(), byStem = new Map();
+  for (const f of fileList ?? []) {
+    const base = f.name.split(/[\\/]/).pop().toLowerCase();
+    byName.set(base, f);
+    const stem = base.replace(/\.[^.]+$/, '');
+    if (!byStem.has(stem)) byStem.set(stem, f);
+  }
+  return (wanted) => {
+    const w = String(wanted || '').split(/[\\/]/).pop().trim().toLowerCase();
+    if (!w) return null;
+    return byName.get(w) ?? byStem.get(w.replace(/\.[^.]+$/, '')) ?? null;
+  };
+}
+
+/* ---- one row ----------------------------------------------------- */
+
+async function prepareBatchRow(row, findPhoto, findSignature, seen) {
+  const fail = (problem) => ({ ok: false, problem });
+  const name = collapseSpaces(row.name || '');
+  const title = collapseSpaces(row.title || '');
+  if (!name) return fail('No name.');
+  if (!/^[\p{L}\p{M} .,'’-]+$/u.test(name)) return fail('The name has characters the card can’t print.');
+  if (!title) return fail('No job title.');
+
+  const seq = /^\d{1,4}$/.test(row.seq) && Number(row.seq) > 0 ? Number(row.seq) : null;
+  if (seq === null) return fail(`“${row.seq}” is not an employee number (1–4 digits).`);
+  const year = /^\d{4}$/.test(row.year || '') ? Number(row.year) : new Date().getFullYear();
+  const id = employeeId(year, seq);
+
+  if (seen.has(id)) return fail(`${id} appears twice in this CSV.`);
+  const allowReplacement = /^(yes|y|true|1)$/i.test(row.replacement || '');
+  const already = Register.find(year, seq) ?? (Register.shared ? await Register.findShared(year, seq) : null);
+  if (already && !allowReplacement) {
+    return fail(`${id} is already issued to ${already.name}. Put “yes” in the replacement column to re-print it.`);
+  }
+
+  // text must fit the card
+  const probe = { name, title, year, seq, photo: null, signature: null };
+  const layout = layoutText(probe);
+  if (!layout.name.fits) return fail('The name is too long for the card.');
+  if (!layout.title.fits) return fail('The job title is too long for the card.');
+
+  const photoFile = findPhoto(row.photo || name);
+  if (!photoFile) return fail(row.photo ? `No photo file named “${row.photo}”.` : 'No photo column and no file matching the name.');
+  const photo = await processPhotoFile(photoFile);
+  if ('error' in photo) return fail(`${photoFile.name}: ${photo.error}`);
+  if (!photo.check.ok) return fail(`${photoFile.name}: ${photo.check.problem}`);
+
+  let signature = null;
+  if (row.signature) {
+    const sigFile = findSignature(row.signature);
+    if (!sigFile) return fail(`No signature file named “${row.signature}”.`);
+    const sig = await signatureFromImage(sigFile);
+    if ('error' in sig) return fail(`${sigFile.name}: ${sig.error}`);
+    signature = sig;
+  }
+
+  seen.add(id);
+  return {
+    ok: true,
+    id, year, seq, name, title,
+    warning: photo.check.warning,
+    noSignature: !signature,
+    data: { name, title, year, seq, photo: { image: photo.image, placement: photo.check.placement }, signature },
+    entry: { id, year, seq, name, title, issuedAt: new Date().toISOString(), replacement: !!already },
+  };
+}
+
+/* ---- the whole batch --------------------------------------------- */
+
+/**
+ * runBatch({ csvText, photos, signatures, templates, rotateBack, layout,
+ *            onProgress }) -> { error } | { results, pages, fileName, title }
+ * `layout` is 'cards' (two pages per person) or 'sheets' (A4, 9 per sheet).
+ */
+async function runBatch({ csvText, photos, signatures, templates, rotateBack, layout, onProgress }) {
+  const parsed = csvToObjects(csvText);
+  if (parsed.error) return { error: parsed.error };
+
+  const findPhoto = fileIndex(photos);
+  const findSignature = fileIndex(signatures);
+  const seen = new Set();
+  const results = [];
+  for (const row of parsed.rows) {
+    onProgress?.('check', results.length + 1, parsed.rows.length);
+    const r = await prepareBatchRow(row, findPhoto, findSignature, seen);
+    results.push({ line: row._line, label: collapseSpaces(row.name || `line ${row._line}`), ...r });
+  }
+
+  const good = results.filter((r) => r.ok);
+  if (!good.length) return { results, error: 'None of the rows could be used — see the list below.' };
+
+  // Render each card once; the PDF writer pulls them in page order.
+  const pages = [];
+  if (layout === 'sheets') {
+    const per = sheetCapacity();
+    for (let i = 0; i < good.length; i += per) {
+      const group = good.slice(i, i + per);
+      pages.push(() => composeSheet(group.map((r) => renderSideCanvas(templates, 'front', r.data, false)), { mirrorColumns: false }));
+      pages.push(() => composeSheet(group.map((r) => renderSideCanvas(templates, 'back', r.data, rotateBack)), { mirrorColumns: true }));
+    }
+    for (const p of pages) { p.widthMm = CONFIG.sheet.widthMm; p.heightMm = CONFIG.sheet.heightMm; }
+  } else {
+    for (const r of good) {
+      pages.push(() => renderSideCanvas(templates, 'front', r.data, false));
+      pages.push(() => renderSideCanvas(templates, 'back', r.data, rotateBack));
+    }
+  }
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  return {
+    results,
+    good,
+    pages,
+    fileName: layout === 'sheets' ? `apg-id-sheets-${stamp}.pdf` : `apg-id-batch-${stamp}.pdf`,
+    title: `Alpha Premier IDs — ${good.length} card${good.length === 1 ? '' : 's'} — ${stamp}`,
+  };
+}
+
+// A page thunk may carry its own page size; buildPdf reads it off the
+// returned object, so wrap the sheet thunks to pass it through.
+function withPageSize(thunk) {
+  if (!thunk.widthMm) return thunk;
+  return async () => ({ canvas: await thunk(), widthMm: thunk.widthMm, heightMm: thunk.heightMm });
+}
+
+</script>
+  <script>
+/* ------------------------------------------------------------------
    App: form state, validation, live preview, review dialog
    ------------------------------------------------------------------ */
 
@@ -4013,6 +4492,7 @@ const $ = (id) => document.getElementById(id);
 const THIS_YEAR = new Date().getFullYear();
 const NAME_RE = /^[\p{L}\p{M} .,'’-]+$/u;
 const ROTATE_KEY = 'apg-id-rotate-back';
+const DRAFT_KEY = 'apg-id-draft';
 const FIELD_LABEL = { name: 'name', title: 'job title', seq: 'employee number', photo: 'photo', signature: 'signature' };
 const FIELD_INPUT = { name: 'f-name', title: 'f-title', seq: 'f-seq', photo: 'f-photo', signature: 'f-signature' };
 
@@ -4037,6 +4517,27 @@ const state = {
   dupLocal: null,       // register entry for the current number on this computer
   dupShared: null,      // ... in the shared register (null, entry, or undefined = unreachable)
 };
+
+/* ---- draft: survive an accidental reload (text only, this tab only) ---- */
+function saveDraft() {
+  try {
+    const d = { name: state.name, title: state.title, seq: state.seq, year: state.year };
+    if (!d.name && !d.title && !d.seq) sessionStorage.removeItem(DRAFT_KEY);
+    else sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+  } catch { /* storage blocked */ }
+}
+function clearDraft() { try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } }
+function restoreDraft() {
+  try {
+    const d = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null');
+    if (!d || (!d.name && !d.title && !d.seq)) return false;
+    state.name = d.name || ''; state.title = d.title || ''; state.seq = d.seq || '';
+    state.year = Number(d.year) || THIS_YEAR;
+    $('f-name').value = state.name; $('f-title').value = state.title; $('f-seq').value = state.seq;
+    refreshDuplicate();
+    return true;
+  } catch { return false; }
+}
 
 function readRotate() { try { return localStorage.getItem(ROTATE_KEY) === '1'; } catch { return false; } }
 function writeRotate(on) { try { localStorage.setItem(ROTATE_KEY, on ? '1' : '0'); } catch { /* private mode */ } }
@@ -4189,8 +4690,18 @@ function render() {
   }
 
   // signature
+  const sigImage = state.signature?.kind === 'image';
   $('sig').classList.toggle('sig-invalid', !!shown('signature'));
   $('sig-hint').hidden = hasInk(state.signature);
+  $('f-signature').hidden = sigImage;
+  $('sig-image').hidden = !sigImage;
+  if (sigImage && $('sig-image').dataset.for !== state.signature.fileName) {
+    $('sig-image').src = state.signature.mask.toDataURL('image/png');
+    $('sig-image').dataset.for = state.signature.fileName ?? 'scan';
+  }
+  $('sig-help').textContent = sigImage
+    ? `Scanned: ${state.signature.fileName ?? 'signature'}. Clear to sign on screen instead.`
+    : 'The new hire signs here; it appears in white on the card.';
   $('btn-clear-sig').disabled = !hasInk(state.signature);
   $('sig-msg').hidden = !shown('signature');
   $('sig-msg').textContent = shown('signature');
@@ -4236,14 +4747,15 @@ function renderRegister() {
 
 function touch(field) { state.touched[field] = true; }
 
-$('f-name').addEventListener('input', (e) => { state.example = false; touch('name'); state.name = e.target.value; render(); });
-$('f-title').addEventListener('input', (e) => { state.example = false; touch('title'); state.title = e.target.value; render(); });
+$('f-name').addEventListener('input', (e) => { state.example = false; touch('name'); state.name = e.target.value; saveDraft(); render(); });
+$('f-title').addEventListener('input', (e) => { state.example = false; touch('title'); state.title = e.target.value; saveDraft(); render(); });
 $('f-seq').addEventListener('input', (e) => {
   state.example = false; touch('seq');
   state.seq = e.target.value.replace(/\D/g, '').slice(0, 4);
   e.target.value = state.seq;
   state.reissue = false;
   refreshDuplicate();
+  saveDraft();
   render();
 });
 
@@ -4253,7 +4765,7 @@ for (let y = THIS_YEAR - CONFIG.employeeNo.yearsBack; y <= THIS_YEAR + CONFIG.em
 }
 $('f-year').addEventListener('change', (e) => {
   state.year = Number(e.target.value); touch('seq'); state.reissue = false;
-  refreshDuplicate(); render();
+  refreshDuplicate(); saveDraft(); render();
 });
 $('opt-reissue').addEventListener('change', (e) => { state.reissue = e.target.checked; render(); });
 $('btn-register-csv').addEventListener('click', () => {
@@ -4352,7 +4864,28 @@ $('btn-copy-prompt').addEventListener('click', async () => {
 const pad = createSignaturePad($('f-signature'), (sig) => {
   state.example = false; touch('signature'); state.signature = sig; state.side = 'front'; render();
 });
-$('btn-clear-sig').addEventListener('click', () => pad.clear());
+$('btn-clear-sig').addEventListener('click', () => {
+  if (state.signature?.kind === 'image') { state.signature = null; touch('signature'); render(); }
+  pad.clear();
+});
+$('f-sig-image').addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+  $('sig-help').textContent = 'Reading the signature…';
+  const result = await signatureFromImage(file);
+  state.example = false; touch('signature');
+  if ('error' in result) {
+    state.signature = null;
+    render();
+    $('sig-msg').hidden = false; $('sig-msg').textContent = result.error;
+  } else {
+    pad.setValue(null);
+    state.signature = result;
+    state.side = 'front';
+    render();
+  }
+});
 
 // example
 $('btn-example').addEventListener('click', async () => {
@@ -4386,10 +4919,11 @@ $('btn-review').addEventListener('click', () => {
 
 /* ---- review dialog ----------------------------------------------- */
 
-const review = { front: null, back: null, fileName: '', title: '', entry: null, saving: false };
+const review = { front: null, back: null, data: null, fileName: '', title: '', entry: null, saving: false };
 
 function openReview() {
   const data = cardData();
+  review.data = data;
   review.front = renderSideCanvas(state.templates, 'front', data, state.rotateBack);
   review.back = renderSideCanvas(state.templates, 'back', data, state.rotateBack);
   review.fileName = pdfFileName(state.year, data.seq, data.name);
@@ -4420,11 +4954,16 @@ function closeReview() { if (!review.saving) $('overlay').hidden = true; }
 
 async function downloadPdf() {
   review.saving = true;
+  // buildPdf releases each page bitmap, so always hand it fresh canvases
+  const data = review.data;
+  review.front = renderSideCanvas(state.templates, 'front', data, state.rotateBack);
+  review.back = renderSideCanvas(state.templates, 'back', data, state.rotateBack);
   $('btn-download').disabled = true; $('btn-download').textContent = 'Preparing PDF…'; $('btn-back-edit').disabled = true;
   $('review-error').hidden = true;
   try {
-    const blob = await buildCardPdf(review.front, review.back, review.title);
+    const blob = await buildPdf([review.front, review.back], review.title);
     downloadBlob(review.fileName, blob);
+    clearDraft();
     if (!state.example) {                      // the example is never a real card
       Register.record(review.entry);
       state.dupLocal = review.entry;
@@ -4454,10 +4993,25 @@ function newId() {
   pad.setValue(null);
   state.touched = { name: false, title: false, seq: false, photo: false, signature: false };
   state.example = false; state.side = 'front';
+  clearDraft();
+  $('restored-note').hidden = true;
   $('overlay').hidden = true;
   render();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+function canvasBlob(canvas) {
+  return new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
+}
+$('btn-png').addEventListener('click', async () => {
+  const stem = review.fileName.replace(/\.pdf$/i, '');
+  if (!review.front.width) {
+    review.front = renderSideCanvas(state.templates, 'front', review.data, state.rotateBack);
+    review.back = renderSideCanvas(state.templates, 'back', review.data, state.rotateBack);
+  }
+  downloadBlob(`${stem}-front.png`, await canvasBlob(review.front));
+  setTimeout(async () => downloadBlob(`${stem}-back.png`, await canvasBlob(review.back)), 400);
+});
 
 $('btn-download').addEventListener('click', downloadPdf);
 $('btn-again').addEventListener('click', downloadPdf);
@@ -4466,12 +5020,96 @@ $('btn-new-id').addEventListener('click', newId);
 $('overlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeReview(); });
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('overlay').hidden) closeReview(); });
 
+/* ---- batch from CSV ---------------------------------------------- */
+
+const batchFiles = { csv: null, photos: null, sigs: null };
+const updateBatchButton = () => { $('btn-batch').disabled = !(batchFiles.csv && batchFiles.photos?.length && state.templates); };
+
+$('f-csv').addEventListener('change', (e) => {
+  batchFiles.csv = e.target.files?.[0] ?? null;
+  $('csv-msg').textContent = batchFiles.csv ? batchFiles.csv.name : 'Columns: name, title, seq, and optionally year, photo, signature, replacement.';
+  updateBatchButton();
+});
+$('f-photos').addEventListener('change', (e) => {
+  batchFiles.photos = e.target.files;
+  $('photos-msg').textContent = batchFiles.photos?.length ? `${batchFiles.photos.length} photo file(s) selected.` : 'Select every photo file. They are matched to the CSV by file name.';
+  updateBatchButton();
+});
+$('f-sigs').addEventListener('change', (e) => {
+  batchFiles.sigs = e.target.files;
+  $('sigs-msg').textContent = batchFiles.sigs?.length ? `${batchFiles.sigs.length} signature file(s) selected.` : 'Photos or scans of signatures on white paper. Rows without one get a card with no signature.';
+});
+$('btn-csv-template').addEventListener('click', () => {
+  downloadBlob('apg-id-batch-template.csv', new Blob([CSV_TEMPLATE], { type: 'text/csv;charset=utf-8' }));
+});
+
+function renderBatchReport(results) {
+  const list = $('batch-report');
+  list.innerHTML = '';
+  for (const r of results) {
+    const li = document.createElement('li');
+    const head = document.createElement('strong');
+    head.textContent = r.ok ? `${r.id} · ${r.label}` : `Line ${r.line} · ${r.label}`;
+    const note = document.createElement('span');
+    if (!r.ok) { note.className = 'row-bad'; note.textContent = r.problem; }
+    else if (r.warning || r.noSignature) {
+      note.className = 'row-warn';
+      note.textContent = [r.noSignature ? 'No signature on this card.' : '', r.warning ?? ''].filter(Boolean).join(' ');
+    } else { note.className = 'row-ok'; note.textContent = 'Ready.'; }
+    li.append(head, note);
+    list.appendChild(li);
+  }
+}
+
+async function runBatchUi() {
+  $('btn-batch').disabled = true;
+  $('batch-report').innerHTML = '';
+  $('batch-status').textContent = 'Reading the list…';
+  try {
+    const csvText = await batchFiles.csv.text();
+    const out = await runBatch({
+      csvText,
+      photos: batchFiles.photos,
+      signatures: batchFiles.sigs,
+      templates: state.templates,
+      rotateBack: state.rotateBack,
+      layout: $('f-layout').value,
+      onProgress: (phase, i, n) => { $('batch-status').textContent = `Checking ${i} of ${n}…`; },
+    });
+    if (out.results) renderBatchReport(out.results);
+    if (out.error) { $('batch-status').textContent = out.error; return; }
+
+    const blob = await buildPdf(out.pages.map(withPageSize), out.title, {
+      onProgress: (done, total) => { $('batch-status').textContent = `Building the PDF — page ${done} of ${total}…`; },
+    });
+    downloadBlob(out.fileName, blob);
+
+    for (const r of out.good) Register.record(r.entry);
+    if (Register.shared) (async () => { for (const r of out.good) await Register.recordShared(r.entry); })();
+    refreshDuplicate();
+    render();
+
+    const skipped = out.results.length - out.good.length;
+    $('batch-status').textContent = `${out.good.length} card${out.good.length === 1 ? '' : 's'} saved as ${out.fileName}`
+      + (skipped ? ` · ${skipped} row${skipped === 1 ? '' : 's'} skipped, see below.` : '. Print at 100 %, both sides.');
+  } catch (err) {
+    console.error(err);
+    $('batch-status').textContent = 'Something went wrong while building the batch. Try a smaller list, or check the CSV.';
+  } finally {
+    updateBatchButton();
+  }
+}
+$('btn-batch').addEventListener('click', runBatchUi);
+
 /* ---- boot -------------------------------------------------------- */
 
 new ResizeObserver(drawPreview).observe(previewBox);
 
+$('app-version').textContent = `${APP_NAME} ${APP_VERSION}`;
+if (restoreDraft()) $('restored-note').hidden = false;
+
 Promise.all([loadTemplates(), loadCardFonts()])
-  .then(([templates]) => { state.templates = templates; render(); })
+  .then(([templates]) => { state.templates = templates; updateBatchButton(); render(); })
   .catch((err) => { state.loadError = `${err.message} Reload the page to try again.`; render(); });
 
 render();

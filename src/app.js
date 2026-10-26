@@ -6,6 +6,7 @@ const $ = (id) => document.getElementById(id);
 const THIS_YEAR = new Date().getFullYear();
 const NAME_RE = /^[\p{L}\p{M} .,'’-]+$/u;
 const ROTATE_KEY = 'apg-id-rotate-back';
+const DRAFT_KEY = 'apg-id-draft';
 const FIELD_LABEL = { name: 'name', title: 'job title', seq: 'employee number', photo: 'photo', signature: 'signature' };
 const FIELD_INPUT = { name: 'f-name', title: 'f-title', seq: 'f-seq', photo: 'f-photo', signature: 'f-signature' };
 
@@ -30,6 +31,27 @@ const state = {
   dupLocal: null,       // register entry for the current number on this computer
   dupShared: null,      // ... in the shared register (null, entry, or undefined = unreachable)
 };
+
+/* ---- draft: survive an accidental reload (text only, this tab only) ---- */
+function saveDraft() {
+  try {
+    const d = { name: state.name, title: state.title, seq: state.seq, year: state.year };
+    if (!d.name && !d.title && !d.seq) sessionStorage.removeItem(DRAFT_KEY);
+    else sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+  } catch { /* storage blocked */ }
+}
+function clearDraft() { try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } }
+function restoreDraft() {
+  try {
+    const d = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null');
+    if (!d || (!d.name && !d.title && !d.seq)) return false;
+    state.name = d.name || ''; state.title = d.title || ''; state.seq = d.seq || '';
+    state.year = Number(d.year) || THIS_YEAR;
+    $('f-name').value = state.name; $('f-title').value = state.title; $('f-seq').value = state.seq;
+    refreshDuplicate();
+    return true;
+  } catch { return false; }
+}
 
 function readRotate() { try { return localStorage.getItem(ROTATE_KEY) === '1'; } catch { return false; } }
 function writeRotate(on) { try { localStorage.setItem(ROTATE_KEY, on ? '1' : '0'); } catch { /* private mode */ } }
@@ -182,8 +204,18 @@ function render() {
   }
 
   // signature
+  const sigImage = state.signature?.kind === 'image';
   $('sig').classList.toggle('sig-invalid', !!shown('signature'));
   $('sig-hint').hidden = hasInk(state.signature);
+  $('f-signature').hidden = sigImage;
+  $('sig-image').hidden = !sigImage;
+  if (sigImage && $('sig-image').dataset.for !== state.signature.fileName) {
+    $('sig-image').src = state.signature.mask.toDataURL('image/png');
+    $('sig-image').dataset.for = state.signature.fileName ?? 'scan';
+  }
+  $('sig-help').textContent = sigImage
+    ? `Scanned: ${state.signature.fileName ?? 'signature'}. Clear to sign on screen instead.`
+    : 'The new hire signs here; it appears in white on the card.';
   $('btn-clear-sig').disabled = !hasInk(state.signature);
   $('sig-msg').hidden = !shown('signature');
   $('sig-msg').textContent = shown('signature');
@@ -229,14 +261,15 @@ function renderRegister() {
 
 function touch(field) { state.touched[field] = true; }
 
-$('f-name').addEventListener('input', (e) => { state.example = false; touch('name'); state.name = e.target.value; render(); });
-$('f-title').addEventListener('input', (e) => { state.example = false; touch('title'); state.title = e.target.value; render(); });
+$('f-name').addEventListener('input', (e) => { state.example = false; touch('name'); state.name = e.target.value; saveDraft(); render(); });
+$('f-title').addEventListener('input', (e) => { state.example = false; touch('title'); state.title = e.target.value; saveDraft(); render(); });
 $('f-seq').addEventListener('input', (e) => {
   state.example = false; touch('seq');
   state.seq = e.target.value.replace(/\D/g, '').slice(0, 4);
   e.target.value = state.seq;
   state.reissue = false;
   refreshDuplicate();
+  saveDraft();
   render();
 });
 
@@ -246,7 +279,7 @@ for (let y = THIS_YEAR - CONFIG.employeeNo.yearsBack; y <= THIS_YEAR + CONFIG.em
 }
 $('f-year').addEventListener('change', (e) => {
   state.year = Number(e.target.value); touch('seq'); state.reissue = false;
-  refreshDuplicate(); render();
+  refreshDuplicate(); saveDraft(); render();
 });
 $('opt-reissue').addEventListener('change', (e) => { state.reissue = e.target.checked; render(); });
 $('btn-register-csv').addEventListener('click', () => {
@@ -345,7 +378,28 @@ $('btn-copy-prompt').addEventListener('click', async () => {
 const pad = createSignaturePad($('f-signature'), (sig) => {
   state.example = false; touch('signature'); state.signature = sig; state.side = 'front'; render();
 });
-$('btn-clear-sig').addEventListener('click', () => pad.clear());
+$('btn-clear-sig').addEventListener('click', () => {
+  if (state.signature?.kind === 'image') { state.signature = null; touch('signature'); render(); }
+  pad.clear();
+});
+$('f-sig-image').addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+  $('sig-help').textContent = 'Reading the signature…';
+  const result = await signatureFromImage(file);
+  state.example = false; touch('signature');
+  if ('error' in result) {
+    state.signature = null;
+    render();
+    $('sig-msg').hidden = false; $('sig-msg').textContent = result.error;
+  } else {
+    pad.setValue(null);
+    state.signature = result;
+    state.side = 'front';
+    render();
+  }
+});
 
 // example
 $('btn-example').addEventListener('click', async () => {
@@ -379,10 +433,11 @@ $('btn-review').addEventListener('click', () => {
 
 /* ---- review dialog ----------------------------------------------- */
 
-const review = { front: null, back: null, fileName: '', title: '', entry: null, saving: false };
+const review = { front: null, back: null, data: null, fileName: '', title: '', entry: null, saving: false };
 
 function openReview() {
   const data = cardData();
+  review.data = data;
   review.front = renderSideCanvas(state.templates, 'front', data, state.rotateBack);
   review.back = renderSideCanvas(state.templates, 'back', data, state.rotateBack);
   review.fileName = pdfFileName(state.year, data.seq, data.name);
@@ -413,11 +468,16 @@ function closeReview() { if (!review.saving) $('overlay').hidden = true; }
 
 async function downloadPdf() {
   review.saving = true;
+  // buildPdf releases each page bitmap, so always hand it fresh canvases
+  const data = review.data;
+  review.front = renderSideCanvas(state.templates, 'front', data, state.rotateBack);
+  review.back = renderSideCanvas(state.templates, 'back', data, state.rotateBack);
   $('btn-download').disabled = true; $('btn-download').textContent = 'Preparing PDF…'; $('btn-back-edit').disabled = true;
   $('review-error').hidden = true;
   try {
-    const blob = await buildCardPdf(review.front, review.back, review.title);
+    const blob = await buildPdf([review.front, review.back], review.title);
     downloadBlob(review.fileName, blob);
+    clearDraft();
     if (!state.example) {                      // the example is never a real card
       Register.record(review.entry);
       state.dupLocal = review.entry;
@@ -447,10 +507,25 @@ function newId() {
   pad.setValue(null);
   state.touched = { name: false, title: false, seq: false, photo: false, signature: false };
   state.example = false; state.side = 'front';
+  clearDraft();
+  $('restored-note').hidden = true;
   $('overlay').hidden = true;
   render();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+function canvasBlob(canvas) {
+  return new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
+}
+$('btn-png').addEventListener('click', async () => {
+  const stem = review.fileName.replace(/\.pdf$/i, '');
+  if (!review.front.width) {
+    review.front = renderSideCanvas(state.templates, 'front', review.data, state.rotateBack);
+    review.back = renderSideCanvas(state.templates, 'back', review.data, state.rotateBack);
+  }
+  downloadBlob(`${stem}-front.png`, await canvasBlob(review.front));
+  setTimeout(async () => downloadBlob(`${stem}-back.png`, await canvasBlob(review.back)), 400);
+});
 
 $('btn-download').addEventListener('click', downloadPdf);
 $('btn-again').addEventListener('click', downloadPdf);
@@ -459,12 +534,96 @@ $('btn-new-id').addEventListener('click', newId);
 $('overlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeReview(); });
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('overlay').hidden) closeReview(); });
 
+/* ---- batch from CSV ---------------------------------------------- */
+
+const batchFiles = { csv: null, photos: null, sigs: null };
+const updateBatchButton = () => { $('btn-batch').disabled = !(batchFiles.csv && batchFiles.photos?.length && state.templates); };
+
+$('f-csv').addEventListener('change', (e) => {
+  batchFiles.csv = e.target.files?.[0] ?? null;
+  $('csv-msg').textContent = batchFiles.csv ? batchFiles.csv.name : 'Columns: name, title, seq, and optionally year, photo, signature, replacement.';
+  updateBatchButton();
+});
+$('f-photos').addEventListener('change', (e) => {
+  batchFiles.photos = e.target.files;
+  $('photos-msg').textContent = batchFiles.photos?.length ? `${batchFiles.photos.length} photo file(s) selected.` : 'Select every photo file. They are matched to the CSV by file name.';
+  updateBatchButton();
+});
+$('f-sigs').addEventListener('change', (e) => {
+  batchFiles.sigs = e.target.files;
+  $('sigs-msg').textContent = batchFiles.sigs?.length ? `${batchFiles.sigs.length} signature file(s) selected.` : 'Photos or scans of signatures on white paper. Rows without one get a card with no signature.';
+});
+$('btn-csv-template').addEventListener('click', () => {
+  downloadBlob('apg-id-batch-template.csv', new Blob([CSV_TEMPLATE], { type: 'text/csv;charset=utf-8' }));
+});
+
+function renderBatchReport(results) {
+  const list = $('batch-report');
+  list.innerHTML = '';
+  for (const r of results) {
+    const li = document.createElement('li');
+    const head = document.createElement('strong');
+    head.textContent = r.ok ? `${r.id} · ${r.label}` : `Line ${r.line} · ${r.label}`;
+    const note = document.createElement('span');
+    if (!r.ok) { note.className = 'row-bad'; note.textContent = r.problem; }
+    else if (r.warning || r.noSignature) {
+      note.className = 'row-warn';
+      note.textContent = [r.noSignature ? 'No signature on this card.' : '', r.warning ?? ''].filter(Boolean).join(' ');
+    } else { note.className = 'row-ok'; note.textContent = 'Ready.'; }
+    li.append(head, note);
+    list.appendChild(li);
+  }
+}
+
+async function runBatchUi() {
+  $('btn-batch').disabled = true;
+  $('batch-report').innerHTML = '';
+  $('batch-status').textContent = 'Reading the list…';
+  try {
+    const csvText = await batchFiles.csv.text();
+    const out = await runBatch({
+      csvText,
+      photos: batchFiles.photos,
+      signatures: batchFiles.sigs,
+      templates: state.templates,
+      rotateBack: state.rotateBack,
+      layout: $('f-layout').value,
+      onProgress: (phase, i, n) => { $('batch-status').textContent = `Checking ${i} of ${n}…`; },
+    });
+    if (out.results) renderBatchReport(out.results);
+    if (out.error) { $('batch-status').textContent = out.error; return; }
+
+    const blob = await buildPdf(out.pages.map(withPageSize), out.title, {
+      onProgress: (done, total) => { $('batch-status').textContent = `Building the PDF — page ${done} of ${total}…`; },
+    });
+    downloadBlob(out.fileName, blob);
+
+    for (const r of out.good) Register.record(r.entry);
+    if (Register.shared) (async () => { for (const r of out.good) await Register.recordShared(r.entry); })();
+    refreshDuplicate();
+    render();
+
+    const skipped = out.results.length - out.good.length;
+    $('batch-status').textContent = `${out.good.length} card${out.good.length === 1 ? '' : 's'} saved as ${out.fileName}`
+      + (skipped ? ` · ${skipped} row${skipped === 1 ? '' : 's'} skipped, see below.` : '. Print at 100 %, both sides.');
+  } catch (err) {
+    console.error(err);
+    $('batch-status').textContent = 'Something went wrong while building the batch. Try a smaller list, or check the CSV.';
+  } finally {
+    updateBatchButton();
+  }
+}
+$('btn-batch').addEventListener('click', runBatchUi);
+
 /* ---- boot -------------------------------------------------------- */
 
 new ResizeObserver(drawPreview).observe(previewBox);
 
+$('app-version').textContent = `${APP_NAME} ${APP_VERSION}`;
+if (restoreDraft()) $('restored-note').hidden = false;
+
 Promise.all([loadTemplates(), loadCardFonts()])
-  .then(([templates]) => { state.templates = templates; render(); })
+  .then(([templates]) => { state.templates = templates; updateBatchButton(); render(); })
   .catch((err) => { state.loadError = `${err.message} Reload the page to try again.`; render(); });
 
 render();

@@ -16,7 +16,8 @@ prepared) are in **PROCESS.md**.
 | Path | What it is |
 | --- | --- |
 | `Alpha Premier ID Maker.html` | The app. One self-contained file: templates, fonts and code are all inside it. This is the only file HR needs. |
-| `PROCESS.md` | The ID-making process end to end, with the photo pipeline explained. |
+| `PROCESS.md` | The ID-making process end to end, including batches, with the photo pipeline explained. |
+| `BACKLOG.md` | Ideas considered and not built yet, and why. |
 | `photo-prompt.txt` | The prompt to paste into Gemini / ChatGPT to turn any photo into a green-screen portrait. (The app also shows it under the Photo field.) |
 | `register/` | Optional shared register: a Google Apps Script (`Code.gs`) and set-up notes, so every HR computer checks duplicates against one Google Sheet. |
 | `assets/front-template.png` | Front of the card, 638 × 1004 px = 54 × 85 mm at 300 DPI. |
@@ -42,13 +43,14 @@ src/
   config.js         EVERY measurement: card size, text boxes, photo placement, QR,
                     signature box, employee-number format, register URL, the AI photo prompt
   register.js       issued-ID register: local (localStorage) + optional shared Sheet
+  batch.js          CSV batch issuing: parsing, file matching, per-row checks
   text-fit.js       shrinks and wraps the name/title so they fit their boxes
   signature.js      the signature pad + drawing strokes onto the card
   qr.js             the QR code square (uses vendor/qrcode-generator.js, MIT)
   card.js           draws the front and back at any resolution
   photo.js          the photo pipeline: background check, chroma key, head
                     detection, automatic placement
-  pdf.js            writes the two-page PDF by hand (no library) and names the file
+  pdf.js            writes the PDF by hand (no library), any number of pages, and names the file
   app.js            form state, validation, live preview, review dialog
   vendor/qrcode-generator.js
 ```
@@ -81,6 +83,8 @@ Common edits:
 | Change the QR link | `CONFIG.qr.content` |
 | New template artwork | Replace `assets/front-template.png` / `assets/back.png` (keep 638 × 1004 px). If the band or the photo window moved, re-trace `CONFIG.frontOutline.polygons` and `CONFIG.photoArea.polygon` |
 | Different number format | `CONFIG.employeeNo` (`prefix`, `digits`, `label`, years offered) |
+| Sheet grid, gaps or crop marks | `CONFIG.sheet` |
+| Bump the version stamped into PDFs | `APP_VERSION` in `config.js` (and `package.json`) |
 | Share the issued-ID register between computers | `CONFIG.register.url` — see `register/README.md` |
 | Reword the AI photo prompt | `PHOTO_PROMPT` in `config.js` and `photo-prompt.txt` |
 

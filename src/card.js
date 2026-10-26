@@ -157,6 +157,73 @@ function drawBack(ctx, templates, pxPerMm, rotate180 = false) {
   ctx.restore();
 }
 
+/* ---- A4 sheets --------------------------------------------------- */
+
+/** Top-left corner (mm) of each card slot on the sheet, row-major. */
+function sheetSlots() {
+  const S = CONFIG.sheet, C = CONFIG.card;
+  const gridW = S.cols * C.widthMm + (S.cols - 1) * S.gapMm;
+  const gridH = S.rows * C.heightMm + (S.rows - 1) * S.gapMm;
+  const left = (S.widthMm - gridW) / 2, top = (S.heightMm - gridH) / 2;
+  const slots = [];
+  for (let r = 0; r < S.rows; r++) {
+    for (let c = 0; c < S.cols; c++) {
+      slots.push({ col: c, row: r, x: left + c * (C.widthMm + S.gapMm), y: top + r * (C.heightMm + S.gapMm) });
+    }
+  }
+  return slots;
+}
+
+const sheetCapacity = () => CONFIG.sheet.cols * CONFIG.sheet.rows;
+
+function drawCropMarks(ctx, slot, pxPerMm) {
+  const S = CONFIG.sheet, C = CONFIG.card;
+  const o = S.markOffsetMm, len = S.markMm;
+  const xs = [slot.x, slot.x + C.widthMm], ys = [slot.y, slot.y + C.heightMm];
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = Math.max(1, 0.1 * pxPerMm);
+  ctx.beginPath();
+  for (const x of xs) {
+    for (const y of ys) {
+      const sx = x === xs[0] ? -1 : 1, sy = y === ys[0] ? -1 : 1;
+      ctx.moveTo((x + sx * o) * pxPerMm, y * pxPerMm);
+      ctx.lineTo((x + sx * (o + len)) * pxPerMm, y * pxPerMm);
+      ctx.moveTo(x * pxPerMm, (y + sy * o) * pxPerMm);
+      ctx.lineTo(x * pxPerMm, (y + sy * (o + len)) * pxPerMm);
+    }
+  }
+  ctx.stroke();
+}
+
+/**
+ * composeSheet(cards, { mirrorColumns, marks }) -> canvas (A4 at print DPI)
+ * `cards` holds up to sheetCapacity() card canvases, in reading order.
+ * With mirrorColumns the columns are reversed, so a backs sheet lines up
+ * with its fronts sheet after the paper is flipped on its long edge.
+ */
+function composeSheet(cards, { mirrorColumns = false, marks = true } = {}) {
+  const S = CONFIG.sheet, C = CONFIG.card;
+  const pxPerMm = printPxPerMm();
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(S.widthMm * pxPerMm);
+  canvas.height = Math.round(S.heightMm * pxPerMm);
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const slots = sheetSlots();
+  cards.forEach((card, i) => {
+    const slot = slots[i];
+    const target = mirrorColumns
+      ? slots.find((s) => s.row === slot.row && s.col === S.cols - 1 - slot.col)
+      : slot;
+    ctx.drawImage(card, target.x * pxPerMm, target.y * pxPerMm, C.widthMm * pxPerMm, C.heightMm * pxPerMm);
+    if (marks) drawCropMarks(ctx, target, pxPerMm);
+  });
+  return canvas;
+}
+
 /** Render one side at print resolution (300 DPI) into a fresh canvas. */
 function renderSideCanvas(templates, side, data, rotateBack) {
   const canvas = document.createElement('canvas');
