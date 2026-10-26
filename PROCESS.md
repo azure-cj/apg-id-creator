@@ -23,7 +23,7 @@ the card template to appear on the left.
 | --- | --- |
 | Full name | Exactly as it should read on the card. Capitals are kept as typed (`Christopher Joseph V. Aureo`, `Juan dela Cruz`). Letters, spaces, periods, commas, hyphens and apostrophes only. |
 | Job title | Printed in capitals. If the card says "too long", shorten it (`Sr. HR Business Partner`, not `Senior Human Resources Business Partner`). |
-| Employee number | The 1–4 digit sequence HR assigned. The card prints `APG - <year> - <number>` with the number padded to 3 digits (`7` → `007`). The year comes from the computer's clock. **Nothing checks for duplicates — check the number against HR's list.** |
+| Employee number | Pick the year of issue (defaults to this year), then type the 1–4 digit sequence HR assigned. The card prints `APG - <year> - <number>` with the number padded to 3 digits (`7` → `007`). The app checks the number against the **register** of cards already issued — on this computer, and in the shared Google Sheet if one is set up (see `register/README.md`). A number that is already taken turns the field red and names the holder. If this really is a re-print of the same person's card (lost, damaged, name change), tick **Replacement card**; otherwise get the right number from HR. |
 
 The preview updates as you type. The name shrinks and wraps onto up to three
 lines by itself; the title onto two.
@@ -94,7 +94,11 @@ Generate**. Check both sides against the list in the dialog:
 
 **Back to edit** returns to the form. **Download PDF** saves
 `APG-<year>-<number>_<Lastname>.pdf` (e.g. `APG-2026-122_Aureo.pdf`) to the
-browser's download folder. Keep it with the employee's HR record.
+browser's download folder and records the card in the register (the
+example card is never recorded). Keep the PDF with the employee's HR record.
+
+The **Issued IDs** panel under the form lists what this computer has
+issued; **Download register (CSV)** exports it for HR's records.
 
 ### 7. Print
 
@@ -252,10 +256,23 @@ word of the name, after dropping Jr./Sr./II/III/IV/V, taking the part after
 the last hyphen, and stripping accents and non-letters:
 `María Dela Cruz-Santos Jr.` → `APG-2026-007_Santos.pdf`.
 
-### 2.7 Privacy
+### 2.7 Register (`src/register.js`, `register/`)
+
+Each downloaded card is stored as `{ id, year, seq, name, title, issuedAt,
+replacement }` in `localStorage` under `apg-id-register`. The number field
+looks the id up on every keystroke. With `CONFIG.register.url` set, the app
+also queries a Google Apps Script web app in front of a Google Sheet
+(`GET ?action=find&id=…`) and records there (`POST {action:'record', entry}`);
+the shared answer overrides the local one, and an unreachable Sheet degrades
+to local-only with a note under the field rather than blocking. Only simple
+CORS requests are used because Apps Script cannot answer preflights.
+
+### 2.8 Privacy
 
 The app makes no network requests (the optional Google Fonts stylesheet
 only affects the form's typography and fails silently offline). Photos,
 names and signatures exist only in the open tab and in the PDF you download.
-Closing the tab or clicking **Start a new ID** discards them. The only
-thing stored on the computer is the "Turn the back 180°" preference.
+Closing the tab or clicking **Start a new ID** discards them. Stored on the computer: the "Turn the back 180°" preference and the
+register of issued IDs (number, name, title, date — no photos or
+signatures). With a shared register, those same fields are also written to
+the company Google Sheet.

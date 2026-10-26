@@ -106,6 +106,14 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .number-row { display: flex; align-items: center; gap: 8px; }
 .number-prefix { color: var(--muted); font-family: var(--font-mono); font-size: 0.9rem; white-space: nowrap; }
 .number-row input { max-width: 120px; font-family: var(--font-mono); letter-spacing: 0.08em; }
+.number-row select { width: auto; font-family: var(--font-mono); padding-right: 28px; }
+.reissue { margin-top: 6px; padding: 10px 12px; border: 1px solid var(--gold); border-radius: 10px; }
+.register-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 0.9rem; }
+.register-list li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding-bottom: 6px; border-bottom: 1px dashed var(--line); }
+.register-list li:last-child { border-bottom: 0; }
+.register-list .id { font-family: var(--font-mono); font-size: 0.85rem; }
+.register-list .when { color: var(--muted); font-size: 0.85rem; }
+.register-list .who { flex-basis: 100%; }
 .card-line {
   margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--tray); color: var(--tray-ink);
   font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0.02em; text-align: right; overflow-wrap: anywhere;

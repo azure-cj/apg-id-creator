@@ -3,7 +3,7 @@
    ------------------------------------------------------------------ */
 
 const $ = (id) => document.getElementById(id);
-const YEAR = new Date().getFullYear();
+const THIS_YEAR = new Date().getFullYear();
 const NAME_RE = /^[\p{L}\p{M} .,'’-]+$/u;
 const ROTATE_KEY = 'apg-id-rotate-back';
 const FIELD_LABEL = { name: 'name', title: 'job title', seq: 'employee number', photo: 'photo', signature: 'signature' };
@@ -14,6 +14,7 @@ const state = {
   loadError: '',
   side: 'front',
   rotateBack: readRotate(),
+  year: THIS_YEAR,
   name: '',
   title: '',
   seq: '',
@@ -23,6 +24,9 @@ const state = {
   touched: { name: false, title: false, seq: false, photo: false, signature: false },
   example: false,
   checking: false,
+  reissue: false,       // "Replacement card" ticked
+  dupLocal: null,       // register entry for the current number on this computer
+  dupShared: null,      // ... in the shared register (null, entry, or undefined = unreachable)
 };
 
 function readRotate() { try { return localStorage.getItem(ROTATE_KEY) === '1'; } catch { return false; } }
@@ -36,7 +40,7 @@ function cardData() {
   return {
     name: state.name,
     title: state.title,
-    year: YEAR,
+    year: state.year,
     seq: seqNumber(),
     photo: state.photo ? { image: state.photo.image, placement: state.photo.check.placement } : null,
     signature: state.signature,
@@ -57,10 +61,32 @@ function problems() {
          : '',
     seq: !state.seq ? 'Enter the employee number HR assigned, such as 124.'
        : seqNumber() === null ? 'Use 1 to 4 digits, such as 124.'
+       : duplicate() && !state.reissue ? duplicateMessage()
        : '',
     photo: state.photoError || (state.photo ? '' : 'Upload the new hire’s photo.'),
     signature: hasInk(state.signature) ? '' : 'Ask the new hire to sign in the box.',
   };
+}
+
+// The register entry that already holds this number (shared wins over local).
+function duplicate() { return state.dupShared || state.dupLocal || null; }
+function duplicateMessage() {
+  const d = duplicate();
+  const where = d === state.dupShared ? 'in the shared register' : 'on this computer';
+  return `${d.id} was already issued to ${d.name} on ${formatIssuedAt(d.issuedAt)} (${where}). Check the number with HR, or tick “Replacement card” below.`;
+}
+
+let dupToken = 0;
+function refreshDuplicate() {
+  state.dupLocal = Register.find(state.year, seqNumber());
+  state.dupShared = null;
+  if (!Register.shared || seqNumber() === null) return;
+  const token = ++dupToken;
+  Register.findShared(state.year, seqNumber()).then((hit) => {
+    if (token !== dupToken) return;          // the number changed meanwhile
+    state.dupShared = hit;
+    render();
+  });
 }
 
 /* ---- rendering --------------------------------------------------- */
@@ -112,9 +138,16 @@ function render() {
   // text fields
   setMsg('field-name', 'f-name-msg', shown('name'), 'Exactly as it should appear; capitals are kept as typed.');
   setMsg('field-title', 'f-title-msg', shown('title'), 'Shown in capitals on the card.');
-  setMsg('field-seq', 'f-seq-msg', shown('seq'),
-    `The number HR assigned. The year (${YEAR}) comes from this device’s date. Check it carefully: nothing else catches a duplicate.`);
-  $('seq-prefix').textContent = `${CONFIG.employeeNo.prefix} - ${YEAR} -`;
+  const dup = duplicate();
+  const seqHelp = Register.shared
+    ? `The number HR assigned. Checked against this computer and the shared register.${state.dupShared === undefined ? ' (Shared register not reachable right now — only this computer was checked.)' : ''}`
+    : 'The number HR assigned. Checked against the IDs issued on this computer only.';
+  setMsg('field-seq', 'f-seq-msg', shown('seq'), dup && state.reissue
+    ? `Replacement for ${dup.id} (${dup.name}, ${formatIssuedAt(dup.issuedAt)}).` : seqHelp);
+  $('seq-prefix').textContent = `${CONFIG.employeeNo.prefix} -`;
+  $('reissue-wrap').hidden = !dup;
+  $('opt-reissue').checked = state.reissue;
+  $('f-year').value = String(state.year);
 
   // photo
   const photoErr = state.touched.photo || state.photoError ? state.photoError || shown('photo') : '';
@@ -148,7 +181,7 @@ function render() {
   $('sig-msg').textContent = shown('signature');
 
   // number line + status
-  $('card-line').textContent = employeeNoLine(YEAR, seqNumber());
+  $('card-line').textContent = employeeNoLine(state.year, seqNumber());
   const missing = Object.keys(p).filter((k) => p[k]);
   const complete = !!state.templates && missing.length === 0;
   $('btn-review').disabled = !state.templates;
@@ -157,7 +190,31 @@ function render() {
     : `Still needed: ${missing.map((k) => FIELD_LABEL[k]).join(', ')}.`;
 
   $('opt-rotate').checked = state.rotateBack;
+  renderRegister();
   drawPreview();
+}
+
+function renderRegister() {
+  const all = Register.all();
+  $('register-count').textContent = all.length;
+  $('btn-register-csv').disabled = !all.length;
+  $('register-note').textContent = Register.shared
+    ? 'Cards downloaded on this computer. The shared register holds every computer’s cards.'
+    : all.length ? 'Cards downloaded on this computer. Other computers keep their own list — see register/README.md to share one.'
+    : 'Nothing issued from this computer yet. Every downloaded card is listed here.';
+  const list = $('register-list');
+  list.innerHTML = '';
+  for (const e of all.slice(0, 25)) {
+    const li = document.createElement('li');
+    const id = document.createElement('span'); id.className = 'id'; id.textContent = e.id + (e.replacement ? ' (replacement)' : '');
+    const when = document.createElement('span'); when.className = 'when'; when.textContent = formatIssuedAt(e.issuedAt);
+    const who = document.createElement('span'); who.className = 'who'; who.textContent = `${e.name} · ${e.title}`;
+    li.append(id, when, who);
+    list.appendChild(li);
+  }
+  if (all.length > 25) {
+    const li = document.createElement('li'); li.className = 'msg'; li.textContent = `… and ${all.length - 25} more in the CSV.`; list.appendChild(li);
+  }
 }
 
 /* ---- events ------------------------------------------------------ */
@@ -170,7 +227,22 @@ $('f-seq').addEventListener('input', (e) => {
   state.example = false; touch('seq');
   state.seq = e.target.value.replace(/\D/g, '').slice(0, 4);
   e.target.value = state.seq;
+  state.reissue = false;
+  refreshDuplicate();
   render();
+});
+
+// year selector: current-yearsBack … current+yearsAhead
+for (let y = THIS_YEAR - CONFIG.employeeNo.yearsBack; y <= THIS_YEAR + CONFIG.employeeNo.yearsAhead; y++) {
+  const o = document.createElement('option'); o.value = String(y); o.textContent = String(y); $('f-year').appendChild(o);
+}
+$('f-year').addEventListener('change', (e) => {
+  state.year = Number(e.target.value); touch('seq'); state.reissue = false;
+  refreshDuplicate(); render();
+});
+$('opt-reissue').addEventListener('change', (e) => { state.reissue = e.target.checked; render(); });
+$('btn-register-csv').addEventListener('click', () => {
+  downloadBlob(`apg-id-register-${new Date().toISOString().slice(0, 10)}.csv`, new Blob([Register.csv()], { type: 'text/csv;charset=utf-8' }));
 });
 for (const k of ['name', 'title', 'seq']) $(`f-${k}`).addEventListener('blur', () => { touch(k); render(); });
 
@@ -222,8 +294,9 @@ $('btn-clear-sig').addEventListener('click', () => pad.clear());
 // example
 $('btn-example').addEventListener('click', async () => {
   const photo = ASSETS.example ? await processPhotoUrl(ASSETS.example).catch(() => null) : null;
-  state.name = EXAMPLE.name; state.title = EXAMPLE.title; state.seq = EXAMPLE.seq;
+  state.name = EXAMPLE.name; state.title = EXAMPLE.title; state.seq = EXAMPLE.seq; state.year = THIS_YEAR;
   $('f-name').value = state.name; $('f-title').value = state.title; $('f-seq').value = state.seq;
+  state.reissue = false; refreshDuplicate();
   state.photo = photo?.check.ok ? photo : null; state.photoError = '';
   state.signature = EXAMPLE.signature;
   pad.setValue(EXAMPLE.signature);
@@ -249,17 +322,22 @@ $('btn-review').addEventListener('click', () => {
 
 /* ---- review dialog ----------------------------------------------- */
 
-const review = { front: null, back: null, fileName: '', title: '', saving: false };
+const review = { front: null, back: null, fileName: '', title: '', entry: null, saving: false };
 
 function openReview() {
   const data = cardData();
   review.front = renderSideCanvas(state.templates, 'front', data, state.rotateBack);
   review.back = renderSideCanvas(state.templates, 'back', data, state.rotateBack);
-  review.fileName = pdfFileName(YEAR, data.seq, data.name);
-  review.title = `${employeeId(YEAR, data.seq)} ${collapseSpaces(data.name)}`;
+  review.fileName = pdfFileName(state.year, data.seq, data.name);
+  review.title = `${employeeId(state.year, data.seq)} ${collapseSpaces(data.name)}`;
+  review.entry = {
+    id: employeeId(state.year, data.seq), year: state.year, seq: data.seq,
+    name: collapseSpaces(data.name), title: collapseSpaces(data.title),
+    issuedAt: new Date().toISOString(), replacement: !!duplicate(),
+  };
 
   $('review-title').textContent = 'Check the card before printing';
-  $('review-sub').textContent = `${employeeId(YEAR, data.seq)} · ${collapseSpaces(data.name)}`;
+  $('review-sub').textContent = `${employeeId(state.year, data.seq)} · ${collapseSpaces(data.name)}`;
   $('review-front').src = review.front.toDataURL('image/png');
   $('review-front').alt = `Front of the card for ${collapseSpaces(data.name)}`;
   $('review-back').src = review.back.toDataURL('image/png');
@@ -283,6 +361,11 @@ async function downloadPdf() {
   try {
     const blob = await buildCardPdf(review.front, review.back, review.title);
     downloadBlob(review.fileName, blob);
+    if (!state.example) {                      // the example is never a real card
+      Register.record(review.entry);
+      state.dupLocal = review.entry;
+      Register.recordShared(review.entry).then((ok) => { if (ok) state.dupShared = review.entry; });
+    }
     $('review-title').textContent = 'ID ready to print';
     $('saved-name').textContent = review.fileName;
     $('review-stage').hidden = true;
@@ -302,6 +385,7 @@ function newId() {
   state.name = ''; state.title = ''; state.seq = '';
   $('f-name').value = ''; $('f-title').value = ''; $('f-seq').value = '';
   state.photo = null; state.photoError = ''; state.signature = null;
+  state.year = THIS_YEAR; state.reissue = false; state.dupLocal = null; state.dupShared = null; dupToken++;
   pad.setValue(null);
   state.touched = { name: false, title: false, seq: false, photo: false, signature: false };
   state.example = false; state.side = 'front';

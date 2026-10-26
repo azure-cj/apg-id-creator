@@ -18,6 +18,7 @@ prepared) are in **PROCESS.md**.
 | `Alpha Premier ID Maker.html` | The app. One self-contained file: templates, fonts and code are all inside it. This is the only file HR needs. |
 | `PROCESS.md` | The ID-making process end to end, with the photo pipeline explained. |
 | `photo-prompt.txt` | The prompt to paste into Gemini / ChatGPT to turn any photo into a green-screen portrait. (The app also shows it under the Photo field.) |
+| `register/` | Optional shared register: a Google Apps Script (`Code.gs`) and set-up notes, so every HR computer checks duplicates against one Google Sheet. |
 | `assets/front-template.png` | Front of the card, 638 × 1004 px = 54 × 85 mm at 300 DPI. |
 | `assets/back.png` | Back of the card (terms, contacts, CEO signature). Same size. |
 | `assets/example-cut-out.png` | The cut-out used by "Show an example". |
@@ -37,7 +38,8 @@ src/
   styles.css        appearance
   assets.dev.js     asset paths for development; the build swaps in base64 data URLs
   config.js         EVERY measurement: card size, text boxes, photo placement, QR,
-                    signature box, employee-number format, the AI photo prompt
+                    signature box, employee-number format, register URL, the AI photo prompt
+  register.js       issued-ID register: local (localStorage) + optional shared Sheet
   text-fit.js       shrinks and wraps the name/title so they fit their boxes
   signature.js      the signature pad + drawing strokes onto the card
   qr.js             the QR code square (uses vendor/qrcode-generator.js, MIT)
@@ -70,7 +72,8 @@ Common edits:
 | Change where the photo sits or how big the head is | `CONFIG.photo` — `headTop`, `headCenterX`, `headWidth`, `reachY` |
 | Change the QR link | `CONFIG.qr.content` |
 | New template artwork | Replace `assets/front-template.png` / `assets/back.png` (keep 638 × 1004 px). If the band or the photo window moved, re-trace `CONFIG.frontOutline.polygons` and `CONFIG.photoArea.polygon` |
-| Different number format | `CONFIG.employeeNo` (`prefix`, `digits`, `label`) |
+| Different number format | `CONFIG.employeeNo` (`prefix`, `digits`, `label`, years offered) |
+| Share the issued-ID register between computers | `CONFIG.register.url` — see `register/README.md` |
 | Reword the AI photo prompt | `PHOTO_PROMPT` in `config.js` and `photo-prompt.txt` |
 
 ### Working on the source without rebuilding

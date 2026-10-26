@@ -65,10 +65,19 @@
           <div class="field" id="field-seq">
             <label for="f-seq">Employee number</label>
             <div class="number-row">
-              <span class="number-prefix" id="seq-prefix" aria-hidden="true">APG - 2026 -</span>
+              <span class="number-prefix" id="seq-prefix" aria-hidden="true">APG -</span>
+              <select id="f-year" aria-label="Year of issue"></select>
+              <span class="number-prefix" aria-hidden="true">-</span>
               <input id="f-seq" type="text" inputmode="numeric" autocomplete="off" placeholder="124" aria-describedby="f-seq-msg" />
             </div>
             <p id="f-seq-msg" class="msg"></p>
+            <label class="toggle reissue" id="reissue-wrap" for="opt-reissue" hidden>
+              <input id="opt-reissue" type="checkbox" />
+              <span>
+                <strong>Replacement card</strong>
+                <small>This number is already issued. Tick only if you are re-printing the same person's card (lost, damaged, name change).</small>
+              </span>
+            </label>
           </div>
 
           <div class="field">
@@ -135,6 +144,15 @@
           </div>
         </section>
 
+        <details class="block printer" id="register-block">
+          <summary>Issued IDs (<span id="register-count">0</span>)</summary>
+          <p class="msg" id="register-note"></p>
+          <ul class="register-list" id="register-list"></ul>
+          <div class="sig-actions">
+            <button type="button" id="btn-register-csv" class="ghost" disabled>Download register (CSV)</button>
+          </div>
+        </details>
+
         <details class="block printer">
           <summary>Printer setting</summary>
           <label class="toggle" for="opt-rotate">
@@ -189,6 +207,7 @@
   <script src="vendor/qrcode-generator.js"></script>
   <script src="assets.dev.js"></script>
   <script src="config.js"></script>
+  <script src="register.js"></script>
   <script src="text-fit.js"></script>
   <script src="signature.js"></script>
   <script src="qr.js"></script>

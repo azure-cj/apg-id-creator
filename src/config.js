@@ -68,6 +68,19 @@ const CONFIG = {
     digits: 3,                                  // 122 -> "122", 7 -> "007"
     label: 'EMPLOYEE NO: {prefix} - {year} - {seq}',
     placeholder: '___',
+    yearsBack: 2,                               // year selector offers current-2 … current+1
+    yearsAhead: 1,
+  },
+
+  // Register of issued IDs, used to catch duplicate numbers.
+  //   Every downloaded card is recorded in this browser (localStorage).
+  //   Set `url` to the Google Apps Script web-app URL from register/README.md
+  //   to also check and record against a shared Google Sheet, so several
+  //   HR computers see the same list. Leave '' for this computer only.
+  register: {
+    storageKey: 'apg-id-register',
+    url: '',
+    timeoutMs: 6000,
   },
 
   qr: {
