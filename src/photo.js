@@ -7,7 +7,8 @@
      2. decode        <img>, then draw to a canvas no taller than 2400 px
      3. classify      sample the border: transparent / green / blue /
                       checkerboard / other
-     4. chroma key    green or blue -> alpha, with de-spill on the edges
+     4. chroma key    green or blue -> alpha, with de-spill on the edges,
+                      then a half-pixel alpha erosion to trim the halo
      5. find the head on a copy no taller than 800 px (fast), using the
                       alpha silhouette: top of head, widest row (head
                       width), narrowest row below it (neck), shoulders
@@ -29,6 +30,7 @@ const MIN_HEAD_PX = 40;         // narrower than this: the face cannot be seen
 const ANALYSIS_MAX_H = 800;     // head detection works on a copy this tall
 const WORKING_MAX_H = 2400;     // the keyed image kept for the card
 const ACCEPTED = /\.(png|jpe?g|webp)$/i;
+const HEIC = /\.(heic|heif)$/i;
 
 /* ---- 3. classify the background ---------------------------------- */
 
@@ -82,6 +84,29 @@ function chromaKey(img, key) {
     if (dom <= 30) continue;
     const keep = dom >= 110 ? 0 : 1 - (dom - 30) / 80;
     d[i + 3] = Math.round(d[i + 3] * keep);
+  }
+}
+
+// After keying, the outermost semi-transparent pixels can still carry a
+// faint tinted halo. Pull each edge pixel's alpha halfway towards the
+// minimum alpha in its 3x3 neighbourhood: a half-pixel erosion that trims
+// the fringe without eating into hair.
+function trimEdgeHalo(img) {
+  const { width: w, height: h, data } = img;
+  const src = new Uint8ClampedArray(data.length);
+  for (let i = 3; i < data.length; i += 4) src[i] = data[i];
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = (y * w + x) * 4 + 3;
+      const a = src[i];
+      if (a === 0 || a === 255) continue;
+      let m = a;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const n = src[((y + dy) * w + (x + dx)) * 4 + 3];
+        if (n < m) m = n;
+      }
+      data[i] = Math.round((a + m) / 2);
+    }
   }
 }
 
@@ -210,7 +235,7 @@ function analysePhoto(imgEl, url, fileName) {
   if (background === 'checkerboard') check = { ok: false, problem: MSG_CHECKERBOARD };
   else if (background === 'other') check = { ok: false, problem: MSG_HAS_BACKGROUND };
   else {
-    if (background === 'green' || background === 'blue') chromaKey(pixels, background);
+    if (background === 'green' || background === 'blue') { chromaKey(pixels, background); trimEdgeHalo(pixels); }
     check = findHeadAndPlace(shrinkImageData(pixels, ANALYSIS_MAX_H), pixels.width);
   }
 
@@ -223,6 +248,9 @@ function analysePhoto(imgEl, url, fileName) {
 
 /** Entry point for an uploaded File. */
 async function processPhotoFile(file) {
+  if (HEIC.test(file.name) || /^image\/hei[cf]$/.test(file.type)) {
+    return { error: 'This is an iPhone HEIC photo, which browsers can’t open. On the iPhone, share it as JPEG (Settings → Camera → Formats → Most Compatible, or share via Mail/Messages), or open it in Windows Photos and save as JPG, then upload that.' };
+  }
   if (!ACCEPTED.test(file.name) && !/^image\/(png|jpeg|webp)$/.test(file.type)) {
     return { error: 'Please upload a PNG, JPG or WebP photo.' };
   }

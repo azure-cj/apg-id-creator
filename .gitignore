@@ -1,0 +1,4 @@
+node_modules/
+test/diff-front.png
+.DS_Store
+Thumbs.db

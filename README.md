@@ -25,6 +25,8 @@ prepared) are in **PROCESS.md**.
 | `assets/fonts/` | Poppins 700 (name), Montserrat 800 (title), Arimo 400 (employee number) as latin + latin-ext WOFF2 subsets. |
 | `src/` | The readable source code. See "How the app is built" below. |
 | `build.mjs` | Rebuilds `Alpha Premier ID Maker.html` from `src/` + `assets/`. |
+| `test/golden.mjs` | Renders the example card at 300 DPI and compares it with `test/golden-front.png`, so a code or config change cannot silently move anything. |
+| `package.json` | `npm run build`, `npm test`, `npm run dev`. |
 
 ## How the app is built
 
@@ -61,15 +63,21 @@ the print file are the same drawing.
 
 1. Edit the file in `src/` (most changes are numbers in `config.js`).
 2. Run `node build.mjs` in this folder (Node 18+; nothing to install).
-3. Open the rebuilt `Alpha Premier ID Maker.html` and check the card with
-   "Show an example".
+3. Run `npm test` (first time: `npm install`, which fetches Playwright and
+   a headless Chromium). It renders the example card and diffs it against
+   `test/golden-front.png`; any moved pixel fails with a magenta diff image
+   in `test/diff-front.png`. If the change was intended, accept it with
+   `npm test -- --update` and commit the new golden.
+4. Open the rebuilt `Alpha Premier ID Maker.html` and check the card with
+   "Show an example". Press Ctrl+Shift+G to overlay the photo-area and
+   front-outline guides when re-tracing a new template.
 
 Common edits:
 
 | Want to… | Change |
 | --- | --- |
 | Move or resize the name / title / employee number | `CONFIG.text.*.box` (mm) and the `maxSizePt` / `minSizePt` / `maxLines` limits |
-| Change where the photo sits or how big the head is | `CONFIG.photo` — `headTop`, `headCenterX`, `headWidth`, `reachY` |
+| Change where the photo sits or how big the head is | `CONFIG.photo` — `headTop`, `headCenterX`, `headWidth`, `reachY`; manual-adjust limits `nudgeStepMm`, `zoomMin/Max` |
 | Change the QR link | `CONFIG.qr.content` |
 | New template artwork | Replace `assets/front-template.png` / `assets/back.png` (keep 638 × 1004 px). If the band or the photo window moved, re-trace `CONFIG.frontOutline.polygons` and `CONFIG.photoArea.polygon` |
 | Different number format | `CONFIG.employeeNo` (`prefix`, `digits`, `label`, years offered) |

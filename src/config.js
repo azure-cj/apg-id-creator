@@ -102,6 +102,11 @@ const CONFIG = {
     reachY: 66,
     minHeadPx: 180,   // below this the face prints a little soft (warning only)
     maxFileMb: 15,
+    // manual adjustment after automatic placement
+    nudgeStepMm: 0.5,     // arrow buttons move this much
+    zoomMin: 0.7,         // 70 % … 150 % of the automatic size
+    zoomMax: 1.5,
+    zoomStep: 0.05,
   },
 
   // The signature is trimmed to its ink, fitted inside the box without

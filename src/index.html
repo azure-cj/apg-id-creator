@@ -93,6 +93,26 @@
               </div>
               <p class="msg msg-hint" id="photo-msg">A cut-out PNG, or a photo with a solid green background. Chest-up, facing forward.</p>
 
+              <div class="adjust" id="adjust" hidden>
+                <div class="adjust-head">
+                  <span>Adjust position</span>
+                  <button type="button" id="btn-adjust-reset" class="link" disabled>Reset to automatic</button>
+                </div>
+                <div class="adjust-row">
+                  <div class="adjust-pad" role="group" aria-label="Move the photo">
+                    <button type="button" class="ghost nudge" data-dx="0" data-dy="-1" aria-label="Move up">↑</button>
+                    <button type="button" class="ghost nudge" data-dx="-1" data-dy="0" aria-label="Move left">←</button>
+                    <button type="button" class="ghost nudge" data-dx="1" data-dy="0" aria-label="Move right">→</button>
+                    <button type="button" class="ghost nudge" data-dx="0" data-dy="1" aria-label="Move down">↓</button>
+                  </div>
+                  <label class="adjust-zoom">
+                    <span>Size <output id="zoom-out">100 %</output></span>
+                    <input id="f-zoom" type="range" min="70" max="150" step="5" value="100" />
+                  </label>
+                </div>
+                <p class="msg">Or drag the photo on the card and use the mouse wheel to resize. The face normally sits at the gold diagonal.</p>
+              </div>
+
               <div class="guide">
                 <button type="button" id="btn-guide" class="guide-toggle" aria-expanded="false" aria-controls="guide-body">
                   <span>Photo prompt for Gemini or ChatGPT</span>

@@ -20,6 +20,8 @@ const state = {
   seq: '',
   photo: null,          // result of processPhotoFile when check.ok
   photoError: '',
+  adjust: { dx: 0, dy: 0, zoom: 1 },   // manual nudge on top of the automatic placement
+  guides: false,        // maintainer overlay (Ctrl+Shift+G or #guides)
   signature: null,
   touched: { name: false, title: false, seq: false, photo: false, signature: false },
   example: false,
@@ -42,7 +44,7 @@ function cardData() {
     title: state.title,
     year: state.year,
     seq: seqNumber(),
-    photo: state.photo ? { image: state.photo.image, placement: state.photo.check.placement } : null,
+    photo: state.photo ? { image: state.photo.image, placement: adjustedPlacement(state.photo.check.placement, state.adjust) } : null,
     signature: state.signature,
   };
 }
@@ -100,7 +102,7 @@ function drawPreview() {
   if (!cssW) return;
   const pxPerMm = (cssW * (window.devicePixelRatio || 1)) / CONFIG.card.widthMm;
   const ctx = previewCanvas.getContext('2d');
-  if (state.side === 'front') drawFront(ctx, state.templates, pxPerMm, cardData());
+  if (state.side === 'front') drawFront(ctx, state.templates, pxPerMm, cardData(), { showGuides: state.guides });
   else drawBack(ctx, state.templates, pxPerMm, state.rotateBack);
   previewCanvas.setAttribute('aria-label', state.side === 'front'
     ? `Front of the ID card for ${state.name || 'a new hire'}` : 'Back of the ID card');
@@ -163,6 +165,12 @@ function render() {
   $('photo-btn').textContent = state.checking ? 'Checking photo…' : ph ? 'Change photo' : 'Upload photo';
   $('photo-name').hidden = !ph;
   $('photo-name').textContent = ph ? ph.fileName : '';
+  const adjusted = state.adjust.dx !== 0 || state.adjust.dy !== 0 || state.adjust.zoom !== 1;
+  $('adjust').hidden = !ph;
+  $('btn-adjust-reset').disabled = !adjusted;
+  $('f-zoom').value = String(Math.round(state.adjust.zoom * 100));
+  $('zoom-out').textContent = `${Math.round(state.adjust.zoom * 100)} %`;
+  previewCanvas.classList.toggle('draggable', !!ph && state.side === 'front');
   const thumb = $('photo-thumb');
   if (ph) {
     if (!thumb.querySelector('img') || thumb.querySelector('img').src !== ph.url) {
@@ -258,6 +266,7 @@ async function acceptPhoto(file) {
   state.checking = false;
   state.example = false;
   touch('photo');
+  state.adjust = { dx: 0, dy: 0, zoom: 1 };
   if ('error' in result) { state.photo = null; state.photoError = result.error; }
   else if (result.check.ok) { state.photo = result; state.photoError = ''; }
   else { state.photo = null; state.photoError = result.check.problem ?? 'This photo can’t be used.'; }
@@ -270,6 +279,53 @@ const photoZone = $('photo');
 photoZone.addEventListener('dragover', (e) => { e.preventDefault(); photoZone.classList.add('dragging'); });
 photoZone.addEventListener('dragleave', () => photoZone.classList.remove('dragging'));
 photoZone.addEventListener('drop', (e) => { e.preventDefault(); photoZone.classList.remove('dragging'); acceptPhoto(e.dataTransfer.files[0]); });
+
+// manual photo adjustment: buttons, slider, drag and wheel on the preview
+const clampZoom = (z) => Math.min(CONFIG.photo.zoomMax, Math.max(CONFIG.photo.zoomMin, z));
+function nudge(dxMm, dyMm) {
+  if (!state.photo) return;
+  state.adjust = { ...state.adjust, dx: +(state.adjust.dx + dxMm).toFixed(3), dy: +(state.adjust.dy + dyMm).toFixed(3) };
+  state.side = 'front'; render();
+}
+function setZoom(z) {
+  if (!state.photo) return;
+  state.adjust = { ...state.adjust, zoom: +clampZoom(z).toFixed(3) };
+  state.side = 'front'; render();
+}
+for (const b of document.querySelectorAll('.nudge')) {
+  b.addEventListener('click', () => nudge(Number(b.dataset.dx) * CONFIG.photo.nudgeStepMm, Number(b.dataset.dy) * CONFIG.photo.nudgeStepMm));
+}
+$('f-zoom').addEventListener('input', (e) => setZoom(Number(e.target.value) / 100));
+$('btn-adjust-reset').addEventListener('click', () => { state.adjust = { dx: 0, dy: 0, zoom: 1 }; render(); });
+
+let drag = null;
+previewCanvas.addEventListener('pointerdown', (e) => {
+  if (!state.photo || state.side !== 'front' || (e.button !== undefined && e.button !== 0)) return;
+  e.preventDefault();
+  previewCanvas.setPointerCapture?.(e.pointerId);
+  drag = { x: e.clientX, y: e.clientY, dx: state.adjust.dx, dy: state.adjust.dy };
+  previewCanvas.classList.add('dragging');
+});
+previewCanvas.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  const mmPerPx = CONFIG.card.widthMm / previewBox.clientWidth;
+  state.adjust = { ...state.adjust, dx: +(drag.dx + (e.clientX - drag.x) * mmPerPx).toFixed(3), dy: +(drag.dy + (e.clientY - drag.y) * mmPerPx).toFixed(3) };
+  render();
+});
+const endDrag = () => { if (drag) { drag = null; previewCanvas.classList.remove('dragging'); render(); } };
+previewCanvas.addEventListener('pointerup', endDrag);
+previewCanvas.addEventListener('pointercancel', endDrag);
+previewCanvas.addEventListener('wheel', (e) => {
+  if (!state.photo || state.side !== 'front') return;
+  e.preventDefault();
+  setZoom(state.adjust.zoom * (e.deltaY < 0 ? 1 + CONFIG.photo.zoomStep : 1 - CONFIG.photo.zoomStep));
+}, { passive: false });
+
+// maintainer guides: outlines of the photo area (pink) and front outline (blue)
+state.guides = location.hash === '#guides';
+window.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'g') { e.preventDefault(); state.guides = !state.guides; render(); }
+});
 
 // photo prompt guide
 $('photo-prompt').value = PHOTO_PROMPT;
@@ -298,6 +354,7 @@ $('btn-example').addEventListener('click', async () => {
   $('f-name').value = state.name; $('f-title').value = state.title; $('f-seq').value = state.seq;
   state.reissue = false; refreshDuplicate();
   state.photo = photo?.check.ok ? photo : null; state.photoError = '';
+  state.adjust = { dx: 0, dy: 0, zoom: 1 };
   state.signature = EXAMPLE.signature;
   pad.setValue(EXAMPLE.signature);
   state.touched = { name: false, title: false, seq: false, photo: false, signature: false };
@@ -385,6 +442,7 @@ function newId() {
   state.name = ''; state.title = ''; state.seq = '';
   $('f-name').value = ''; $('f-title').value = ''; $('f-seq').value = '';
   state.photo = null; state.photoError = ''; state.signature = null;
+  state.adjust = { dx: 0, dy: 0, zoom: 1 };
   state.year = THIS_YEAR; state.reissue = false; state.dupLocal = null; state.dupShared = null; dupToken++;
   pad.setValue(null);
   state.touched = { name: false, title: false, seq: false, photo: false, signature: false };

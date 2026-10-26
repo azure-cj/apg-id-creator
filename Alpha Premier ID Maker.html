@@ -171,6 +171,23 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 }
 .guide-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 
+/* ---- photo adjustment ---- */
+.adjust { display: grid; gap: 8px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; }
+.adjust-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.95rem; font-weight: 600; }
+.adjust-head .link:disabled { opacity: 0.5; cursor: default; }
+.adjust-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.adjust-pad { display: grid; grid-template-columns: repeat(3, 36px); grid-template-rows: repeat(3, 36px); gap: 4px; }
+.adjust-pad .nudge { min-height: 0; padding: 0; font-size: 1rem; }
+.adjust-pad .nudge[data-dy="-1"] { grid-column: 2; grid-row: 1; }
+.adjust-pad .nudge[data-dx="-1"] { grid-column: 1; grid-row: 2; }
+.adjust-pad .nudge[data-dx="1"]  { grid-column: 3; grid-row: 2; }
+.adjust-pad .nudge[data-dy="1"]  { grid-column: 2; grid-row: 3; }
+.adjust-zoom { display: grid; gap: 4px; flex: 1; min-width: 160px; font-size: 0.9rem; }
+.adjust-zoom output { font-family: var(--font-mono); color: var(--muted); }
+.adjust-zoom input { width: 100%; accent-color: var(--gold-strong); }
+.card-canvas.draggable { cursor: grab; }
+.card-canvas.dragging { cursor: grabbing; }
+
 /* ---- signature ---- */
 .sig { display: grid; gap: 6px; }
 .sig-pad { position: relative; overflow: hidden; width: 100%; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
@@ -301,6 +318,26 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
                 </div>
               </div>
               <p class="msg msg-hint" id="photo-msg">A cut-out PNG, or a photo with a solid green background. Chest-up, facing forward.</p>
+
+              <div class="adjust" id="adjust" hidden>
+                <div class="adjust-head">
+                  <span>Adjust position</span>
+                  <button type="button" id="btn-adjust-reset" class="link" disabled>Reset to automatic</button>
+                </div>
+                <div class="adjust-row">
+                  <div class="adjust-pad" role="group" aria-label="Move the photo">
+                    <button type="button" class="ghost nudge" data-dx="0" data-dy="-1" aria-label="Move up">↑</button>
+                    <button type="button" class="ghost nudge" data-dx="-1" data-dy="0" aria-label="Move left">←</button>
+                    <button type="button" class="ghost nudge" data-dx="1" data-dy="0" aria-label="Move right">→</button>
+                    <button type="button" class="ghost nudge" data-dx="0" data-dy="1" aria-label="Move down">↓</button>
+                  </div>
+                  <label class="adjust-zoom">
+                    <span>Size <output id="zoom-out">100 %</output></span>
+                    <input id="f-zoom" type="range" min="70" max="150" step="5" value="100" />
+                  </label>
+                </div>
+                <p class="msg">Or drag the photo on the card and use the mouse wheel to resize. The face normally sits at the gold diagonal.</p>
+              </div>
 
               <div class="guide">
                 <button type="button" id="btn-guide" class="guide-toggle" aria-expanded="false" aria-controls="guide-body">
@@ -2822,6 +2859,11 @@ const CONFIG = {
     reachY: 66,
     minHeadPx: 180,   // below this the face prints a little soft (warning only)
     maxFileMb: 15,
+    // manual adjustment after automatic placement
+    nudgeStepMm: 0.5,     // arrow buttons move this much
+    zoomMin: 0.7,         // 70 % … 150 % of the automatic size
+    zoomMax: 1.5,
+    zoomStep: 0.05,
   },
 
   // The signature is trimmed to its ink, fitted inside the box without
@@ -3471,6 +3513,20 @@ function layoutText(data) {
   };
 }
 
+// Apply the user's manual adjustment to an automatic placement.
+//   adjust = { dx, dy } in mm, { zoom } as a factor; zoom is anchored at the
+//   head position so the face stays put while the photo grows or shrinks.
+function adjustedPlacement(placement, adjust) {
+  if (!adjust || (adjust.dx === 0 && adjust.dy === 0 && adjust.zoom === 1)) return placement;
+  const ax = CONFIG.photo.headCenterX, ay = CONFIG.photo.headTop;
+  return {
+    x: ax + (placement.x - ax) * adjust.zoom + adjust.dx,
+    y: ay + (placement.y - ay) * adjust.zoom + adjust.dy,
+    w: placement.w * adjust.zoom,
+    h: placement.h * adjust.zoom,
+  };
+}
+
 /* ---- the two sides ----------------------------------------------- */
 
 /**
@@ -3551,7 +3607,8 @@ function renderSideCanvas(templates, side, data, rotateBack) {
      2. decode        <img>, then draw to a canvas no taller than 2400 px
      3. classify      sample the border: transparent / green / blue /
                       checkerboard / other
-     4. chroma key    green or blue -> alpha, with de-spill on the edges
+     4. chroma key    green or blue -> alpha, with de-spill on the edges,
+                      then a half-pixel alpha erosion to trim the halo
      5. find the head on a copy no taller than 800 px (fast), using the
                       alpha silhouette: top of head, widest row (head
                       width), narrowest row below it (neck), shoulders
@@ -3573,6 +3630,7 @@ const MIN_HEAD_PX = 40;         // narrower than this: the face cannot be seen
 const ANALYSIS_MAX_H = 800;     // head detection works on a copy this tall
 const WORKING_MAX_H = 2400;     // the keyed image kept for the card
 const ACCEPTED = /\.(png|jpe?g|webp)$/i;
+const HEIC = /\.(heic|heif)$/i;
 
 /* ---- 3. classify the background ---------------------------------- */
 
@@ -3626,6 +3684,29 @@ function chromaKey(img, key) {
     if (dom <= 30) continue;
     const keep = dom >= 110 ? 0 : 1 - (dom - 30) / 80;
     d[i + 3] = Math.round(d[i + 3] * keep);
+  }
+}
+
+// After keying, the outermost semi-transparent pixels can still carry a
+// faint tinted halo. Pull each edge pixel's alpha halfway towards the
+// minimum alpha in its 3x3 neighbourhood: a half-pixel erosion that trims
+// the fringe without eating into hair.
+function trimEdgeHalo(img) {
+  const { width: w, height: h, data } = img;
+  const src = new Uint8ClampedArray(data.length);
+  for (let i = 3; i < data.length; i += 4) src[i] = data[i];
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = (y * w + x) * 4 + 3;
+      const a = src[i];
+      if (a === 0 || a === 255) continue;
+      let m = a;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const n = src[((y + dy) * w + (x + dx)) * 4 + 3];
+        if (n < m) m = n;
+      }
+      data[i] = Math.round((a + m) / 2);
+    }
   }
 }
 
@@ -3754,7 +3835,7 @@ function analysePhoto(imgEl, url, fileName) {
   if (background === 'checkerboard') check = { ok: false, problem: MSG_CHECKERBOARD };
   else if (background === 'other') check = { ok: false, problem: MSG_HAS_BACKGROUND };
   else {
-    if (background === 'green' || background === 'blue') chromaKey(pixels, background);
+    if (background === 'green' || background === 'blue') { chromaKey(pixels, background); trimEdgeHalo(pixels); }
     check = findHeadAndPlace(shrinkImageData(pixels, ANALYSIS_MAX_H), pixels.width);
   }
 
@@ -3767,6 +3848,9 @@ function analysePhoto(imgEl, url, fileName) {
 
 /** Entry point for an uploaded File. */
 async function processPhotoFile(file) {
+  if (HEIC.test(file.name) || /^image\/hei[cf]$/.test(file.type)) {
+    return { error: 'This is an iPhone HEIC photo, which browsers can’t open. On the iPhone, share it as JPEG (Settings → Camera → Formats → Most Compatible, or share via Mail/Messages), or open it in Windows Photos and save as JPG, then upload that.' };
+  }
   if (!ACCEPTED.test(file.name) && !/^image\/(png|jpeg|webp)$/.test(file.type)) {
     return { error: 'Please upload a PNG, JPG or WebP photo.' };
   }
@@ -3943,6 +4027,8 @@ const state = {
   seq: '',
   photo: null,          // result of processPhotoFile when check.ok
   photoError: '',
+  adjust: { dx: 0, dy: 0, zoom: 1 },   // manual nudge on top of the automatic placement
+  guides: false,        // maintainer overlay (Ctrl+Shift+G or #guides)
   signature: null,
   touched: { name: false, title: false, seq: false, photo: false, signature: false },
   example: false,
@@ -3965,7 +4051,7 @@ function cardData() {
     title: state.title,
     year: state.year,
     seq: seqNumber(),
-    photo: state.photo ? { image: state.photo.image, placement: state.photo.check.placement } : null,
+    photo: state.photo ? { image: state.photo.image, placement: adjustedPlacement(state.photo.check.placement, state.adjust) } : null,
     signature: state.signature,
   };
 }
@@ -4023,7 +4109,7 @@ function drawPreview() {
   if (!cssW) return;
   const pxPerMm = (cssW * (window.devicePixelRatio || 1)) / CONFIG.card.widthMm;
   const ctx = previewCanvas.getContext('2d');
-  if (state.side === 'front') drawFront(ctx, state.templates, pxPerMm, cardData());
+  if (state.side === 'front') drawFront(ctx, state.templates, pxPerMm, cardData(), { showGuides: state.guides });
   else drawBack(ctx, state.templates, pxPerMm, state.rotateBack);
   previewCanvas.setAttribute('aria-label', state.side === 'front'
     ? `Front of the ID card for ${state.name || 'a new hire'}` : 'Back of the ID card');
@@ -4086,6 +4172,12 @@ function render() {
   $('photo-btn').textContent = state.checking ? 'Checking photo…' : ph ? 'Change photo' : 'Upload photo';
   $('photo-name').hidden = !ph;
   $('photo-name').textContent = ph ? ph.fileName : '';
+  const adjusted = state.adjust.dx !== 0 || state.adjust.dy !== 0 || state.adjust.zoom !== 1;
+  $('adjust').hidden = !ph;
+  $('btn-adjust-reset').disabled = !adjusted;
+  $('f-zoom').value = String(Math.round(state.adjust.zoom * 100));
+  $('zoom-out').textContent = `${Math.round(state.adjust.zoom * 100)} %`;
+  previewCanvas.classList.toggle('draggable', !!ph && state.side === 'front');
   const thumb = $('photo-thumb');
   if (ph) {
     if (!thumb.querySelector('img') || thumb.querySelector('img').src !== ph.url) {
@@ -4181,6 +4273,7 @@ async function acceptPhoto(file) {
   state.checking = false;
   state.example = false;
   touch('photo');
+  state.adjust = { dx: 0, dy: 0, zoom: 1 };
   if ('error' in result) { state.photo = null; state.photoError = result.error; }
   else if (result.check.ok) { state.photo = result; state.photoError = ''; }
   else { state.photo = null; state.photoError = result.check.problem ?? 'This photo can’t be used.'; }
@@ -4193,6 +4286,53 @@ const photoZone = $('photo');
 photoZone.addEventListener('dragover', (e) => { e.preventDefault(); photoZone.classList.add('dragging'); });
 photoZone.addEventListener('dragleave', () => photoZone.classList.remove('dragging'));
 photoZone.addEventListener('drop', (e) => { e.preventDefault(); photoZone.classList.remove('dragging'); acceptPhoto(e.dataTransfer.files[0]); });
+
+// manual photo adjustment: buttons, slider, drag and wheel on the preview
+const clampZoom = (z) => Math.min(CONFIG.photo.zoomMax, Math.max(CONFIG.photo.zoomMin, z));
+function nudge(dxMm, dyMm) {
+  if (!state.photo) return;
+  state.adjust = { ...state.adjust, dx: +(state.adjust.dx + dxMm).toFixed(3), dy: +(state.adjust.dy + dyMm).toFixed(3) };
+  state.side = 'front'; render();
+}
+function setZoom(z) {
+  if (!state.photo) return;
+  state.adjust = { ...state.adjust, zoom: +clampZoom(z).toFixed(3) };
+  state.side = 'front'; render();
+}
+for (const b of document.querySelectorAll('.nudge')) {
+  b.addEventListener('click', () => nudge(Number(b.dataset.dx) * CONFIG.photo.nudgeStepMm, Number(b.dataset.dy) * CONFIG.photo.nudgeStepMm));
+}
+$('f-zoom').addEventListener('input', (e) => setZoom(Number(e.target.value) / 100));
+$('btn-adjust-reset').addEventListener('click', () => { state.adjust = { dx: 0, dy: 0, zoom: 1 }; render(); });
+
+let drag = null;
+previewCanvas.addEventListener('pointerdown', (e) => {
+  if (!state.photo || state.side !== 'front' || (e.button !== undefined && e.button !== 0)) return;
+  e.preventDefault();
+  previewCanvas.setPointerCapture?.(e.pointerId);
+  drag = { x: e.clientX, y: e.clientY, dx: state.adjust.dx, dy: state.adjust.dy };
+  previewCanvas.classList.add('dragging');
+});
+previewCanvas.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  const mmPerPx = CONFIG.card.widthMm / previewBox.clientWidth;
+  state.adjust = { ...state.adjust, dx: +(drag.dx + (e.clientX - drag.x) * mmPerPx).toFixed(3), dy: +(drag.dy + (e.clientY - drag.y) * mmPerPx).toFixed(3) };
+  render();
+});
+const endDrag = () => { if (drag) { drag = null; previewCanvas.classList.remove('dragging'); render(); } };
+previewCanvas.addEventListener('pointerup', endDrag);
+previewCanvas.addEventListener('pointercancel', endDrag);
+previewCanvas.addEventListener('wheel', (e) => {
+  if (!state.photo || state.side !== 'front') return;
+  e.preventDefault();
+  setZoom(state.adjust.zoom * (e.deltaY < 0 ? 1 + CONFIG.photo.zoomStep : 1 - CONFIG.photo.zoomStep));
+}, { passive: false });
+
+// maintainer guides: outlines of the photo area (pink) and front outline (blue)
+state.guides = location.hash === '#guides';
+window.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'g') { e.preventDefault(); state.guides = !state.guides; render(); }
+});
 
 // photo prompt guide
 $('photo-prompt').value = PHOTO_PROMPT;
@@ -4221,6 +4361,7 @@ $('btn-example').addEventListener('click', async () => {
   $('f-name').value = state.name; $('f-title').value = state.title; $('f-seq').value = state.seq;
   state.reissue = false; refreshDuplicate();
   state.photo = photo?.check.ok ? photo : null; state.photoError = '';
+  state.adjust = { dx: 0, dy: 0, zoom: 1 };
   state.signature = EXAMPLE.signature;
   pad.setValue(EXAMPLE.signature);
   state.touched = { name: false, title: false, seq: false, photo: false, signature: false };
@@ -4308,6 +4449,7 @@ function newId() {
   state.name = ''; state.title = ''; state.seq = '';
   $('f-name').value = ''; $('f-title').value = ''; $('f-seq').value = '';
   state.photo = null; state.photoError = ''; state.signature = null;
+  state.adjust = { dx: 0, dy: 0, zoom: 1 };
   state.year = THIS_YEAR; state.reissue = false; state.dupLocal = null; state.dupShared = null; dupToken++;
   pad.setValue(null);
   state.touched = { name: false, title: false, seq: false, photo: false, signature: false };

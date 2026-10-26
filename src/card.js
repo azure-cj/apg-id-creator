@@ -83,6 +83,20 @@ function layoutText(data) {
   };
 }
 
+// Apply the user's manual adjustment to an automatic placement.
+//   adjust = { dx, dy } in mm, { zoom } as a factor; zoom is anchored at the
+//   head position so the face stays put while the photo grows or shrinks.
+function adjustedPlacement(placement, adjust) {
+  if (!adjust || (adjust.dx === 0 && adjust.dy === 0 && adjust.zoom === 1)) return placement;
+  const ax = CONFIG.photo.headCenterX, ay = CONFIG.photo.headTop;
+  return {
+    x: ax + (placement.x - ax) * adjust.zoom + adjust.dx,
+    y: ay + (placement.y - ay) * adjust.zoom + adjust.dy,
+    w: placement.w * adjust.zoom,
+    h: placement.h * adjust.zoom,
+  };
+}
+
 /* ---- the two sides ----------------------------------------------- */
 
 /**

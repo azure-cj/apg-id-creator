@@ -73,7 +73,15 @@ The message under the button says what happened:
 * An amber warning — usable, but read it (small photo, tight crop, head
   touching the edge).
 * A red message — the photo was rejected; it says why and what to upload
-  instead.
+  instead. (iPhone HEIC files are caught here with instructions to export
+  as JPEG.)
+
+If the automatic placement is not quite right — tilted head, hat, big hair
+— an **Adjust position** box appears under the photo: arrow buttons move
+it in ½ mm steps, the **Size** slider scales it 70–150 % around the face,
+or simply drag the photo on the card preview and use the mouse wheel.
+**Reset to automatic** undoes everything. The face normally sits on the
+gold diagonal with the top of the head about 15 mm from the card top.
 
 ### 5. Signature
 
@@ -211,6 +219,16 @@ file ──► validate ──► decode ──► classify background
    enlarges the head by more than 8 % the user is warned that the photo is
    cropped close.
 
+   After the chroma key, `trimEdgeHalo` pulls every semi-transparent edge
+   pixel's alpha halfway towards the lowest alpha in its 3 × 3
+   neighbourhood — a half-pixel erosion that removes the faint tinted
+   fringe AI green-screens leave around the chin and shoulders.
+
+   Manual adjustment (`adjustedPlacement` in `src/card.js`) is applied on
+   top: `dx`/`dy` in mm and a `zoom` factor anchored at the configured head
+   position, so resizing keeps the face where it is. It is reset whenever a
+   new photo is uploaded.
+
 7. **Drawing** (`drawFront` in `src/card.js`). The photo is clipped to the
    `photoArea` polygon (so it never covers the logo on the left or runs past
    the thin black edge on the right), then the template is redrawn clipped
@@ -255,6 +273,13 @@ title is `APG-<year>-<number> <Full name>`. The file name uses the last
 word of the name, after dropping Jr./Sr./II/III/IV/V, taking the part after
 the last hyphen, and stripping accents and non-letters:
 `María Dela Cruz-Santos Jr.` → `APG-2026-007_Santos.pdf`.
+
+### 2.6a Maintainer guides
+
+Press **Ctrl + Shift + G** (or open the app with `#guides` on the URL) to
+outline the photo area in pink and the front-outline polygons in blue on
+the preview. Use it after replacing the template artwork to re-trace
+`CONFIG.photoArea` and `CONFIG.frontOutline` in `src/config.js`.
 
 ### 2.7 Register (`src/register.js`, `register/`)
 

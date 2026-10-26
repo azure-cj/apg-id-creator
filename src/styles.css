@@ -161,6 +161,23 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 }
 .guide-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 
+/* ---- photo adjustment ---- */
+.adjust { display: grid; gap: 8px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; }
+.adjust-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.95rem; font-weight: 600; }
+.adjust-head .link:disabled { opacity: 0.5; cursor: default; }
+.adjust-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.adjust-pad { display: grid; grid-template-columns: repeat(3, 36px); grid-template-rows: repeat(3, 36px); gap: 4px; }
+.adjust-pad .nudge { min-height: 0; padding: 0; font-size: 1rem; }
+.adjust-pad .nudge[data-dy="-1"] { grid-column: 2; grid-row: 1; }
+.adjust-pad .nudge[data-dx="-1"] { grid-column: 1; grid-row: 2; }
+.adjust-pad .nudge[data-dx="1"]  { grid-column: 3; grid-row: 2; }
+.adjust-pad .nudge[data-dy="1"]  { grid-column: 2; grid-row: 3; }
+.adjust-zoom { display: grid; gap: 4px; flex: 1; min-width: 160px; font-size: 0.9rem; }
+.adjust-zoom output { font-family: var(--font-mono); color: var(--muted); }
+.adjust-zoom input { width: 100%; accent-color: var(--gold-strong); }
+.card-canvas.draggable { cursor: grab; }
+.card-canvas.dragging { cursor: grabbing; }
+
 /* ---- signature ---- */
 .sig { display: grid; gap: 6px; }
 .sig-pad { position: relative; overflow: hidden; width: 100%; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
