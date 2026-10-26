@@ -6,8 +6,10 @@
 
    Two layers:
      local   — this browser's localStorage. Always on. Instant.
-     shared  — optional Google Sheet behind a Google Apps Script web app
-               (CONFIG.register.url). Checked asynchronously; the local
+     shared  — optional Google Sheet behind a Google Apps Script web app.
+               Its URL is entered in the app (Issued IDs → Shared register)
+               and kept per computer, so the capability URL never has to be
+               committed to the source. Checked asynchronously; the local
                layer answers first and the shared answer refines it.
 
    The shared layer uses only "simple" requests (GET with a query string,
@@ -45,7 +47,49 @@ const Register = {
   },
 
   /* ---- shared (optional) ---- */
-  get shared() { return !!CONFIG.register.url; },
+  _url: null,
+  get url() {
+    if (this._url === null) {
+      try { this._url = localStorage.getItem(CONFIG.register.urlStorageKey) || ''; } catch { this._url = ''; }
+    }
+    return this._url || CONFIG.register.url || '';
+  },
+  get shared() { return !!this.url; },
+
+  /** Save (or clear, with '') the shared-register URL on this computer. */
+  setUrl(url) {
+    const clean = String(url || '').trim();
+    this._url = clean;
+    try {
+      if (clean) localStorage.setItem(CONFIG.register.urlStorageKey, clean);
+      else localStorage.removeItem(CONFIG.register.urlStorageKey);
+    } catch { /* storage blocked: the URL lasts for this page only */ }
+  },
+
+  /** A web-app URL looks like https://script.google.com/macros/s/…/exec */
+  urlLooksWrong(url) {
+    const u = String(url || '').trim();
+    if (!u) return '';
+    const localhost = /^http:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(u);   // for testing a local stand-in
+    if (!localhost && !/^https:\/\//i.test(u)) return 'The address must start with https://';
+    if (/docs\.google\.com\/spreadsheets/i.test(u)) {
+      return 'That is the spreadsheet itself. Deploy the Apps Script in it (register/README.md) and paste the web-app address, which ends in /exec.';
+    }
+    if (!/\/exec(\?|$)/i.test(u)) return 'A web-app address ends in /exec. Check Deploy → Manage deployments in the Apps Script editor.';
+    return '';
+  },
+
+  /** Check the service is answering: { ok, rows } or { error }. */
+  async ping(url = this.url) {
+    if (!url) return { error: 'No address set.' };
+    try {
+      const data = await this._fetch(`${url}?action=ping`, { method: 'GET' });
+      if (!data || data.service !== 'apg-id-register') return { error: 'That address answered, but it is not the ID register script.' };
+      return { ok: true, rows: data.rows ?? 0, sheet: data.sheet ?? '' };
+    } catch (e) {
+      return { error: 'No answer from that address. Check that the deployment is set to “Anyone with the link” and that the address ends in /exec.' };
+    }
+  },
 
   async _fetch(url, init) {
     const ctrl = new AbortController();
@@ -61,7 +105,7 @@ const Register = {
   async findShared(year, seq) {
     if (!this.shared || seq === null) return null;
     try {
-      const data = await this._fetch(`${CONFIG.register.url}?action=find&id=${encodeURIComponent(employeeId(year, seq))}`, { method: 'GET' });
+      const data = await this._fetch(`${this.url}?action=find&id=${encodeURIComponent(employeeId(year, seq))}`, { method: 'GET' });
       return data && data.id ? data : null;
     } catch { return undefined; }
   },
@@ -70,7 +114,7 @@ const Register = {
   async recordShared(entry) {
     if (!this.shared) return false;
     try {
-      const data = await this._fetch(CONFIG.register.url, {
+      const data = await this._fetch(this.url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'record', entry }),

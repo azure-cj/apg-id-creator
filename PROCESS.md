@@ -374,12 +374,16 @@ browser.
 
 Each downloaded card is stored as `{ id, year, seq, name, title, issuedAt,
 replacement }` in `localStorage` under `apg-id-register`. The number field
-looks the id up on every keystroke. With `CONFIG.register.url` set, the app
-also queries a Google Apps Script web app in front of a Google Sheet
+looks the id up on every keystroke. When a shared-register address has been
+saved on the computer (Issued IDs → Shared register, kept in localStorage
+under `apg-id-register-url`), the app also queries a Google Apps Script web
+app in front of a Google Sheet
 (`GET ?action=find&id=…`) and records there (`POST {action:'record', entry}`);
 the shared answer overrides the local one, and an unreachable Sheet degrades
 to local-only with a note under the field rather than blocking. Only simple
-CORS requests are used because Apps Script cannot answer preflights.
+CORS requests are used because Apps Script cannot answer preflights. The
+address is never stored in the source, because with "Anyone with the link"
+access it grants read and write to the register.
 
 ### 2.8 Privacy
 

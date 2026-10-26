@@ -87,11 +87,17 @@ const CONFIG = {
 
   // Register of issued IDs, used to catch duplicate numbers.
   //   Every downloaded card is recorded in this browser (localStorage).
-  //   Set `url` to the Google Apps Script web-app URL from register/README.md
-  //   to also check and record against a shared Google Sheet, so several
-  //   HR computers see the same list. Leave '' for this computer only.
+  //   To share one list across HR computers, deploy the Google Apps Script
+  //   in register/ and paste its web-app URL into the app itself
+  //   (Issued IDs → Shared register). It is kept per computer in
+  //   localStorage under urlStorageKey.
+  //
+  //   `url` below is only a fallback default and should normally stay ''.
+  //   That URL grants read and write access to the register to anyone who
+  //   has it, so do not commit it to the repository.
   register: {
     storageKey: 'apg-id-register',
+    urlStorageKey: 'apg-id-register-url',
     url: '',
     timeoutMs: 6000,
   },

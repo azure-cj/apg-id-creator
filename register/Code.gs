@@ -5,9 +5,13 @@
  * HR computer sees the same list of issued IDs.
  *
  * Deploy as a Web App (see README.md in this folder), then paste the
- * web-app URL into CONFIG.register.url in src/config.js and rebuild.
+ * web-app URL into the app itself: Issued IDs -> Shared register ->
+ * Test and save. It is stored per computer; it is never committed to the
+ * repository, because anyone holding that URL can read and write the
+ * register.
  *
  * API (JSON):
+ *   GET  ?action=ping                   -> {"ok":true,"service":"apg-id-register","rows":n}
  *   GET  ?action=find&id=APG-2026-122   -> entry | null
  *   GET  ?action=list                   -> [entry, ...]
  *   POST body {"action":"record","entry":{...}}  -> {"ok":true}
@@ -16,10 +20,14 @@
  */
 
 var SHEET_NAME = 'Register';
+// Leave empty when this script lives inside the spreadsheet (the normal
+// case: Extensions -> Apps Script from the Sheet). Set it to a spreadsheet
+// ID only if you deploy the script standalone.
+var SHEET_ID = '';
 var HEADERS = ['id', 'year', 'seq', 'name', 'title', 'issuedAt', 'replacement', 'recordedBy'];
 
 function sheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) {
     sh = ss.insertSheet(SHEET_NAME);
@@ -58,13 +66,14 @@ function clean_(e) {
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
+  if (p.action === 'ping') return json_({ ok: true, service: 'apg-id-register', rows: rows_().length, sheet: sheet_().getParent().getName() });
   if (p.action === 'list') return json_(rows_().map(clean_));
   if (p.action === 'find') {
     var id = String(p.id || '').trim();
     var hit = rows_().filter(function (r) { return r.id === id; })[0] || null;
     return json_(hit ? clean_(hit) : null);
   }
-  return json_({ ok: true, service: 'apg-id-register' });
+  return json_({ ok: true, service: 'apg-id-register', rows: rows_().length });
 }
 
 function doPost(e) {

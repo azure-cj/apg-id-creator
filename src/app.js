@@ -534,6 +534,44 @@ $('btn-new-id').addEventListener('click', newId);
 $('overlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeReview(); });
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('overlay').hidden) closeReview(); });
 
+/* ---- shared register settings ------------------------------------ */
+
+function setRegisterUrlMsg(text, kind = 'ok') {
+  const el = $('register-url-msg');
+  el.className = `msg msg-${kind}`;
+  el.textContent = text;
+}
+
+function showRegisterUrl() {
+  $('f-register-url').value = Register.url;
+  $('btn-register-clear').disabled = !Register.url;
+  if (!Register.url) setRegisterUrlMsg('Not set: duplicates are checked against this computer only.', 'ok');
+}
+
+$('btn-register-test').addEventListener('click', async () => {
+  const url = $('f-register-url').value.trim();
+  if (!url) { setRegisterUrlMsg('Paste the web-app address first, or leave it empty to use this computer only.', 'error'); return; }
+  const wrong = Register.urlLooksWrong(url);
+  if (wrong) { setRegisterUrlMsg(wrong, 'error'); return; }
+  $('btn-register-test').disabled = true;
+  setRegisterUrlMsg('Checking…', 'ok');
+  const result = await Register.ping(url);
+  $('btn-register-test').disabled = false;
+  if (result.error) { setRegisterUrlMsg(result.error, 'error'); return; }
+  Register.setUrl(url);
+  setRegisterUrlMsg(`Connected. The shared register holds ${result.rows} card${result.rows === 1 ? '' : 's'}.`, 'ok');
+  refreshDuplicate();
+  render();
+});
+
+$('btn-register-clear').addEventListener('click', () => {
+  Register.setUrl('');
+  showRegisterUrl();
+  setRegisterUrlMsg('Shared register switched off on this computer.', 'ok');
+  refreshDuplicate();
+  render();
+});
+
 /* ---- batch from CSV ---------------------------------------------- */
 
 const batchFiles = { csv: null, photos: null, sigs: null };
@@ -620,6 +658,7 @@ $('btn-batch').addEventListener('click', runBatchUi);
 new ResizeObserver(drawPreview).observe(previewBox);
 
 $('app-version').textContent = `${APP_NAME} ${APP_VERSION}`;
+showRegisterUrl();
 if (restoreDraft()) $('restored-note').hidden = false;
 
 Promise.all([loadTemplates(), loadCardFonts()])

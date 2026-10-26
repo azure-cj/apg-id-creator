@@ -203,6 +203,9 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .sig-upload { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; cursor: pointer; }
 #f-sig-image:focus-visible + .sig-upload { outline: 2px solid var(--focus); outline-offset: 2px; }
 
+.shared-reg { display: grid; gap: 8px; margin-top: 4px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.shared-reg input { font-family: var(--font-mono); font-size: 0.85rem; }
+
 /* ---- batch ---- */
 #batch-block .field input[type="file"] { padding: 8px; font: 400 0.9rem var(--font-body); }
 #batch-block .field select { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: 400 1rem var(--font-body); }
@@ -419,6 +422,20 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
           <ul class="register-list" id="register-list"></ul>
           <div class="sig-actions">
             <button type="button" id="btn-register-csv" class="ghost" disabled>Download register (CSV)</button>
+          </div>
+
+          <div class="shared-reg">
+            <div class="block-head"><h2 id="shared-heading">Shared register</h2></div>
+            <p class="msg">Paste the web-app address of the Google Sheet script so every HR computer checks the same list. Set it up once per computer — see <code>register/README.md</code>.</p>
+            <div class="field">
+              <label for="f-register-url" class="visually-hidden">Shared register address</label>
+              <input id="f-register-url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec" aria-describedby="register-url-msg" />
+            </div>
+            <div class="sig-actions">
+              <button type="button" id="btn-register-test" class="ghost">Test and save</button>
+              <button type="button" id="btn-register-clear" class="ghost">Use this computer only</button>
+            </div>
+            <p class="msg" id="register-url-msg" role="status" aria-live="polite"></p>
           </div>
         </details>
 
@@ -2902,11 +2919,17 @@ const CONFIG = {
 
   // Register of issued IDs, used to catch duplicate numbers.
   //   Every downloaded card is recorded in this browser (localStorage).
-  //   Set `url` to the Google Apps Script web-app URL from register/README.md
-  //   to also check and record against a shared Google Sheet, so several
-  //   HR computers see the same list. Leave '' for this computer only.
+  //   To share one list across HR computers, deploy the Google Apps Script
+  //   in register/ and paste its web-app URL into the app itself
+  //   (Issued IDs → Shared register). It is kept per computer in
+  //   localStorage under urlStorageKey.
+  //
+  //   `url` below is only a fallback default and should normally stay ''.
+  //   That URL grants read and write access to the register to anyone who
+  //   has it, so do not commit it to the repository.
   register: {
     storageKey: 'apg-id-register',
+    urlStorageKey: 'apg-id-register-url',
     url: '',
     timeoutMs: 6000,
   },
@@ -3014,8 +3037,10 @@ const collapseSpaces = (s) => s.replace(/\s+/g, ' ').trim();
 
    Two layers:
      local   — this browser's localStorage. Always on. Instant.
-     shared  — optional Google Sheet behind a Google Apps Script web app
-               (CONFIG.register.url). Checked asynchronously; the local
+     shared  — optional Google Sheet behind a Google Apps Script web app.
+               Its URL is entered in the app (Issued IDs → Shared register)
+               and kept per computer, so the capability URL never has to be
+               committed to the source. Checked asynchronously; the local
                layer answers first and the shared answer refines it.
 
    The shared layer uses only "simple" requests (GET with a query string,
@@ -3053,7 +3078,49 @@ const Register = {
   },
 
   /* ---- shared (optional) ---- */
-  get shared() { return !!CONFIG.register.url; },
+  _url: null,
+  get url() {
+    if (this._url === null) {
+      try { this._url = localStorage.getItem(CONFIG.register.urlStorageKey) || ''; } catch { this._url = ''; }
+    }
+    return this._url || CONFIG.register.url || '';
+  },
+  get shared() { return !!this.url; },
+
+  /** Save (or clear, with '') the shared-register URL on this computer. */
+  setUrl(url) {
+    const clean = String(url || '').trim();
+    this._url = clean;
+    try {
+      if (clean) localStorage.setItem(CONFIG.register.urlStorageKey, clean);
+      else localStorage.removeItem(CONFIG.register.urlStorageKey);
+    } catch { /* storage blocked: the URL lasts for this page only */ }
+  },
+
+  /** A web-app URL looks like https://script.google.com/macros/s/…/exec */
+  urlLooksWrong(url) {
+    const u = String(url || '').trim();
+    if (!u) return '';
+    const localhost = /^http:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(u);   // for testing a local stand-in
+    if (!localhost && !/^https:\/\//i.test(u)) return 'The address must start with https://';
+    if (/docs\.google\.com\/spreadsheets/i.test(u)) {
+      return 'That is the spreadsheet itself. Deploy the Apps Script in it (register/README.md) and paste the web-app address, which ends in /exec.';
+    }
+    if (!/\/exec(\?|$)/i.test(u)) return 'A web-app address ends in /exec. Check Deploy → Manage deployments in the Apps Script editor.';
+    return '';
+  },
+
+  /** Check the service is answering: { ok, rows } or { error }. */
+  async ping(url = this.url) {
+    if (!url) return { error: 'No address set.' };
+    try {
+      const data = await this._fetch(`${url}?action=ping`, { method: 'GET' });
+      if (!data || data.service !== 'apg-id-register') return { error: 'That address answered, but it is not the ID register script.' };
+      return { ok: true, rows: data.rows ?? 0, sheet: data.sheet ?? '' };
+    } catch (e) {
+      return { error: 'No answer from that address. Check that the deployment is set to “Anyone with the link” and that the address ends in /exec.' };
+    }
+  },
 
   async _fetch(url, init) {
     const ctrl = new AbortController();
@@ -3069,7 +3136,7 @@ const Register = {
   async findShared(year, seq) {
     if (!this.shared || seq === null) return null;
     try {
-      const data = await this._fetch(`${CONFIG.register.url}?action=find&id=${encodeURIComponent(employeeId(year, seq))}`, { method: 'GET' });
+      const data = await this._fetch(`${this.url}?action=find&id=${encodeURIComponent(employeeId(year, seq))}`, { method: 'GET' });
       return data && data.id ? data : null;
     } catch { return undefined; }
   },
@@ -3078,7 +3145,7 @@ const Register = {
   async recordShared(entry) {
     if (!this.shared) return false;
     try {
-      const data = await this._fetch(CONFIG.register.url, {
+      const data = await this._fetch(this.url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'record', entry }),
@@ -5020,6 +5087,44 @@ $('btn-new-id').addEventListener('click', newId);
 $('overlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeReview(); });
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('overlay').hidden) closeReview(); });
 
+/* ---- shared register settings ------------------------------------ */
+
+function setRegisterUrlMsg(text, kind = 'ok') {
+  const el = $('register-url-msg');
+  el.className = `msg msg-${kind}`;
+  el.textContent = text;
+}
+
+function showRegisterUrl() {
+  $('f-register-url').value = Register.url;
+  $('btn-register-clear').disabled = !Register.url;
+  if (!Register.url) setRegisterUrlMsg('Not set: duplicates are checked against this computer only.', 'ok');
+}
+
+$('btn-register-test').addEventListener('click', async () => {
+  const url = $('f-register-url').value.trim();
+  if (!url) { setRegisterUrlMsg('Paste the web-app address first, or leave it empty to use this computer only.', 'error'); return; }
+  const wrong = Register.urlLooksWrong(url);
+  if (wrong) { setRegisterUrlMsg(wrong, 'error'); return; }
+  $('btn-register-test').disabled = true;
+  setRegisterUrlMsg('Checking…', 'ok');
+  const result = await Register.ping(url);
+  $('btn-register-test').disabled = false;
+  if (result.error) { setRegisterUrlMsg(result.error, 'error'); return; }
+  Register.setUrl(url);
+  setRegisterUrlMsg(`Connected. The shared register holds ${result.rows} card${result.rows === 1 ? '' : 's'}.`, 'ok');
+  refreshDuplicate();
+  render();
+});
+
+$('btn-register-clear').addEventListener('click', () => {
+  Register.setUrl('');
+  showRegisterUrl();
+  setRegisterUrlMsg('Shared register switched off on this computer.', 'ok');
+  refreshDuplicate();
+  render();
+});
+
 /* ---- batch from CSV ---------------------------------------------- */
 
 const batchFiles = { csv: null, photos: null, sigs: null };
@@ -5106,6 +5211,7 @@ $('btn-batch').addEventListener('click', runBatchUi);
 new ResizeObserver(drawPreview).observe(previewBox);
 
 $('app-version').textContent = `${APP_NAME} ${APP_VERSION}`;
+showRegisterUrl();
 if (restoreDraft()) $('restored-note').hidden = false;
 
 Promise.all([loadTemplates(), loadCardFonts()])
