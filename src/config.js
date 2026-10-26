@@ -1,0 +1,159 @@
+/* ------------------------------------------------------------------
+   Alpha Premier ID Maker — card configuration
+   ------------------------------------------------------------------
+   Every measurement is in millimetres from the card's top-left corner
+   unless it says otherwise. Change numbers here; the drawing code in
+   card.js reads them and never hard-codes a position.
+   ------------------------------------------------------------------ */
+
+const CONFIG = {
+  card: {
+    widthMm: 54,
+    heightMm: 85,
+    printDpi: 300, // the PDF is rendered at this resolution
+  },
+
+  // Fonts drawn on the card. The files live in assets/fonts and are
+  // registered under these family names by loadCardFonts() in card.js.
+  fonts: {
+    name:   { family: 'ID Poppins',    weight: 700 },
+    title:  { family: 'ID Montserrat', weight: 800 },
+    number: { family: 'ID Arimo',      weight: 400 },
+  },
+
+  // Parts of the front template that must sit IN FRONT of the photo:
+  // the dark band at the bottom and the thin gold line above it.
+  // Traced from front-template.png. Points are [x, y] in mm.
+  frontOutline: {
+    polygons: [
+      [[36.7, 56.64], [54, 56.64], [54, 85], [0, 85], [0, 64.56], [28.79, 64.56]],
+      [[28.45, 58.71], [35.56, 58.71], [35.56, 59.01], [28.58, 59.01], [23.03, 64.56], [22.61, 64.56]],
+    ],
+  },
+
+  // Where the photo may appear. It steps around the logo at the top
+  // left and stops at the thin black edge on the right.
+  photoArea: {
+    polygon: [[19.5, 10], [53.5, 10], [53.5, 67], [17, 67], [17, 17.5], [19.5, 17.5]],
+  },
+
+  // Text boxes.
+  //   vAlign 'bottom'   the lowest descender of the last line sits on the
+  //                     box bottom; extra lines grow upward.
+  //   vAlign 'top'      the cap height of the first line sits on the box
+  //                     top; extra lines grow downward.
+  //   vAlign 'baseline' the baseline sits on the box bottom.
+  // Sizes are in points; the fitter steps down from maxSizePt to
+  // minSizePt in quarter-point steps and wraps up to maxLines.
+  text: {
+    name: {
+      box: { x: 34.4, y: 59.3, w: 18, h: 5.2 },
+      font: 'name', color: '#E8CD77', align: 'center', vAlign: 'bottom',
+      maxSizePt: 6, minSizePt: 4.5, maxLines: 3, lineHeight: 1, uppercase: false,
+    },
+    title: {
+      box: { x: 34.4, y: 65, w: 18, h: 3.2 },
+      font: 'title', color: '#FFFFFF', align: 'center', vAlign: 'top',
+      maxSizePt: 4.5, minSizePt: 3.5, maxLines: 2, lineHeight: 1.1, uppercase: true,
+    },
+    employeeNo: {
+      box: { x: 28.6, y: 77.5, w: 23, h: 1.5 },
+      font: 'number', color: '#FFFFFF', align: 'right', vAlign: 'baseline',
+      maxSizePt: 4, minSizePt: 3.5, maxLines: 1, lineHeight: 1, uppercase: false,
+    },
+  },
+
+  employeeNo: {
+    prefix: 'APG',
+    digits: 3,                                  // 122 -> "122", 7 -> "007"
+    label: 'EMPLOYEE NO: {prefix} - {year} - {seq}',
+    placeholder: '___',
+  },
+
+  qr: {
+    square: { x: 2, y: 66.1, size: 8.8 },       // white square incl. quiet zone
+    content: 'https://alphapremiergroup.com/',
+    errorCorrection: 'M',
+    background: '#FFFFFF',
+    color: '#000000',
+  },
+
+  // Placement of the uploaded cut-out. Measured from the sample card:
+  // the top of the head sits at 15.4 mm, the head is centred at 36.6 mm
+  // and is 15 mm wide. The body must reach at least reachY so that it
+  // continues behind the dark band.
+  photo: {
+    headTop: 15.4,
+    headCenterX: 36.6,
+    headWidth: 15,
+    reachY: 66,
+    minHeadPx: 180,   // below this the face prints a little soft (warning only)
+    maxFileMb: 15,
+  },
+
+  // The signature is trimmed to its ink, fitted inside the box without
+  // stretching, centred and drawn in white. Strokes are de-jittered and
+  // drawn as curves whose width runs from strokeMm (slow pen) down to
+  // minStrokeMm (fast pen).
+  signature: {
+    box: { x: 34.9, y: 68.6, w: 17, h: 5.6 },
+    color: '#FFFFFF',
+    strokeMm: 0.38,
+    minStrokeMm: 0.16,
+  },
+};
+
+// Example data shown by the "Show an example" link.
+const EXAMPLE = {
+  name: 'Christopher Joseph V. Aureo',
+  title: 'IT Associate',
+  seq: '122',
+  signature: {
+    strokes: [
+      Array.from({ length: 36 }, (_, i) => ({ x: 20 + i * 7, y: 70 + Math.sin(i / 3.2) * 26 - i * 0.6 })),
+      [{ x: 92, y: 18 }, { x: 98, y: 60 }, { x: 108, y: 112 }],
+      [{ x: 210, y: 92 }, { x: 290, y: 88 }, { x: 330, y: 86 }],
+    ],
+  },
+};
+
+// The prompt HR pastes into Gemini / ChatGPT to turn any phone photo into
+// a green-screen portrait the app can cut out itself. Keep photo-prompt.txt
+// in the folder in sync with this text.
+const PHOTO_PROMPT = `Edit this photo for a company ID card.
+
+1. Keep the person exactly as they are: same face, features, skin tone, hair, glasses and expression. Do not beautify, slim, age or change their identity.
+2. Show them from the chest up, facing the camera, centred, with the whole head and a little space above the hair.
+3. Keep their clothes as they are.
+4. Replace the background with one solid, flat, pure green colour (#00FF00). No shadows, gradients, patterns or checkerboard.
+5. Portrait orientation, at least 1200 pixels tall. Save as PNG.`;
+
+/* ---- unit helpers shared by every module ------------------------- */
+
+const PT_TO_MM = 25.4 / 72;                       // 1 pt = 0.3528 mm
+const mmToPx = (mm, pxPerMm) => mm * pxPerMm;
+const printPxPerMm = () => CONFIG.card.printDpi / 25.4;   // 11.81 px/mm at 300 DPI
+
+function cardSizePx(pxPerMm) {
+  return {
+    w: Math.round(CONFIG.card.widthMm * pxPerMm),
+    h: Math.round(CONFIG.card.heightMm * pxPerMm),
+  };
+}
+
+// "EMPLOYEE NO: APG - 2026 - 122"  (seq null -> "___")
+function employeeNoLine(year, seq) {
+  const s = seq === null ? CONFIG.employeeNo.placeholder
+                         : String(seq).padStart(CONFIG.employeeNo.digits, '0');
+  return CONFIG.employeeNo.label
+    .replace('{prefix}', CONFIG.employeeNo.prefix)
+    .replace('{year}', String(year))
+    .replace('{seq}', s);
+}
+
+// "APG-2026-122"
+function employeeId(year, seq) {
+  return `${CONFIG.employeeNo.prefix}-${year}-${String(seq).padStart(CONFIG.employeeNo.digits, '0')}`;
+}
+
+const collapseSpaces = (s) => s.replace(/\s+/g, ' ').trim();

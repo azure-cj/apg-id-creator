@@ -1,0 +1,7 @@
+Edit this photo for a company ID card.
+
+1. Keep the person exactly as they are: same face, features, skin tone, hair, glasses and expression. Do not beautify, slim, age or change their identity.
+2. Show them from the chest up, facing the camera, centred, with the whole head and a little space above the hair.
+3. Keep their clothes as they are.
+4. Replace the background with one solid, flat, pure green colour (#00FF00). No shadows, gradients, patterns or checkerboard.
+5. Portrait orientation, at least 1200 pixels tall. Save as PNG.

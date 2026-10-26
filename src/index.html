@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Alpha Premier ID Maker</title>
+  <!--
+    Development page. Serve this folder over HTTP (see README) — opening
+    it as a file:// URL blocks the fonts and template images.
+    `node build.mjs` turns it into ../Alpha Premier ID Maker.html with
+    every stylesheet, script and asset inlined.
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Montserrat:wght@700;800&family=Source+Sans+3:wght@400;600&display=swap" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="masthead">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>Alpha Premier ID Maker</h1>
+          <p class="sub">Fill in the form, check the card, download the print file.</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- ---------------- preview ---------------- -->
+      <section class="stage" aria-label="Card preview">
+        <div class="segmented" role="tablist" aria-label="Card side">
+          <button type="button" id="side-front" role="tab" class="seg on" aria-selected="true">Front</button>
+          <button type="button" id="side-back" role="tab" class="seg" aria-selected="false">Back</button>
+        </div>
+        <div class="card-box" id="card-box" hidden>
+          <canvas class="card-canvas" id="card-canvas" role="img" aria-label="Front of the ID card"></canvas>
+        </div>
+        <div class="card-box card-loading" id="card-loading">Loading the card template…</div>
+        <p class="caption" id="caption">Updates as you type. The print file is drawn the same way at 300 DPI.</p>
+      </section>
+
+      <!-- ---------------- form ---------------- -->
+      <aside class="panel">
+        <section class="block" aria-labelledby="form-heading">
+          <div class="block-head">
+            <h2 id="form-heading">New ID</h2>
+            <button type="button" id="btn-example" class="link">Show an example</button>
+            <span class="example-tag" id="example-tag" hidden>Example details</span>
+          </div>
+
+          <div class="field" id="field-name">
+            <label for="f-name">Full name</label>
+            <input id="f-name" type="text" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="80" aria-describedby="f-name-msg" />
+            <p id="f-name-msg" class="msg">Exactly as it should appear; capitals are kept as typed.</p>
+          </div>
+
+          <div class="field" id="field-title">
+            <label for="f-title">Job title</label>
+            <input id="f-title" type="text" autocomplete="off" maxlength="60" aria-describedby="f-title-msg" />
+            <p id="f-title-msg" class="msg">Shown in capitals on the card.</p>
+          </div>
+
+          <div class="field" id="field-seq">
+            <label for="f-seq">Employee number</label>
+            <div class="number-row">
+              <span class="number-prefix" id="seq-prefix" aria-hidden="true">APG - 2026 -</span>
+              <input id="f-seq" type="text" inputmode="numeric" autocomplete="off" placeholder="124" aria-describedby="f-seq-msg" />
+            </div>
+            <p id="f-seq-msg" class="msg"></p>
+          </div>
+
+          <div class="field">
+            <label for="f-photo">Photo</label>
+            <div class="photo" id="photo">
+              <div class="photo-row">
+                <div class="photo-thumb" id="photo-thumb" aria-hidden="true"><span>PNG</span></div>
+                <div class="photo-body">
+                  <input id="f-photo" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" class="visually-hidden" />
+                  <label for="f-photo" class="btn-file" id="photo-btn">Upload photo</label>
+                  <span class="photo-name" id="photo-name" hidden></span>
+                </div>
+              </div>
+              <p class="msg msg-hint" id="photo-msg">A cut-out PNG, or a photo with a solid green background. Chest-up, facing forward.</p>
+
+              <div class="guide">
+                <button type="button" id="btn-guide" class="guide-toggle" aria-expanded="false" aria-controls="guide-body">
+                  <span>Photo prompt for Gemini or ChatGPT</span>
+                  <span id="guide-sign" aria-hidden="true">+</span>
+                </button>
+                <p class="msg" id="guide-teaser">For phone photos taken anywhere: get a clean ID photo in one step.</p>
+                <div id="guide-body" class="guide-body" hidden>
+                  <ol class="guide-steps">
+                    <li>Open Gemini or ChatGPT and attach the new hire’s photo.</li>
+                    <li>Paste the prompt below and send it.</li>
+                    <li>Download the result and upload it here. The app removes the green background itself.</li>
+                  </ol>
+                  <textarea id="photo-prompt" class="prompt" readonly rows="9"></textarea>
+                  <div class="guide-actions">
+                    <button type="button" id="btn-copy-prompt" class="ghost">Copy prompt</button>
+                    <span class="msg" id="copy-status" role="status" aria-live="polite"></span>
+                  </div>
+                  <ul class="guide-notes">
+                    <li>Check the face still looks like the person before uploading. If it doesn’t, ask again or use the original photo.</li>
+                    <li>If the person wears green, change <code>#00FF00</code> to solid blue <code>#0000FF</code> in the prompt.</li>
+                    <li>A transparent PNG works too, if the tool makes a real one.</li>
+                    <li>Employee photos are personal data. Use your company’s approved AI account.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="f-signature">Signature</label>
+            <div class="sig" id="sig">
+              <div class="sig-pad">
+                <canvas id="f-signature" aria-label="Signature pad. Draw the signature with a finger, pen or mouse."></canvas>
+                <span class="sig-hint" id="sig-hint" aria-hidden="true">Sign here</span>
+                <span class="sig-line" aria-hidden="true"></span>
+              </div>
+              <div class="sig-actions">
+                <button type="button" id="btn-clear-sig" class="ghost" disabled>Clear</button>
+                <span class="msg">The new hire signs here; it appears in white on the card.</span>
+              </div>
+            </div>
+            <p class="msg msg-error" id="sig-msg" hidden></p>
+          </div>
+
+          <div class="generate">
+            <p class="card-line" id="card-line" aria-label="Number line on the card"></p>
+            <button type="button" id="btn-review" class="primary big" disabled>Review &amp; Generate</button>
+            <p class="msg" id="status" role="status" aria-live="polite"></p>
+          </div>
+        </section>
+
+        <details class="block printer">
+          <summary>Printer setting</summary>
+          <label class="toggle" for="opt-rotate">
+            <input id="opt-rotate" type="checkbox" />
+            <span>
+              <strong>Turn the back 180°</strong>
+              <small>Only if printed cards come out with the back upside down. Remembered on this device.</small>
+            </span>
+          </label>
+        </details>
+      </aside>
+    </main>
+  </div>
+
+  <!-- ---------------- review dialog ---------------- -->
+  <div class="overlay" id="overlay" role="presentation" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="review-title">
+      <div class="dialog-head">
+        <h2 id="review-title">Check the card before printing</h2>
+        <p class="msg" id="review-sub"></p>
+      </div>
+      <div class="sides">
+        <figure><img id="review-front" alt="Front of the card" /><figcaption>Front</figcaption></figure>
+        <figure><img id="review-back" alt="Back of the card" /><figcaption id="review-back-cap">Back</figcaption></figure>
+      </div>
+
+      <div id="review-stage">
+        <ul class="review-list">
+          <li>Name spelled correctly, capitals as they should be</li>
+          <li>Title and employee number are right</li>
+          <li>The photo looks like the person and isn’t blurry</li>
+          <li>The signature is visible below the title</li>
+        </ul>
+        <p class="msg msg-error" id="review-error" role="alert" hidden></p>
+        <div class="dialog-actions">
+          <button type="button" id="btn-download" class="primary">Download PDF</button>
+          <button type="button" id="btn-back-edit" class="ghost">Back to edit</button>
+        </div>
+        <p class="msg" id="review-file"></p>
+      </div>
+
+      <div id="saved-stage" hidden>
+        <p class="done">Saved <strong id="saved-name"></strong>. Print it at 100%, both sides, on the card printer.</p>
+        <div class="dialog-actions">
+          <button type="button" id="btn-new-id" class="primary">Start a new ID</button>
+          <button type="button" id="btn-again" class="ghost">Download again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="vendor/qrcode-generator.js"></script>
+  <script src="assets.dev.js"></script>
+  <script src="config.js"></script>
+  <script src="text-fit.js"></script>
+  <script src="signature.js"></script>
+  <script src="qr.js"></script>
+  <script src="card.js"></script>
+  <script src="photo.js"></script>
+  <script src="pdf.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
