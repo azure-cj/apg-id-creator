@@ -7,8 +7,8 @@
    Run `node build.mjs` first if anything in src/ changed: this packs
    the built single file, not the sources.
    ------------------------------------------------------------------ */
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, rmSync, copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, copyFileSync, existsSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { zipSync } from './zip.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -35,10 +35,11 @@ if (!version) { console.error('No APP_VERSION in src/config.js'); process.exit(1
 writeFileSync(join(stage, 'version.txt'), version);
 
 const out = join(here, 'dist', 'Alpha Premier ID Maker - install.zip');
-try {
-  execFileSync('zip', ['-r', '-q', out, 'Alpha Premier ID Maker'], { cwd: join(here, 'dist') });
-} catch {
-  console.error('`zip` is not available here. The folder is ready at:\n  ' + stage + '\nZip it yourself and send that.');
-  process.exit(1);
-}
+const folder = 'Alpha Premier ID Maker';
+writeFileSync(out, zipSync(
+  readdirSync(stage).sort().map((name) => ({
+    name: `${folder}/${name}`,
+    data: readFileSync(join(stage, name)),
+  })),
+));
 console.log(`wrote ${out}  (version ${version})`);
