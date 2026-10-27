@@ -52,10 +52,18 @@ remembered on that computer.
 
 ## Importing what was issued before
 
-Paste older IDs straight into the `Register` tab, one per row, with the
-columns `id, year, seq, name, title, issuedAt, replacement`. `issuedAt` can
-be a date cell. The `id` column is what the duplicate check matches on
-(`APG-2026-122`).
+Paste older IDs straight into the `Register` tab, one per row. The full
+column order is:
+
+```
+id, year, seq, name, title, issuedAt, replacement, recordedBy,
+last, first, middle, suffix, role1, role2
+```
+
+Only **`id`** has to be filled in — that is the column the duplicate check
+matches on (`APG-2026-122`). `name` and `issuedAt` make the warning message
+useful ("already issued to … on …"), and `issuedAt` can be a date cell. The
+rest can be left blank for historical rows.
 
 ## Changing the script later
 
