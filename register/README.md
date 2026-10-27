@@ -1,9 +1,12 @@
-# Shared register (optional)
+# Shared register
 
-Out of the box the ID Maker remembers the cards downloaded **on each
-computer** and warns when a number is reused there. To catch duplicates
-across several HR computers, point every copy of the app at one Google
-Sheet. Set-up takes about ten minutes and needs no server.
+Every card the ID Maker issues is written to one Google Sheet, and every
+number typed is checked against it. That sheet, not the laptop, is the
+record of who holds which ID.
+
+**It is already set up and built into the app — there is nothing to do.**
+These notes are for rebuilding it, moving it, or replacing the address.
+Set-up takes about ten minutes and needs no server.
 
 ## 1. Deploy the script in your Sheet
 
@@ -38,21 +41,26 @@ Check it: open that URL in a browser. You should see
 `{"ok":true,"service":"apg-id-register","rows":0}` and a `Register` tab
 appears in the Sheet.
 
-## 2. Tell each computer about it
+## 2. Tell the app about it
 
-In the app, open **Issued IDs → Shared register**, paste the web-app
-address and press **Test and save**. The app checks the address answers
-before saving it, and reports how many cards the shared register holds.
-**Use this computer only** switches it back off.
+Put the web-app address in `CONFIG.register.url` in `src/config.js` and run
+`node build.mjs`. There is no setting for it in the app: it is on, and it
+cannot be switched off by accident.
 
-Do this once on each HR computer. No rebuild is needed, and the address is
-remembered on that computer.
+> **Treat that address as a password.** The deployment is open to "Anyone",
+> so whoever holds the address can read every issued ID and add rows. It is
+> in the source because this repository is private and one laptop issues
+> the cards — those two facts are the whole justification, and if either
+> changes the address should come back out.
+>
+> If it leaks, or the repository is made public: *Deploy → Manage
+> deployments*, archive the deployment, create a new one, and put the new
+> address in `config.js`. The old one stops working the moment it is
+> archived.
 
-> **Why it is not in the source code.** With "Anyone" access
-> that URL *is* the password: anyone who has it can read the register and
-> add rows. So it is entered per computer and never committed to the
-> repository. If it leaks, open *Deploy → Manage deployments*, archive the
-> deployment and create a new one — the old URL stops working.
+For a development copy pointed at a local stand-in, set
+`localStorage['apg-id-register-url']` in the browser console; it overrides
+the built-in address without touching the source.
 
 ## What changes in the app
 

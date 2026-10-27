@@ -221,8 +221,6 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .sig-upload { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; cursor: pointer; }
 #f-sig-image:focus-visible + .sig-upload { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-.shared-reg { display: grid; gap: 8px; margin-top: 4px; padding-top: 10px; border-top: 1px dashed var(--line); }
-.shared-reg input { font-family: var(--font-mono); font-size: 0.85rem; }
 
 /* ---- batch ---- */
 #batch-block .field input[type="file"] { padding: 8px; font: 400 0.9rem var(--font-body); }

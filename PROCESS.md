@@ -585,10 +585,11 @@ browser.
 
 Each downloaded card is stored as `{ id, year, seq, name, title, issuedAt,
 replacement }` in `localStorage` under `apg-id-register`. The number field
-looks the id up on every keystroke. When a shared-register address has been
-saved on the computer (Issued IDs → Shared register, kept in localStorage
-under `apg-id-register-url`), the app also queries a Google Apps Script web
-app in front of a Google Sheet
+looks the id up on every keystroke. The app also queries a Google Apps
+Script web app in front of a Google Sheet, at the address built into
+`CONFIG.register.url` (a value in `localStorage` under
+`apg-id-register-url` overrides it, which is how a development copy is
+pointed at a stand-in)
 (`GET ?action=find&id=…`) and records there (`POST {action:'record', entry}`);
 the shared answer overrides the local one, and an unreachable Sheet degrades
 to local-only with a note under the field rather than blocking. Only simple

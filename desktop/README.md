@@ -35,8 +35,8 @@ The app gets **its own Edge profile**, so its settings and its issued-ID
 list are not mixed up with anyone's ordinary browsing — and a cleared
 browser history cannot wipe the ID register.
 
-Then, once: **Issued IDs → Shared register**, and paste the web-app
-address. Read the next section before deciding that is optional.
+The shared Google Sheet is built in, so there is nothing to set up. Read
+the next section for why that matters here.
 
 ## Updating
 

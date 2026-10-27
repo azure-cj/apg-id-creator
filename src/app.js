@@ -467,10 +467,9 @@ function renderRegister() {
   const all = Register.all();
   $('register-count').textContent = all.length;
   $('btn-register-csv').disabled = !all.length;
-  $('register-note').textContent = Register.shared
-    ? 'Cards downloaded on this computer. The shared register holds every computer’s cards.'
-    : all.length ? 'Cards downloaded on this computer. Other computers keep their own list — see register/README.md to share one.'
-    : 'Nothing issued from this computer yet. Every downloaded card is listed here.';
+  $('register-note').textContent = all.length
+    ? 'The most recent cards issued here. Every one is also written to the shared register, which is what the duplicate check reads.'
+    : 'Nothing issued yet. Every card you download is listed here, and written to the shared register.';
   const list = $('register-list');
   list.innerHTML = '';
   for (const e of all.slice(0, 25)) {
@@ -1180,44 +1179,6 @@ function printFileLine() {
   return `File: ${review.fileName} · ${pages} page${pages === 1 ? '' : 's'} of ${state.print.paper}, cards ${C.widthMm} × ${C.heightMm} mm, ${CONFIG.card.printDpi} DPI`;
 }
 
-/* ---- shared register settings ------------------------------------ */
-
-function setRegisterUrlMsg(text, kind = 'ok') {
-  const el = $('register-url-msg');
-  el.className = `msg msg-${kind}`;
-  el.textContent = text;
-}
-
-function showRegisterUrl() {
-  $('f-register-url').value = Register.url;
-  $('btn-register-clear').disabled = !Register.url;
-  if (!Register.url) setRegisterUrlMsg('Not set: duplicates are checked against this computer only.', 'ok');
-}
-
-$('btn-register-test').addEventListener('click', async () => {
-  const url = $('f-register-url').value.trim();
-  if (!url) { setRegisterUrlMsg('Paste the web-app address first, or leave it empty to use this computer only.', 'error'); return; }
-  const wrong = Register.urlLooksWrong(url);
-  if (wrong) { setRegisterUrlMsg(wrong, 'error'); return; }
-  $('btn-register-test').disabled = true;
-  setRegisterUrlMsg('Checking…', 'ok');
-  const result = await Register.ping(url);
-  $('btn-register-test').disabled = false;
-  if (result.error) { setRegisterUrlMsg(result.error, 'error'); return; }
-  Register.setUrl(url);
-  setRegisterUrlMsg(`Connected. The shared register holds ${result.rows} card${result.rows === 1 ? '' : 's'}.`, 'ok');
-  refreshDuplicate();
-  render();
-});
-
-$('btn-register-clear').addEventListener('click', () => {
-  Register.setUrl('');
-  showRegisterUrl();
-  setRegisterUrlMsg('Shared register switched off on this computer.', 'ok');
-  refreshDuplicate();
-  render();
-});
-
 /* ---- batch from CSV ---------------------------------------------- */
 
 const batchFiles = { csv: null, photos: null, sigs: null };
@@ -1329,7 +1290,6 @@ new ResizeObserver(drawPreview).observe(previewBox);
 
 $('app-version').textContent = `${APP_NAME} ${APP_VERSION}`;
 $('brand-logo').src = ASSETS.logo;
-showRegisterUrl();
 buildPrintControls();
 if (restoreDraft()) {
   $('restored-note').hidden = false;

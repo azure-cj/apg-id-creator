@@ -7,7 +7,7 @@
    ------------------------------------------------------------------ */
 
 const APP_NAME = 'Alpha Premier ID Maker';
-const APP_VERSION = '1.9.1';          // stamped into every PDF's metadata
+const APP_VERSION = '1.10.0';          // stamped into every PDF's metadata
 
 const CONFIG = {
   card: {
@@ -139,7 +139,23 @@ const CONFIG = {
   register: {
     storageKey: 'apg-id-register',
     urlStorageKey: 'apg-id-register-url',
-    url: '',
+
+    // The shared register, built in so nobody has to set it up and nobody
+    // can switch it off by accident.
+    //
+    // Read this before copying the pattern. The deployment is open to
+    // "Anyone", so this address IS the credential: whoever holds it can
+    // read every issued ID and write new rows. It is in the source because
+    // this repository is private and one laptop issues the cards, which
+    // made setting it up by hand pure ceremony. Those two facts are the
+    // whole justification. If the repository is ever made public, or the
+    // address leaks, archive the deployment in Apps Script (Deploy ->
+    // Manage deployments) and put the new address here: the old one stops
+    // working the moment it is archived.
+    //
+    // localStorage under urlStorageKey still overrides this, which is how
+    // you point a development copy at a local stand-in.
+    url: 'https://script.google.com/macros/s/AKfycbwkFPDeHpXyb6fmt5ydcJN-peYQjXQnhfozn3iEoRxwfp38Ij9rkcYOq3IP-Pg7Oko/exec',
     timeoutMs: 20000,       // Apps Script is slow to wake: a cold call can take 10s+
   },
 

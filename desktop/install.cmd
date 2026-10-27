@@ -63,10 +63,8 @@ echo   It is in the Start menu and on your desktop, and in
 echo   Settings ^> Apps like any other program. Right-click it on
 echo   the taskbar to pin it there.
 echo.
-echo   Once, before the first card: open "Issued IDs", then
-echo   "Shared register", and paste the web-app address. That is
-echo   what keeps a record of every ID off this laptop, which
-echo   matters more than it sounds - see the note in the README.
+echo   Every ID you issue is written to the shared Google Sheet
+echo   automatically. Nothing to set up.
 echo.
 pause
 exit /b 0

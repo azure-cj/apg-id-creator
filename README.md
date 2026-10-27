@@ -102,7 +102,7 @@ Common edits:
 | The card's physical size | `CONFIG.card` — currently CR80, 54 × 85.6 mm |
 | Restyle the app after a rebrand | The tokens at the top of `src/styles.css` (`--gold`, `--gold-strong`, `--tray`, the fonts) and `assets/logo.png`. None of them touch the printed card. |
 | Bump the version stamped into PDFs | `APP_VERSION` in `config.js` (and `package.json`) |
-| Share the issued-ID register between computers | Nothing in the code: paste the web-app address into the app (Issued IDs → Shared register) — see `register/README.md` |
+| Point the register at a different Google Sheet | `CONFIG.register.url` — the Apps Script web-app address. Treat it as a password; see `register/README.md` |
 | Reword the AI photo prompt | `PHOTO_PROMPT` in `config.js` and `photo-prompt.txt` |
 
 ### Running it on this computer
