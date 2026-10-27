@@ -1,173 +1,141 @@
 # Alpha Premier ID Maker
 
-Makes the 54 × 85.6 mm (CR80) employee ID card for Alpha Premier Group of Companies.
-Six short steps — name, job title, employee number, photo, signature, then a
-check — and out comes a 300 DPI print file: a sheet of cards with crop
-marks, front and back side by side, ready to cut out and stick together —
-or, if you would rather print on both sides of the paper, a page of fronts
-and a page of backs laid out to meet. Several people can go on one sheet.
+Makes employee ID cards for Alpha Premier Group of Companies.
 
-**To use it:** double-click `Alpha Premier ID Maker.html`. It opens in your
-browser, works offline, and nothing leaves the computer — photos, names and
-signatures stay in the browser tab until you download the PDF.
+You type in the person's details, add their photo and signature, and the
+app gives you a PDF to print. The cards come out bank-card size, ready to
+cut.
 
-Step-by-step instructions for making an ID (including how the photo is
-prepared) are in **PROCESS.md**.
+---
 
-## What is in this folder
+## Installing it
 
-| Path | What it is |
-| --- | --- |
-| `Alpha Premier ID Maker.html` | The app. One self-contained file: templates, fonts and code are all inside it. This is the only file HR needs. |
-| `PROCESS.md` | The ID-making process end to end, including batches, with the photo pipeline explained. |
-| `BACKLOG.md` | Ideas considered and not built yet, and why. |
-| `PHOTO-SPEC.md` | What the photo pipeline actually does, measured — including its known limits. |
-| `photo-prompt.txt` | The prompt to paste into Gemini / ChatGPT to turn any photo into a green-screen portrait. (The app also shows it under the Photo field.) |
-| `desktop/` | Giving HR the app to install: a per-user installer that needs no admin rights and no signing, and a WebView2 shell for when a real `.exe` is wanted. See `desktop/README.md`. |
-| `register/` | Optional shared register: a Google Apps Script (`Code.gs`) and set-up notes, so every HR computer checks duplicates against one Google Sheet. |
-| `assets/front-template.png` | Front of the card, 638 × 1004 px = 54 × 85 mm at 300 DPI. |
-| `assets/back.png` | Back of the card (terms, contacts, CEO signature). Same size. |
-| `assets/example-cut-out.png` | The cut-out the sample card is built from. It has no button in the app; it is what `npm test` renders. |
-| `assets/logo.png` | The peacock mark in the app's header — lifted from the card artwork, so the screen and the print agree. |
-| `assets/fonts/` | Poppins 700 (name), Montserrat 800 (title), Arimo 400 (employee number) as latin + latin-ext WOFF2 subsets. |
-| `src/` | The readable source code. See "How the app is built" below. |
-| `build.mjs` | Rebuilds `Alpha Premier ID Maker.html` from `src/` + `assets/`. |
-| `serve.mjs` | `npm start` — serves the folder on `http://localhost:8000`. No dependencies. |
-| `test/golden.mjs` | Renders the example card at 300 DPI and compares it with `test/golden-front.png`, so a code or config change cannot silently move anything. |
-| `package.json` | `npm run build`, `npm test`, `npm run dev`. |
+1. Download **`AP-ID-Maker-Setup.exe`** from the Releases page of this
+   repository.
+2. Double-click it.
+3. Windows will say **"Windows protected your PC"**. This is normal — it
+   says that about any program it has not seen before. Click **More
+   info**, then **Run anyway**.
+4. Follow the prompts. It does not ask for an administrator password.
 
-## How the app is built
+You will find **Alpha Premier ID Maker** in the Start menu and on your
+desktop. Right-click it on the taskbar to pin it there.
 
-The app is plain HTML, CSS and JavaScript — no framework, no build tools
-other than the small `build.mjs` script, and no network calls (the Google
-Fonts link only styles the form; the card fonts are embedded).
+You need Microsoft Edge, which is already on every Windows computer. The
+installer checks and tells you if it is missing.
 
-```
-src/
-  index.html        page markup (also the development page)
-  styles.css        appearance
-  assets.dev.js     asset paths for development; the build swaps in base64 data URLs
-  config.js         EVERY measurement: card size, text boxes, photo placement, QR,
-                    signature box, employee-number format, register URL, the AI photo prompt
-  register.js       issued-ID register: local (localStorage) + optional shared Sheet
-  titles.js         the job-title list, plus custom titles this computer has used
-  batch.js          CSV batch issuing: parsing, file matching, per-row checks
-  text-fit.js       shrinks and wraps the name/title so they fit their boxes
-  signature.js      the signature pad + drawing strokes onto the card
-  qr.js             the QR code square (uses vendor/qrcode-generator.js, MIT)
-  card.js           draws the front and back at any resolution
-  photo.js          the photo pipeline: background check, chroma key, head
-                    detection, automatic placement
-  pdf.js            writes the PDF by hand (no library), any number of pages, and names the file
-  app.js            form state, validation, live preview, review dialog
-  vendor/qrcode-generator.js
-```
+---
 
-Every module is a classic script sharing one global scope, in the order
-listed in `index.html`. The card is drawn with the Canvas 2D API by
-`drawFront()` / `drawBack()` in `card.js`; the on-screen preview calls them
-at screen resolution and the PDF calls them at 300 DPI, so the preview and
-the print file are the same drawing.
+## Making an ID
 
-### Changing something
+Open the app and work through the six steps. It will not let you move on
+until the step you are on is complete, so you cannot forget anything.
 
-1. Edit the file in `src/` (most changes are numbers in `config.js`).
-2. Run `node build.mjs` in this folder (Node 18+; nothing to install).
-3. Run `npm test` (first time: `npm install`, which fetches Playwright and
-   a headless Chromium). It renders the example card and diffs it against
-   `test/golden-front.png`; any moved pixel fails with a magenta diff image
-   in `test/diff-front.png`. If the change was intended, accept it with
-   `npm test -- --update` and commit the new golden.
-4. Open the rebuilt `Alpha Premier ID Maker.html` with **`#example`** on
-   the end of the address to fill the form with the sample card and jump
-   to the finished preview. Press Ctrl+Shift+G there to overlay the
-   photo-area and front-outline guides when re-tracing a new template.
-   Neither has a button: HR never needs them, and the fewer things in that
-   panel the better.
+**1. Name** — last name, first name, middle name, suffix. Type them
+normally; if you type all in small letters the app fixes the capitals when
+you leave the box. The line underneath shows exactly what will be printed
+on the card.
 
-Common edits:
+**2. Job title** — pick from the list. If someone does two jobs, tick the
+second role and pick that too; the card will say something like
+*IT/Admin Associate*. If the title you need is not listed, choose
+**Other…** and type it.
 
-| Want to… | Change |
-| --- | --- |
-| Move or resize the name / title / employee number | `CONFIG.text.*.box` (mm) and the `maxSizePt` / `minSizePt` / `maxLines` limits |
-| Print the name surname-first, or show the middle name in full | `CONFIG.name` — `cardFormat` and `middle` |
-| Stop capitalising names typed in lower case | `CONFIG.name.autoCapitalise` → `false` |
-| Add or remove the job titles everyone sees | `CONFIG.titles.list` |
-| How two roles are merged on the card | `CONFIG.titles.mergeJoiner` / `pairJoiner` |
-| Change where the photo sits or how big the head is | `CONFIG.photo` — `headTop`, `headCenterX`, `headWidth`, `reachY`; manual-adjust limits `nudgeStepMm`, `zoomMin/Max` |
-| Change the QR link | `CONFIG.qr.content` |
-| New template artwork | Replace `assets/front-template.png` / `assets/back.png` (keep 638 × 1004 px). If the band or the photo window moved, re-trace `CONFIG.frontOutline.polygons` and `CONFIG.photoArea.polygon` |
-| Different number format | `CONFIG.employeeNo` (`prefix`, `digits`, `label`, years offered) |
-| Paper sizes, margins, gutters, crop marks | `CONFIG.sheet` |
-| The card's physical size | `CONFIG.card` — currently CR80, 54 × 85.6 mm |
-| Restyle the app after a rebrand | The tokens at the top of `src/styles.css` (`--gold`, `--gold-strong`, `--tray`, the fonts) and `assets/logo.png`. None of them touch the printed card. |
-| Bump the version stamped into PDFs | `APP_VERSION` in `config.js` (and `package.json`) |
-| Point the register at a different Google Sheet | `CONFIG.register.url` — the Apps Script web-app address. Treat it as a password; see `register/README.md` |
-| Reword the AI photo prompt | `PHOTO_PROMPT` in `config.js` and `photo-prompt.txt` |
+**3. Employee number** — type the number HR assigned, for example `124`.
+The app turns it into `APG-2026-124`.
 
-### Running it on this computer
+> If that number has been used before, the box turns **red** and tells you
+> who already has it. Either use a different number, or — if you are
+> reprinting a lost card for the same person — tick **Replacement card**.
 
-Double-clicking `Alpha Premier ID Maker.html` is enough for normal use. To
-serve it over `http://localhost` instead — needed to work on the files in
-`src/`, and handy for testing:
+**4. Photo** — the photo needs a plain green background. If you do not
+have one, the app shows you a short instruction to copy; paste it into the
+company's Gemini or ChatGPT account along with the photo, and it will
+produce one for you.
 
-```
-npm start                 http://localhost:8000/
-npm start -- --port 9000  if 8000 is taken
-npm start -- --lan        also reachable from other computers on the office
-                          network (Windows will ask to allow Node through
-                          the firewall — allow it for private networks)
-```
+> Use the **company account**, never your own personal one.
 
-`/` serves the built single file; `/src/` serves the development page,
-which loads the stylesheet, scripts and assets separately so you can edit
-and just refresh. `serve.mjs` has no dependencies.
+Upload the result. The app cuts out the person and places them on the
+card. If something is wrong — too blurry, or clothing the same colour as
+the background — it tells you and asks for a different photo.
 
-Note that the browser keeps the issued-ID register per address, so cards
-issued from the double-clicked file and from `http://localhost` are kept in
-separate lists. The shared Google Sheet register (see `register/README.md`)
-is not affected.
+**5. Signature** — the new hire signs in the box with the mouse, or you
+upload a photo of their signature on white paper.
 
-## How it looks
+**6. Check and print** — you will see the actual sheet that will come out
+of the printer. Check the name, title and number, then press **Download
+PDF**.
 
-The screen takes its colours from **alphapremiergroup.com**: brand gold
-`#D4AF37`, black panels, and Plus Jakarta Sans (the fonts come from Google
-Fonts; without a connection the app falls back to the system typeface and
-everything still works). Gold is used for fills and on black. On white it
-is only 2.1:1 against the background — too faint to read — so gold *text*
-on a light background uses a darker `#8A6A14`, which passes WCAG AA.
+---
 
-**The printed card is not affected by any of this.** Its colours come from
-the template artwork, and `npm test` fails if a single pixel of it moves.
+## Printing
 
-## Data protection
+Open the PDF and print it at **100%** — not "fit to page", or the cards
+come out the wrong size.
 
-- **No photograph ever leaves the computer from this app, and none is
-  stored.** The photo lives in the browser tab until the card is
-  downloaded, then it is gone. Re-issuing a lost card means sourcing the
-  photograph again — that is deliberate, so there is no store of employee
-  images to protect.
-- **The one third-party step is manual.** HR is instructed to put the
-  employee's photo through Gemini or ChatGPT to get a green-screen
-  portrait. This **must** be done on the company's approved **enterprise**
-  AI account, never a personal login. The app states this but cannot
-  enforce it.
-- **The register holds no images** — only the ID number, name, job title
-  and issue date. With the shared Google Sheet it also records which Google
-  account issued each card.
-- The app is for **HR use on a desktop browser**. Employee self-service is
-  not supported.
+On the last step you choose how the cards sit on the paper:
 
-`PHOTO-SPEC.md` has the full measured behaviour of the photo pipeline.
+- **Side by side** (normal) — the front and the back are printed next to
+  each other on one sheet. Cut both out and stick them back to back. Four
+  cards per A4 sheet.
+- **Both sides** — the fronts print on one page and the backs on the next,
+  for printing on both sides of the paper. Nine cards per A4 sheet, but
+  your printer has to line the two sides up accurately. **Print one sheet
+  and check before doing a whole batch.**
 
-## Requirements
+### Several people at once
 
-A current Chrome, Edge, Firefox or Safari. The PDF export uses the
-browser's built-in `CompressionStream`; on a very old browser without it
-the pages are stored as high-quality JPEG instead of lossless.
+On the last step, press **+ Add another ID to this print**. Finish that
+person, and both go on the same sheet. Repeat for as many as fit. Everyone
+waiting is listed under the preview.
 
-## Credits
+Changed your mind? **Cancel — back to printing** takes you back with
+everyone already added still there.
 
-Fonts: Poppins, Montserrat and Arimo (Open Font License / Apache 2.0).
-QR code: qrcode-generator by Kazuhiko Arase (MIT). "QR Code" is a
-registered trademark of DENSO WAVE INCORPORATED.
+---
+
+## Things that might confuse you
+
+**The number box turned red.** That number is already used. The message
+says who has it. Use another, or tick *Replacement card* if you are
+reprinting someone's lost ID.
+
+**It says the photo is no good.** Common reasons: the background is not
+plain green, the person is wearing something the same colour as the
+background, or the photo is blurry. Take or request another one.
+
+**The back of the card prints upside down.** Open **Printer setting** at
+the bottom of the form and tick *Turn the back 180°*.
+
+**The backs end up behind the wrong people.** Only happens with the *Both
+sides* layout. In **Printer setting**, change *How your printer turns the
+paper over* to **short edge**, and print again.
+
+**The cards come out the wrong size.** The printer was set to shrink the
+page. Print at 100% or "actual size".
+
+---
+
+## What the app keeps
+
+**It never stores photographs.** The photo is used to make the card and is
+then gone. If someone loses their ID, you will need the photo again to
+reprint it. That is on purpose — there is no store of employee photos to
+protect.
+
+**Every ID you issue is recorded** in the company's register sheet: the
+number, the name, the job title and the date. That is what lets the app
+warn you about a number that has already been used. There is nothing to
+set up; it is already connected.
+
+**The register is the real record, not your laptop.** If the laptop is
+replaced or wiped, the sheet still has everything.
+
+---
+
+## Getting help
+
+The full procedure, including making many cards at once from a
+spreadsheet, is in **[PROCESS.md](PROCESS.md)**.
+
+If you look after the app itself, see **[DEVELOPING.md](DEVELOPING.md)**.
