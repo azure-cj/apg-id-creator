@@ -30,8 +30,8 @@ Capitals are kept as typed. The line under the fields — **On the card** —
 shows exactly what will be printed, so check that rather than the boxes. If
 the whole name is too long for the card even at the smallest size, that line
 turns red and says so.
-| Job title | Pick from the list. For a title not on the list, choose **Other…** and type it — it is remembered on that computer and appears in the list from then on. |
-| Second role | For someone who holds two roles, click **+ Add a second role** and pick the other one. The two are merged for the card: `IT Associate` + `Admin Associate` prints as `IT/ADMIN ASSOCIATE`. Two titles with nothing in common print in full, `IT ASSOCIATE / DRIVER`. **Remove** takes the second role off again. |
+| Job title | Tap one of the buttons. For a title not shown, tap **Other…** and type it — once that card is downloaded the title joins the buttons on that computer. A title you added can be taken off again with the small **×** on its button; the company's own titles have no × and cannot be removed here. |
+| Second role | For someone who holds two roles, tap **+ Add a second role** and pick the other one. The job title already chosen is **not offered** in that row, so the same role cannot be picked twice. The two are merged for the card: `IT Associate` + `Admin Associate` prints as `IT/ADMIN ASSOCIATE`. Titles with nothing in common print in full, `HR ASSOCIATE / SAFETY OFFICER`. **Remove** takes the second role off again. |
 
 The job title also has an **On the card** line, showing it in the capitals
 the card uses. If it is too long even at the smallest size, that line turns
@@ -367,6 +367,10 @@ directly instead of guessing it from the end of a whole name.
 `localStorage` under `apg-id-titles`, but only once a card has actually been
 downloaded, so abandoned typing never pollutes the list. Titles appear in
 the dropdown as: the company list, then the remembered ones, then "Other…".
+
+The second row hides whatever the job title resolves to, and typing the
+same thing under "Other…" is caught by validation, so a role can never be
+doubled up.
 
 `composeTitle` (in `src/config.js`) merges two roles by finding the longest
 run of words they both end with. With a shared tail the leading parts are

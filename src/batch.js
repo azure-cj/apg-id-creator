@@ -74,7 +74,7 @@ function csvToObjects(text) {
 const CSV_TEMPLATE = 'last,first,middle,suffix,title,title2,seq,year,photo,signature,replacement\r\n'
   + 'Aureo,"Christopher Joseph",Villanueva,,"IT Associate",,122,2026,aureo.png,aureo-sign.jpg,\r\n'
   + 'Reyes,Ana,Santos,,"HR Associate","Admin Associate",123,2026,reyes.png,,\r\n'
-  + '"dela Cruz",Juan,Santos,Jr.,Driver,,124,2026,cruz.png,,\r\n';
+  + '"dela Cruz",Juan,Santos,Jr.,"Marketing Associate",,124,2026,cruz.png,,\r\n';
 
 /* ---- matching uploaded files ------------------------------------- */
 

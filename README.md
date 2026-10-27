@@ -82,7 +82,7 @@ Common edits:
 | --- | --- |
 | Move or resize the name / title / employee number | `CONFIG.text.*.box` (mm) and the `maxSizePt` / `minSizePt` / `maxLines` limits |
 | Print the name surname-first, or show the middle name in full | `CONFIG.name` — `cardFormat` and `middle` |
-| Add or remove job titles in the dropdown | `CONFIG.titles.list` |
+| Add or remove the job titles everyone sees | `CONFIG.titles.list` |
 | How two roles are merged on the card | `CONFIG.titles.mergeJoiner` / `pairJoiner` |
 | Change where the photo sits or how big the head is | `CONFIG.photo` — `headTop`, `headCenterX`, `headWidth`, `reachY`; manual-adjust limits `nudgeStepMm`, `zoomMin/Max` |
 | Change the QR link | `CONFIG.qr.content` |

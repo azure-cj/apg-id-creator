@@ -111,12 +111,24 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .on-card.is-error { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
 
 .role-block { display: grid; gap: 10px; }
-.role-block select { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: 400 1rem var(--font-body); }
-.role-block select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 25%, transparent); }
-.role-block .has-error select { border-color: var(--danger); }
+.field-label { font-size: 0.95rem; font-weight: 600; }
 .role-block input[type="text"] { margin-top: 6px; }
-.role-add { justify-self: start; }
-#field-title2 { padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; }
+.role-add { justify-self: start; min-height: 40px; }
+.role-second { padding: 12px; border: 1px dashed var(--line); border-radius: 10px; background: color-mix(in srgb, var(--line) 18%, transparent); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 14px;
+        border: 1px solid var(--line); border-radius: 999px; background: var(--field); cursor: pointer;
+        font-size: 0.95rem; line-height: 1.2; user-select: none; }
+.chip input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.chip:hover { border-color: var(--gold); }
+.chip.on { background: var(--gold-strong); border-color: var(--gold-strong); color: var(--on-gold); font-weight: 600; }
+.chip:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+.has-error .chips .chip { border-color: var(--danger); }
+.chip-x { display: grid; place-items: center; width: 20px; height: 20px; margin-right: -6px; padding: 0;
+          border: 0; border-radius: 50%; background: color-mix(in srgb, var(--ink) 10%, transparent);
+          color: inherit; font-size: 0.85rem; line-height: 1; cursor: pointer; }
+.chip-x:hover { background: color-mix(in srgb, var(--danger) 25%, transparent); }
 
 .number-row { display: flex; align-items: center; gap: 8px; }
 .number-prefix { color: var(--muted); font-family: var(--font-mono); font-size: 0.9rem; white-space: nowrap; }

@@ -78,23 +78,23 @@
 
           <div class="role-block">
             <div class="field" id="field-title">
-              <label for="f-title">Job title</label>
-              <select id="f-title" aria-describedby="f-title-msg"></select>
+              <span class="field-label" id="title-label">Job title</span>
+              <div class="chips" id="title-chips" role="radiogroup" aria-labelledby="title-label"></div>
               <input id="f-title-custom" type="text" autocomplete="off" maxlength="60" placeholder="Type the job title" aria-label="Job title" hidden />
               <p id="f-title-msg" class="msg"></p>
             </div>
 
-            <div class="field" id="field-title2" hidden>
+            <div class="field role-second" id="field-title2" hidden>
               <div class="field-top">
-                <label for="f-title2">Second role</label>
+                <span class="field-label" id="title2-label">Second role</span>
                 <button type="button" id="btn-role-remove" class="link">Remove</button>
               </div>
-              <select id="f-title2" aria-describedby="f-title2-msg"></select>
+              <div class="chips" id="title2-chips" role="radiogroup" aria-labelledby="title2-label"></div>
               <input id="f-title2-custom" type="text" autocomplete="off" maxlength="60" placeholder="Type the second role" aria-label="Second role" hidden />
               <p id="f-title2-msg" class="msg"></p>
             </div>
 
-            <button type="button" id="btn-role-add" class="link role-add">+ Add a second role</button>
+            <button type="button" id="btn-role-add" class="ghost role-add">+ Add a second role</button>
             <p class="on-card" id="title-preview"></p>
           </div>
 

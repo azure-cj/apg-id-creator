@@ -19,7 +19,7 @@ const FIELD_LABEL = {
 };
 const FIELD_INPUT = {
   last: 'f-last', first: 'f-first', middle: 'f-middle', suffix: 'f-suffix',
-  nameFit: 'f-first', title: 'f-title', title2: 'f-title2', titleFit: 'f-title',
+  nameFit: 'f-first', title: 'f-title-custom', title2: 'f-title2-custom', titleFit: 'f-title-custom',
   seq: 'f-seq', photo: 'f-photo', signature: 'f-signature',
 };
 
@@ -74,6 +74,7 @@ function restoreDraft() {
     state.showRole2 = !!d.showRole2;
     $('f-title-custom').value = state.role1.custom;
     $('f-title2-custom').value = state.role2.custom;
+    
     $('f-seq').value = state.seq;
     refreshDuplicate();
     return true;
@@ -89,6 +90,7 @@ function seqNumber() { return /^\d{1,4}$/.test(state.seq) && Number(state.seq) >
 
 const nameParts = () => ({ last: state.last, first: state.first, middle: state.middle, suffix: state.suffix });
 const roleValue = (r) => (r.pick === CUSTOM_TITLE ? collapseSpaces(r.custom) : r.pick);
+const sameRole = (a, b) => !!a && !!b && a.toLocaleLowerCase('en-US') === b.toLocaleLowerCase('en-US');
 const role1 = () => roleValue(state.role1);
 const role2 = () => (state.showRole2 ? roleValue(state.role2) : '');
 const jobTitle = () => composeTitle(role1(), role2());
@@ -123,7 +125,9 @@ function problems() {
          : state.role1.pick === CUSTOM_TITLE && !collapseSpaces(state.role1.custom) ? 'Type the job title.'
          : state.role1.pick === CUSTOM_TITLE && !TITLE_RE.test(collapseSpaces(state.role1.custom)) ? 'Use letters, numbers, spaces and . , & ( ) / - only.'
          : '',
-    title2: state.showRole2 && state.role2.pick === CUSTOM_TITLE && !collapseSpaces(state.role2.custom) ? 'Type the second role, or remove it.'
+    title2: state.showRole2 && sameRole(roleValue(state.role2), roleValue(state.role1))
+            ? 'This is the same as the job title above. Pick a different role, or remove it.'
+          : state.showRole2 && state.role2.pick === CUSTOM_TITLE && !collapseSpaces(state.role2.custom) ? 'Type the second role, or remove it.'
           : state.showRole2 && state.role2.pick === CUSTOM_TITLE && !TITLE_RE.test(collapseSpaces(state.role2.custom)) ? 'Use letters, numbers, spaces and . , & ( ) / - only.'
           : state.showRole2 && !state.role2.pick ? 'Choose the second role, or remove it.'
           : '',
@@ -179,7 +183,7 @@ function drawPreview() {
 function setMsg(fieldId, msgId, error, help) {
   $(fieldId).classList.toggle('has-error', !!error);
   $(msgId).textContent = error || help;
-  const input = $(fieldId).querySelector('input');
+  const input = $(fieldId).querySelector('input:not([type="radio"]):not([type="checkbox"])');
   if (input) input.setAttribute('aria-invalid', error ? 'true' : 'false');
 }
 
@@ -227,12 +231,13 @@ function render() {
   // job title
   setMsg('field-title', 'f-title-msg', shown('title'), '');
   setMsg('field-title2', 'f-title2-msg', shown('title2'), '');
-  $('f-title').value = state.role1.pick;
+  syncChips($('title-chips'), state.role1.pick, null);
   $('f-title-custom').hidden = state.role1.pick !== CUSTOM_TITLE;
   $('field-title2').hidden = !state.showRole2;
   $('btn-role-add').hidden = state.showRole2;
   if (state.showRole2) {
-    $('f-title2').value = state.role2.pick;
+    // whatever the main job title resolves to disappears from this row
+    syncChips($('title2-chips'), state.role2.pick, roleValue(state.role1));
     $('f-title2-custom').hidden = state.role2.pick !== CUSTOM_TITLE;
   }
   const titlePreview = $('title-preview');
@@ -323,6 +328,18 @@ function render() {
   drawPreview();
 }
 
+// Tick the chosen chip; `hideValue` removes one option from the row.
+function syncChips(container, selected, hideValue) {
+  for (const chip of container.querySelectorAll('.chip')) {
+    const value = chip.dataset.value;
+    const hidden = !!hideValue && value !== CUSTOM_TITLE && sameRole(value, hideValue);
+    chip.hidden = hidden;
+    const on = !hidden && value === selected;
+    chip.classList.toggle('on', on);
+    chip.querySelector('input').checked = on;
+  }
+}
+
 function renderRegister() {
   const all = Register.all();
   $('register-count').textContent = all.length;
@@ -355,39 +372,61 @@ for (const k of NAME_PARTS) {
     state.example = false; touch(k); state[k] = e.target.value; saveDraft(); render();
   });
 }
-function fillTitleOptions(select, { includeNone }) {
-  const current = select.value;
-  select.innerHTML = '';
-  const add = (value, label) => {
-    const o = document.createElement('option');
-    o.value = value; o.textContent = label;
-    select.appendChild(o);
+// Build both chip rows. Called once at boot, and again whenever the list
+// of remembered titles changes — not on every keystroke, so focus and the
+// keyboard's position inside the radio group survive.
+function buildChips(container, groupName, onPick) {
+  container.innerHTML = '';
+  const add = (value, label, removable) => {
+    const chip = document.createElement('label');
+    chip.className = 'chip';
+    chip.dataset.value = value;
+    const radio = document.createElement('input');
+    radio.type = 'radio'; radio.name = groupName; radio.value = value;
+    radio.addEventListener('change', () => onPick(value));
+    const text = document.createElement('span');
+    text.textContent = label;
+    chip.append(radio, text);
+    if (removable) {
+      const x = document.createElement('button');
+      x.type = 'button'; x.className = 'chip-x'; x.textContent = '×';
+      x.title = `Remove “${label}” from the list`;
+      x.setAttribute('aria-label', `Remove ${label} from the list of job titles`);
+      x.addEventListener('click', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        Titles.forget(value);
+        for (const r of [state.role1, state.role2]) if (r.pick === value) r.pick = '';
+        refreshTitleOptions();
+        saveDraft(); render();
+      });
+      chip.append(x);
+    }
+    container.append(chip);
   };
-  add('', includeNone ? '— choose a role —' : '— choose a job title —');
-  for (const t of Titles.all()) add(t, t);
-  add(CUSTOM_TITLE, 'Other…');
-  select.value = current;
+  for (const t of Titles.all()) add(t, t, !Titles.isStandard(t));
+  add(CUSTOM_TITLE, 'Other…', false);
 }
+
 function refreshTitleOptions() {
-  fillTitleOptions($('f-title'), { includeNone: false });
-  fillTitleOptions($('f-title2'), { includeNone: true });
+  buildChips($('title-chips'), 'role1', (value) => {
+    state.example = false; touch('title');
+    state.role1.pick = value;
+    // the second role can never repeat the first
+    if (state.showRole2 && sameRole(roleValue(state.role2), roleValue(state.role1))) state.role2.pick = '';
+    saveDraft(); render();
+    if (value === CUSTOM_TITLE) $('f-title-custom').focus();
+  });
+  buildChips($('title2-chips'), 'role2', (value) => {
+    state.example = false; touch('title2');
+    state.role2.pick = value;
+    saveDraft(); render();
+    if (value === CUSTOM_TITLE) $('f-title2-custom').focus();
+  });
 }
 refreshTitleOptions();
 
-$('f-title').addEventListener('change', (e) => {
-  state.example = false; touch('title');
-  state.role1.pick = e.target.value;
-  saveDraft(); render();
-  if (state.role1.pick === CUSTOM_TITLE) $('f-title-custom').focus();
-});
 $('f-title-custom').addEventListener('input', (e) => {
   state.example = false; touch('title'); state.role1.custom = e.target.value; saveDraft(); render();
-});
-$('f-title2').addEventListener('change', (e) => {
-  state.example = false; touch('title2');
-  state.role2.pick = e.target.value;
-  saveDraft(); render();
-  if (state.role2.pick === CUSTOM_TITLE) $('f-title2-custom').focus();
 });
 $('f-title2-custom').addEventListener('input', (e) => {
   state.example = false; touch('title2'); state.role2.custom = e.target.value; saveDraft(); render();
@@ -395,7 +434,7 @@ $('f-title2-custom').addEventListener('input', (e) => {
 $('btn-role-add').addEventListener('click', () => {
   state.showRole2 = true; state.example = false;
   saveDraft(); render();
-  $('f-title2').focus();
+  $('title2-chips').querySelector('.chip:not([hidden]) input')?.focus();
 });
 $('btn-role-remove').addEventListener('click', () => {
   state.showRole2 = false;
@@ -428,8 +467,8 @@ $('btn-register-csv').addEventListener('click', () => {
   downloadBlob(`apg-id-register-${new Date().toISOString().slice(0, 10)}.csv`, new Blob([Register.csv()], { type: 'text/csv;charset=utf-8' }));
 });
 for (const k of [...NAME_PARTS, 'seq']) $(`f-${k}`).addEventListener('blur', () => { touch(k); render(); });
-for (const id of ['f-title', 'f-title-custom']) $(id).addEventListener('blur', () => { touch('title'); render(); });
-for (const id of ['f-title2', 'f-title2-custom']) $(id).addEventListener('blur', () => { touch('title2'); render(); });
+$('f-title-custom').addEventListener('blur', () => { touch('title'); render(); });
+$('f-title2-custom').addEventListener('blur', () => { touch('title2'); render(); });
 
 $('side-front').addEventListener('click', () => { state.side = 'front'; render(); });
 $('side-back').addEventListener('click', () => { state.side = 'back'; render(); });
