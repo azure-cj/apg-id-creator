@@ -22,9 +22,15 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2792.45" />
   </ItemGroup>
 
-  <!-- the whole app is one file; it ships beside the exe -->
+  <!-- the whole app is one file; it ships beside the exe, under web/ so
+       the shell can serve that folder under a host name -->
   <ItemGroup>
     <None Include="..\..\Alpha Premier ID Maker.html" Link="web\index.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- the exe carries this for Explorer; the copy is what the window
+         itself loads at run time -->
+    <None Include="..\app.ico" Link="app.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

@@ -87,8 +87,14 @@ cd desktop\shell
 dotnet publish -c Release -r win-x64
 ```
 
-The result is in `bin\Release\net8.0-windows\win-x64\publish\`; copy
-`app.ico` in beside the exe.
+The result is in `bin\Release\net8.0-windows\win-x64\publish\` —
+`Alpha Premier ID Maker.exe` with `web\index.html` and `app.ico` beside
+it. All three belong together; the exe alone will not start.
+
+It is built against the installed .NET 8 runtime rather than carrying its
+own, which keeps it small but means the machine running it needs .NET 8.
+That is fine on the laptop that built it. To hand it to a machine without
+.NET, add `--self-contained true` and accept roughly 150 MB.
 
 Before using it in earnest:
 
