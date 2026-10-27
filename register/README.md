@@ -10,13 +10,24 @@ Sheet. Set-up takes about ten minutes and needs no server.
 1. Open the register spreadsheet in Google Sheets.
 2. *Extensions → Apps Script*. Delete the sample code, paste the whole of
    `Code.gs` from this folder, and save.
-3. *Deploy → New deployment* → type **Web app**.
+3. Rename the project from *Untitled project* to `APG ID Register` — that
+   name is what Google shows on the permission screen and in the account's
+   list of connected apps, so leaving it blank makes it unidentifiable
+   later.
+4. *Deploy → New deployment* → type **Web app**.
    - Description: `ID register`
    - Execute as: **Me**
-   - Who has access: **Anyone within Alpha Premier** if your Google
-     Workspace offers it — then only signed-in company accounts can reach
-     it. Otherwise **Anyone with the link**; see the warning below.
-4. Authorise when asked, then copy the **Web app URL**. It looks like
+   - Who has access: **Anyone with the link**. This has to be the setting:
+     the app calls the script from the browser without sign-in cookies, so
+     a deployment restricted to a Google Workspace domain answers with a
+     redirect to a login page and the check simply fails. See the warning
+     below for what that means.
+5. Google asks for permission and warns that *this app hasn't been verified*.
+   That is expected: the "app" is the script you just pasted into your own
+   spreadsheet, and the developer it names is you. Click **Advanced**, then
+   **Go to APG ID Register (unsafe)**, then **Allow**. It is asking for
+   Sheets access because it reads and writes the `Register` tab.
+6. Copy the **Web app URL**. It looks like
    `https://script.google.com/macros/s/AKfy…/exec` and must end in `/exec`.
 
 Check it: open that URL in a browser. You should see
