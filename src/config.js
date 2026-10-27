@@ -7,7 +7,7 @@
    ------------------------------------------------------------------ */
 
 const APP_NAME = 'Alpha Premier ID Maker';
-const APP_VERSION = '1.7.4';          // stamped into every PDF's metadata
+const APP_VERSION = '1.8.0';          // stamped into every PDF's metadata
 
 const CONFIG = {
   card: {
@@ -75,6 +75,10 @@ const CONFIG = {
     cardFormat: '{first} {middle} {last} {suffix}',
     middle: 'initial',
     maxLengths: { last: 40, first: 40, middle: 40, suffix: 10 },
+    // Capitalise a name that was typed without the shift key. See
+    // autoCapitalise() below for the rule, and set this to false to leave
+    // every name exactly as it was typed.
+    autoCapitalise: true,
   },
 
   // Job titles offered in the dropdown. Add, remove or reorder freely —
@@ -290,4 +294,33 @@ function composeTitle(first, second) {
 // For file names: letters only, accents flattened. "Dela Cruz-Santos" -> "DelaCruzSantos"
 function fileSafeName(s) {
   return collapseSpaces(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z]/g, '');
+}
+
+/* Suffixes that are roman numerals: "iii" is III, never "Iii". */
+const ROMAN_SUFFIX = /^(i{1,3}|iv|vi{0,3}|ix|xi{0,3})$/i;
+
+/**
+ * Capitalise a name typed in lower case, for the operator who did not
+ * reach for the shift key.
+ *
+ * It only fires when the field holds no capital at all. That one rule is
+ * what makes it safe on an ID card: a name whose own spelling is not Title
+ * Case — dela Cruz, van Dijk, bin Rashid, MacArthur, III — already carries
+ * a capital somewhere, so it is left exactly as typed. It also means
+ * nobody can get stuck: type one capital anywhere in the field and that
+ * field is yours.
+ *
+ * Words are split on anything that is not a letter, so o'brien becomes
+ * O'Brien and mary-jane becomes Mary-Jane, and the match is Unicode-aware
+ * so pi\u00f1on becomes Pi\u00f1on rather than being torn apart at the \u00f1.
+ */
+function autoCapitalise(value, { suffix = false } = {}) {
+  const v = String(value ?? '');
+  if (!CONFIG.name.autoCapitalise) return v;
+  if (v !== v.toLowerCase()) return v;                 // a capital: hands off
+  return v.replace(/\p{Ll}+/gu, (word) => (
+    suffix && ROMAN_SUFFIX.test(word)
+      ? word.toUpperCase()
+      : word[0].toLocaleUpperCase() + word.slice(1)
+  ));
 }

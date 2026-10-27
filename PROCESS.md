@@ -34,7 +34,19 @@ sitting there greyed out.
 | Middle name | Optional. The mother's maiden surname. Only its **initial** is printed (`Villanueva` → `V.`), but the whole name is kept in the register. |
 | Suffix | Optional. `Jr.`, `Sr.`, `II`, `III`. Keep it out of the last name, or the file name and the register will be wrong. |
 
-Capitals are kept as typed. The line under the fields — **On the card** —
+**A name typed all in lower case is capitalised** when you leave the field:
+`maria clara` becomes `Maria Clara`, and in the suffix box `iii` becomes
+`III`, not `Iii`.
+
+It only does this when there is **no capital anywhere in that field**, which
+is the whole safeguard. Names that are not Title Case by their own spelling
+— `dela Cruz`, `van Dijk`, `bin Rashid`, `MacArthur` — already contain a
+capital, so they are left exactly as typed. That is also the way out: if
+the app capitalises something you did not want capitalised, type one
+capital anywhere in that field and it will never touch it again. Nothing
+is rewritten behind your back.
+
+The line under the fields — **On the card** —
 shows exactly what will be printed, so check that rather than the boxes. If
 the whole name is too long for the card even at the smallest size, that line
 turns red and says so.

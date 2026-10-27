@@ -589,7 +589,14 @@ $('opt-reissue').addEventListener('change', (e) => { state.reissue = e.target.ch
 $('btn-register-csv').addEventListener('click', () => {
   downloadBlob(`apg-id-register-${new Date().toISOString().slice(0, 10)}.csv`, new Blob([Register.csv()], { type: 'text/csv;charset=utf-8' }));
 });
-for (const k of [...NAME_PARTS, 'seq']) $(`f-${k}`).addEventListener('blur', () => { touch(k); render(); });
+for (const k of [...NAME_PARTS, 'seq']) $(`f-${k}`).addEventListener('blur', () => {
+  // tidy the capitals once the field is left, rather than fighting the typing
+  if (NAME_PARTS.includes(k)) {
+    const fixed = autoCapitalise(state[k], { suffix: k === 'suffix' });
+    if (fixed !== state[k]) { state[k] = fixed; $(`f-${k}`).value = fixed; saveDraft(); }
+  }
+  touch(k); render();
+});
 $('f-title-custom').addEventListener('blur', () => { touch('title'); render(); });
 $('f-title2-custom').addEventListener('blur', () => { touch('title2'); render(); });
 
