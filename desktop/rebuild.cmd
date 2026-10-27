@@ -46,6 +46,22 @@ if not defined DOTNET (
   exit /b 0
 )
 
+rem --- Windows will not let a build replace a running program, and the
+rem     failure arrives as a stack trace about a denied path ---
+tasklist /nh 2>nul | find /i "Alpha Premier ID" >nul && (
+  echo   [3/3] the desktop exe...
+  echo.
+  echo   The app is open, and Windows will not let the build replace
+  echo   a running program. Close the Alpha Premier ID Maker window
+  echo   and run this again.
+  echo.
+  echo   The app and the installer zip above were rebuilt and are
+  echo   up to date; only the exe was left alone.
+  echo.
+  pause
+  exit /b 1
+)
+
 echo   [3/3] the desktop exe...
 pushd desktop\shell
 "%DOTNET%" publish -c Release -r win-x64 --nologo -v minimal || (popd & goto :failed)
