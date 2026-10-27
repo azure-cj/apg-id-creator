@@ -1,8 +1,9 @@
 # Alpha Premier ID Maker
 
-Makes the 54 × 85 mm employee ID card for Alpha Premier Group of Companies:
-fill in a form, check the card on screen, download a two-page 300 DPI PDF
-(front and back) ready for the card printer.
+Makes the 54 × 85 mm employee ID card for Alpha Premier Group of Companies.
+Six short steps — name, job title, employee number, photo, signature, then a
+check — and out comes a two-page 300 DPI PDF (front and back) ready for the
+card printer.
 
 **To use it:** double-click `Alpha Premier ID Maker.html`. It opens in your
 browser, works offline, and nothing leaves the computer — photos, names and

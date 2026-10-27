@@ -22,7 +22,7 @@
         <span class="brand-mark" aria-hidden="true"></span>
         <div>
           <h1>Alpha Premier ID Maker</h1>
-          <p class="sub">Fill in the form, check the card, download the print file.</p>
+          <p class="sub">Six short steps: the details, the photo, the signature, then check and print.</p>
         </div>
       </div>
     </header>
@@ -43,14 +43,19 @@
 
       <!-- ---------------- form ---------------- -->
       <aside class="panel">
-        <section class="block" aria-labelledby="form-heading">
+        <section class="block wizard" aria-labelledby="form-heading">
           <div class="block-head">
             <h2 id="form-heading">New ID</h2>
             <button type="button" id="btn-example" class="link">Show an example</button>
             <span class="example-tag" id="example-tag" hidden>Example details</span>
           </div>
 
-          <div class="name-block">
+                    <ol class="steps" id="steps" aria-label="Steps"></ol>
+          <p class="msg msg-warn" id="restored-note" hidden>Your typing came back after the page reloaded. The photo and signature still need to be added.</p>
+
+          <section class="step" id="step-name" data-step="0" aria-labelledby="step-name-h">
+            <h3 class="step-h" id="step-name-h">Who is this ID for?</h3>
+<div class="name-block">
             <div class="field" id="field-last">
               <label for="f-last">Last name</label>
               <input id="f-last" type="text" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="40" aria-describedby="f-last-msg" />
@@ -75,8 +80,11 @@
             </div>
             <p class="on-card" id="name-preview"></p>
           </div>
+          </section>
 
-          <div class="role-block">
+          <section class="step" id="step-title" data-step="1" hidden aria-labelledby="step-title-h">
+            <h3 class="step-h" id="step-title-h">What do they do?</h3>
+<div class="role-block">
             <div class="field" id="field-title">
               <span class="field-label" id="title-label">Job title</span>
               <div class="chips" id="title-chips" role="radiogroup" aria-labelledby="title-label"></div>
@@ -97,8 +105,11 @@
             <button type="button" id="btn-role-add" class="ghost role-add">+ Add a second role</button>
             <p class="on-card" id="title-preview"></p>
           </div>
+          </section>
 
-          <div class="field" id="field-seq">
+          <section class="step" id="step-number" data-step="2" hidden aria-labelledby="step-number-h">
+            <h3 class="step-h" id="step-number-h">Which employee number?</h3>
+<div class="field" id="field-seq">
             <label for="f-seq">Employee number</label>
             <div class="number-row">
               <span class="number-prefix" id="seq-prefix" aria-hidden="true">APG -</span>
@@ -115,8 +126,12 @@
               </span>
             </label>
           </div>
+            <p class="card-line" id="card-line" aria-label="Number line on the card"></p>
+          </section>
 
-          <div class="field">
+          <section class="step" id="step-photo" data-step="3" hidden aria-labelledby="step-photo-h">
+            <h3 class="step-h" id="step-photo-h">Their photo</h3>
+<div class="field">
             <label for="f-photo">Photo</label>
             <div class="photo" id="photo">
               <div class="photo-row">
@@ -176,8 +191,11 @@
               </div>
             </div>
           </div>
+          </section>
 
-          <div class="field">
+          <section class="step" id="step-sign" data-step="4" hidden aria-labelledby="step-sign-h">
+            <h3 class="step-h" id="step-sign-h">Their signature</h3>
+<div class="field">
             <label for="f-signature">Signature</label>
             <div class="sig" id="sig">
               <div class="sig-pad">
@@ -195,14 +213,49 @@
             </div>
             <p class="msg msg-error" id="sig-msg" hidden></p>
           </div>
+          </section>
 
-          <div class="generate">
-            <p class="msg msg-warn" id="restored-note" hidden>Text restored after the page reloaded. The photo and signature still need to be added.</p>
-            <p class="card-line" id="card-line" aria-label="Number line on the card"></p>
-            <button type="button" id="btn-review" class="primary big" disabled>Review &amp; Generate</button>
-            <p class="msg" id="status" role="status" aria-live="polite"></p>
+          <section class="step" id="step-check" data-step="5" hidden aria-labelledby="step-check-h">
+            <h3 class="step-h" id="step-check-h">Is everything correct?</h3>
+            <p class="msg" id="review-sub"></p>
+
+            <dl class="summary" id="summary"></dl>
+
+            <div class="sides">
+              <figure><img id="review-front" alt="Front of the card" /><figcaption>Front</figcaption></figure>
+              <figure><img id="review-back" alt="Back of the card" /><figcaption id="review-back-cap">Back</figcaption></figure>
+            </div>
+
+            <div id="review-stage">
+              <ul class="review-list">
+                <li>Name spelled correctly, capitals as they should be</li>
+                <li>Title and employee number are right</li>
+                <li>The photo looks like the person and isn’t blurry</li>
+                <li>The signature is visible below the title</li>
+              </ul>
+              <p class="msg msg-error" id="review-error" role="alert" hidden></p>
+              <div class="dialog-actions">
+                <button type="button" id="btn-download" class="primary">Download PDF</button>
+                <button type="button" id="btn-png" class="ghost">Save images (PNG)</button>
+              </div>
+              <p class="msg" id="review-file"></p>
+            </div>
+
+            <div id="saved-stage" hidden>
+              <p class="done">Saved <strong id="saved-name"></strong>. Print it at 100%, both sides, on the card printer.</p>
+              <div class="dialog-actions">
+                <button type="button" id="btn-new-id" class="primary">Start a new ID</button>
+                <button type="button" id="btn-again" class="ghost">Download again</button>
+              </div>
+            </div>
+          </section>
+
+          <div class="step-nav">
+            <button type="button" id="btn-back" class="ghost">Back</button>
+            <button type="button" id="btn-next" class="primary">Next</button>
           </div>
-        </section>
+          <p class="msg" id="status" role="status" aria-live="polite"></p>
+</section>
 
         <details class="block printer" id="register-block">
           <summary>Issued IDs (<span id="register-count">0</span>)</summary>
@@ -273,44 +326,6 @@
     </main>
 
     <footer class="colophon"><span id="app-version"></span></footer>
-  </div>
-
-  <!-- ---------------- review dialog ---------------- -->
-  <div class="overlay" id="overlay" role="presentation" hidden>
-    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="review-title">
-      <div class="dialog-head">
-        <h2 id="review-title">Check the card before printing</h2>
-        <p class="msg" id="review-sub"></p>
-      </div>
-      <div class="sides">
-        <figure><img id="review-front" alt="Front of the card" /><figcaption>Front</figcaption></figure>
-        <figure><img id="review-back" alt="Back of the card" /><figcaption id="review-back-cap">Back</figcaption></figure>
-      </div>
-
-      <div id="review-stage">
-        <ul class="review-list">
-          <li>Name spelled correctly, capitals as they should be</li>
-          <li>Title and employee number are right</li>
-          <li>The photo looks like the person and isn’t blurry</li>
-          <li>The signature is visible below the title</li>
-        </ul>
-        <p class="msg msg-error" id="review-error" role="alert" hidden></p>
-        <div class="dialog-actions">
-          <button type="button" id="btn-download" class="primary">Download PDF</button>
-          <button type="button" id="btn-png" class="ghost">Save images (PNG)</button>
-          <button type="button" id="btn-back-edit" class="ghost">Back to edit</button>
-        </div>
-        <p class="msg" id="review-file"></p>
-      </div>
-
-      <div id="saved-stage" hidden>
-        <p class="done">Saved <strong id="saved-name"></strong>. Print it at 100%, both sides, on the card printer.</p>
-        <div class="dialog-actions">
-          <button type="button" id="btn-new-id" class="primary">Start a new ID</button>
-          <button type="button" id="btn-again" class="ghost">Download again</button>
-        </div>
-      </div>
-    </div>
   </div>
 
   <script src="vendor/qrcode-generator.js"></script>

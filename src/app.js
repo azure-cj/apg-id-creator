@@ -23,6 +23,18 @@ const FIELD_INPUT = {
   seq: 'f-seq', photo: 'f-photo', signature: 'f-signature',
 };
 
+// The wizard. `fields` are the keys of problems() that belong to each step,
+// so a step is "done" exactly when none of its fields has a problem.
+const STEPS = [
+  { id: 'name',   label: 'Name',      fields: ['last', 'first', 'middle', 'suffix', 'nameFit'] },
+  { id: 'title',  label: 'Job title', fields: ['title', 'title2', 'titleFit'] },
+  { id: 'number', label: 'Number',    fields: ['seq'] },
+  { id: 'photo',  label: 'Photo',     fields: ['photo'] },
+  { id: 'sign',   label: 'Signature', fields: ['signature'] },
+  { id: 'check',  label: 'Check',     fields: [] },
+];
+const LAST_STEP = STEPS.length - 1;
+
 const state = {
   templates: null,
   loadError: '',
@@ -43,6 +55,7 @@ const state = {
   guides: false,        // maintainer overlay (Ctrl+Shift+G or #guides)
   signature: null,
   touched: { last: false, first: false, middle: false, suffix: false, title: false, title2: false, seq: false, photo: false, signature: false },
+  step: 0,
   example: false,
   checking: false,
   reissue: false,       // "Replacement card" ticked
@@ -160,6 +173,77 @@ function refreshDuplicate() {
     if (token !== dupToken) return;          // the number changed meanwhile
     state.dupShared = hit;
     render();
+  });
+}
+
+/* ---- steps ------------------------------------------------------- */
+
+const stepProblems = (i, p = problems()) => STEPS[i].fields.filter((f) => p[f]);
+const stepDone = (i, p) => stepProblems(i, p).length === 0;
+
+// A step can be opened once every step before it is filled in.
+const stepReachable = (i, p) => STEPS.slice(0, i).every((_, j) => stepDone(j, p));
+
+function goStep(i, { focus = true } = {}) {
+  state.step = Math.max(0, Math.min(LAST_STEP, i));
+  if (state.step === LAST_STEP) buildReview();
+  render();
+  if (state.step !== LAST_STEP) state.side = 'front';
+  const section = $(`step-${STEPS[state.step].id}`);
+  section.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  if (focus) {
+    const first = section.querySelector('input:not([type=hidden]):not([hidden]), select, button:not([hidden])');
+    if (first && state.step !== LAST_STEP) first.focus({ preventScroll: true });
+  }
+}
+
+/** Move on, or show what this step is still missing. */
+function nextStep() {
+  const p = problems();
+  const missing = stepProblems(state.step, p);
+  if (missing.length) {
+    for (const f of STEPS[state.step].fields) if (f in state.touched) state.touched[f] = true;
+    state.touched.last = state.touched.last || STEPS[state.step].fields.includes('nameFit');
+    render();
+    const target = FIELD_INPUT[missing[0]];
+    const el = target && $(target);
+    if (el && !el.hidden) el.focus();
+    return;
+  }
+  if (state.step < LAST_STEP) goStep(state.step + 1);
+}
+
+function renderStepBar(p) {
+  const bar = $('steps');
+  if (!bar.children.length) {
+    STEPS.forEach((s, i) => {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'step-chip';
+      b.dataset.step = String(i);
+      const num = document.createElement('span');
+      num.className = 'num';
+      num.textContent = String(i + 1);
+      b.append(num, document.createTextNode(s.label));
+      b.addEventListener('click', () => {
+        const probs = problems();
+        if (i <= state.step || stepReachable(i, probs)) goStep(i);
+        else {
+          const firstBad = STEPS.findIndex((_, j) => !stepDone(j, probs));
+          goStep(firstBad < 0 ? i : firstBad);
+        }
+      });
+      li.append(b);
+      bar.append(li);
+    });
+  }
+  [...bar.querySelectorAll('.step-chip')].forEach((b, i) => {
+    const done = stepDone(i, p) && i !== LAST_STEP;
+    b.classList.toggle('is-current', i === state.step);
+    b.classList.toggle('is-done', done && i !== state.step);
+    b.disabled = i > state.step && !stepReachable(i, p);
+    b.setAttribute('aria-current', i === state.step ? 'step' : 'false');
   });
 }
 
@@ -316,14 +400,23 @@ function render() {
 
   // number line + status
   $('card-line').textContent = employeeNoLine(state.year, seqNumber());
-  const missing = Object.keys(p).filter((k) => p[k]);
-  const complete = !!state.templates && missing.length === 0;
-  $('btn-review').disabled = !state.templates;
-  $('status').textContent = complete
-    ? 'Everything is filled in. Check the card, then download the print file.'
-    : `Still needed: ${missing.map((k) => FIELD_LABEL[k]).join(', ')}.`;
+  const missingHere = stepProblems(state.step, p);
+  const missingAll = Object.keys(p).filter((k) => p[k]);
+  $('status').textContent = !state.templates ? 'Loading the card template…'
+    : state.step === LAST_STEP ? (missingAll.length ? `Still needed: ${missingAll.map((k) => FIELD_LABEL[k]).join(', ')}.` : '')
+    : missingHere.length ? `Still needed on this step: ${missingHere.map((k) => FIELD_LABEL[k]).join(', ')}.`
+    : `Step ${state.step + 1} of ${STEPS.length} · ready for the next step.`;
 
   $('opt-rotate').checked = state.rotateBack;
+
+  // one step at a time
+  STEPS.forEach((s, i) => { $(`step-${s.id}`).hidden = i !== state.step; });
+  renderStepBar(p);
+  $('btn-back').hidden = state.step === 0;
+  $('btn-next').hidden = state.step === LAST_STEP;
+  $('btn-next').textContent = state.step === LAST_STEP - 1 ? 'Check the card' : 'Next';
+  $('btn-next').disabled = !state.templates;
+
   renderRegister();
   drawPreview();
 }
@@ -600,29 +693,29 @@ $('btn-example').addEventListener('click', async () => {
   pad.setValue(EXAMPLE.signature);
   state.touched = { last: false, first: false, middle: false, suffix: false, title: false, title2: false, seq: false, photo: false, signature: false };
   state.example = true; state.side = 'front';
-  render();
+  goStep(LAST_STEP, { focus: false });        // the example is complete: show the finished card
 });
 
-// review & generate
-$('btn-review').addEventListener('click', () => {
-  const p = problems();
-  const missing = Object.keys(p).filter((k) => p[k]);
-  if (missing.length) {
-    for (const k of Object.keys(state.touched)) state.touched[k] = true;
-    render();
-    $(FIELD_INPUT[missing[0]])?.focus();
-    return;
-  }
-  state.side = 'front';
-  render();
-  openReview();
+// step navigation
+$('btn-next').addEventListener('click', nextStep);
+$('btn-back').addEventListener('click', () => goStep(state.step - 1));
+
+// Enter in a text box moves on, rather than doing nothing
+document.querySelector('.wizard').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const t = e.target;
+  if (t.tagName === 'BUTTON' || t.tagName === 'SELECT' || t.closest('.chip')) return;
+  if (t.tagName === 'INPUT' && t.type === 'file') return;
+  e.preventDefault();
+  nextStep();
 });
 
 /* ---- review dialog ----------------------------------------------- */
 
 const review = { front: null, back: null, data: null, fileName: '', title: '', entry: null, saving: false };
 
-function openReview() {
+function buildReview() {
+  if (!state.templates) return;
   const data = cardData();
   review.data = data;
   review.front = renderSideCanvas(state.templates, 'front', data, state.rotateBack);
@@ -640,8 +733,28 @@ function openReview() {
     issuedAt: new Date().toISOString(), replacement: !!duplicate(),
   };
 
-  $('review-title').textContent = 'Check the card before printing';
-  $('review-sub').textContent = `${employeeId(state.year, data.seq)} · ${collapseSpaces(data.name)}`;
+  $('step-check-h').textContent = 'Is everything correct?';
+  $('review-sub').textContent = 'Check the card against the details below, then download the print file.';
+
+  // a plain summary, each line editable in one click
+  const summary = $('summary');
+  summary.innerHTML = '';
+  const rows = [
+    ['Name', collapseSpaces(data.name), 0],
+    ['Job title', CONFIG.text.title.uppercase ? data.title.toLocaleUpperCase('en-US') : data.title, 1],
+    ['Employee number', employeeId(state.year, data.seq), 2],
+  ];
+  for (const [label, value, step] of rows) {
+    const row = document.createElement('div');
+    const dt = document.createElement('dt'); dt.textContent = label;
+    const dd = document.createElement('dd'); dd.textContent = value;
+    const edit = document.createElement('button');
+    edit.type = 'button'; edit.className = 'link'; edit.textContent = 'Edit';
+    edit.setAttribute('aria-label', `Edit ${label.toLowerCase()}`);
+    edit.addEventListener('click', () => goStep(step));
+    row.append(dt, dd, edit);
+    summary.append(row);
+  }
   $('review-front').src = review.front.toDataURL('image/png');
   $('review-front').alt = `Front of the card for ${collapseSpaces(data.name)}`;
   $('review-back').src = review.back.toDataURL('image/png');
@@ -652,11 +765,7 @@ function openReview() {
   $('saved-stage').hidden = true;
   $('btn-download').disabled = false;
   $('btn-download').textContent = 'Download PDF';
-  $('overlay').hidden = false;
-  $('btn-download').focus();
 }
-
-function closeReview() { if (!review.saving) $('overlay').hidden = true; }
 
 async function downloadPdf() {
   review.saving = true;
@@ -664,7 +773,7 @@ async function downloadPdf() {
   const data = review.data;
   review.front = renderSideCanvas(state.templates, 'front', data, state.rotateBack);
   review.back = renderSideCanvas(state.templates, 'back', data, state.rotateBack);
-  $('btn-download').disabled = true; $('btn-download').textContent = 'Preparing PDF…'; $('btn-back-edit').disabled = true;
+  $('btn-download').disabled = true; $('btn-download').textContent = 'Preparing PDF…'; $('btn-back').disabled = true;
   $('review-error').hidden = true;
   try {
     const blob = await buildPdf([review.front, review.back], review.title);
@@ -678,7 +787,8 @@ async function downloadPdf() {
       state.dupLocal = review.entry;
       Register.recordShared(review.entry).then((ok) => { if (ok) state.dupShared = review.entry; });
     }
-    $('review-title').textContent = 'ID ready to print';
+    $('step-check-h').textContent = 'ID ready to print';
+    $('review-sub').textContent = '';
     $('saved-name').textContent = review.fileName;
     $('review-stage').hidden = true;
     $('saved-stage').hidden = false;
@@ -689,7 +799,8 @@ async function downloadPdf() {
     $('review-error').hidden = false;
   } finally {
     review.saving = false;
-    $('btn-download').disabled = false; $('btn-download').textContent = 'Download PDF'; $('btn-back-edit').disabled = false;
+    $('btn-download').disabled = false; $('btn-download').textContent = 'Download PDF';
+    $('btn-back').disabled = false;
   }
 }
 
@@ -709,8 +820,7 @@ function newId() {
   state.example = false; state.side = 'front';
   clearDraft();
   $('restored-note').hidden = true;
-  $('overlay').hidden = true;
-  render();
+  goStep(0);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -729,10 +839,7 @@ $('btn-png').addEventListener('click', async () => {
 
 $('btn-download').addEventListener('click', downloadPdf);
 $('btn-again').addEventListener('click', downloadPdf);
-$('btn-back-edit').addEventListener('click', closeReview);
 $('btn-new-id').addEventListener('click', newId);
-$('overlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeReview(); });
-window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('overlay').hidden) closeReview(); });
 
 /* ---- shared register settings ------------------------------------ */
 
@@ -859,10 +966,21 @@ new ResizeObserver(drawPreview).observe(previewBox);
 
 $('app-version').textContent = `${APP_NAME} ${APP_VERSION}`;
 showRegisterUrl();
-if (restoreDraft()) $('restored-note').hidden = false;
+if (restoreDraft()) {
+  $('restored-note').hidden = false;
+  // carry on where the typing stopped
+  const p = problems();
+  const firstGap = STEPS.findIndex((_, i) => !stepDone(i, p));
+  state.step = firstGap < 0 ? 0 : firstGap;
+}
 
 Promise.all([loadTemplates(), loadCardFonts()])
-  .then(([templates]) => { state.templates = templates; updateBatchButton(); render(); })
+  .then(([templates]) => {
+    state.templates = templates;
+    updateBatchButton();
+    if (state.step === LAST_STEP) buildReview();
+    render();
+  })
   .catch((err) => { state.loadError = `${err.message} Reload the page to try again.`; render(); });
 
 render();

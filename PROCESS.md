@@ -17,6 +17,14 @@ file you can trace — see step 5).
 Double-click `Alpha Premier ID Maker.html`. It opens in the browser. Wait for
 the card template to appear on the left.
 
+The form is a short sequence of steps — **Name, Job title, Number, Photo,
+Signature, Check** — with the card building up beside it. **Next** moves on,
+**Back** returns, and the numbered buttons along the top jump to any step
+already filled in. Pressing Enter in a box is the same as clicking Next.
+
+If a step is incomplete, Next stays put and says what is missing rather than
+sitting there greyed out.
+
 ### 2. Name, title, number
 
 | Field | Rule |
@@ -111,10 +119,12 @@ Two ways:
 Either way the signature is trimmed, fitted into its slot under the title
 and printed in white. **Clear** starts over.
 
-### 6. Review & Generate
+### 6. Check and generate
 
-When the status line reads *Everything is filled in*, click **Review &
-Generate**. Check both sides against the list in the dialog:
+The last step, **Is everything correct?**, is the one that matters. It
+shows the name, job title and employee number in plain text — each with an
+**Edit** link that jumps straight back to that step — and both sides of the
+card at print resolution. Check them against the list:
 
 * name spelled correctly, capitals right;
 * title and employee number right;
@@ -124,7 +134,7 @@ Generate**. Check both sides against the list in the dialog:
 **Save images (PNG)** gives you the two sides as pictures instead, for
 printer software that prefers images to PDF.
 
-**Back to edit** returns to the form. **Download PDF** saves
+**Back** returns to the previous step. **Download PDF** saves
 `APG-<year>-<number>_<Lastname>.pdf` (e.g. `APG-2026-122_Aureo.pdf`) to the
 browser's download folder and records the card in the register (the
 example card is never recorded). Keep the PDF with the employee's HR record.
@@ -147,11 +157,12 @@ this on that computer.
 ### 8. Next card
 
 Click **Start a new ID**. Everything is cleared, including the photo and
-signature.
+signature, and you are back at step 1.
 
-If the page is reloaded or the browser restarts mid-entry, the typed name,
-title, year and number come back automatically (they are kept for that tab
-only); the photo and signature have to be added again.
+If the page is reloaded or the browser restarts mid-entry, the typing comes
+back automatically and the app reopens **the first step that is still
+incomplete** (kept for that tab only). The photo and signature have to be
+added again.
 
 ---
 
@@ -345,6 +356,19 @@ version, so you can tell which build printed a card. The file name uses the last
 word of the name, after dropping Jr./Sr./II/III/IV/V, taking the part after
 the last hyphen, and stripping accents and non-letters:
 `María Dela Cruz-Santos Jr.` → `APG-2026-007_Santos.pdf`.
+
+### 2.3a The steps
+
+`STEPS` in `src/app.js` lists each step with the `problems()` keys that
+belong to it, so a step counts as done exactly when none of its fields has a
+problem — there is no second copy of the validation rules. `stepReachable`
+allows a jump forward only when every earlier step is done, which is what
+greys out the later numbers. The final step builds its preview through
+`buildReview()` whenever it is opened, so editing anything and returning
+always shows the current card.
+
+There is no modal dialog any more: the old review pop-up is simply the last
+step.
 
 ### 2.4a Names
 
