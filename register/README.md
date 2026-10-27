@@ -17,11 +17,15 @@ Sheet. Set-up takes about ten minutes and needs no server.
 4. *Deploy → New deployment* → type **Web app**.
    - Description: `ID register`
    - Execute as: **Me**
-   - Who has access: **Anyone with the link**. This has to be the setting:
-     the app calls the script from the browser without sign-in cookies, so
-     a deployment restricted to a Google Workspace domain answers with a
-     redirect to a login page and the check simply fails. See the warning
-     below for what that means.
+   - Who has access: **Anyone**. The dropdown offers *Only myself*
+     (the default), *Anyone with Google account* and *Anyone*, and only
+     the last one works. The app calls the script from the browser
+     without sign-in cookies, so either of the other two answers with a
+     redirect towards a login page — and a login page sends no
+     `Access-Control-Allow-Origin` header, so the browser blocks it and
+     every check fails. Opening the address in your own browser tab is
+     not a test of this: you are signed in there, so it answers you
+     whatever the setting. See the warning below for what "Anyone" means.
 5. Google asks for permission and warns that *this app hasn't been verified*.
    That is expected: the "app" is the script you just pasted into your own
    spreadsheet, and the developer it names is you. Click **Advanced**, then
@@ -44,7 +48,7 @@ before saving it, and reports how many cards the shared register holds.
 Do this once on each HR computer. No rebuild is needed, and the address is
 remembered on that computer.
 
-> **Why it is not in the source code.** With "Anyone with the link" access
+> **Why it is not in the source code.** With "Anyone" access
 > that URL *is* the password: anyone who has it can read the register and
 > add rows. So it is entered per computer and never committed to the
 > repository. If it leaks, open *Deploy → Manage deployments*, archive the

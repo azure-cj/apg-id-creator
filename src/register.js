@@ -91,7 +91,7 @@ const Register = {
       return { ok: true, rows: data.rows ?? 0, sheet: data.sheet ?? '' };
     } catch (e) {
       return { error: e instanceof RegisterError ? e.message
-        : 'No answer from that address. Check that the deployment is set to “Anyone with the link” and that the address ends in /exec.' };
+        : 'No answer from that address. Check that Who has access is set to “Anyone” and that the address ends in /exec.' };
     }
   },
 
@@ -114,14 +114,14 @@ const Register = {
       }
       // a page opened straight from a file reaches the network normally, so
       // this is a hint to try next, not a diagnosis
-      throw new RegisterError('The browser could not reach that address. Check this computer is online, and that the deployment is set to “Anyone with the link”.'
+      throw new RegisterError('The browser could not reach that address. Check this computer is online, and that Deploy → Manage deployments has Who has access set to “Anyone” — not “Only myself”, and not “Anyone with Google account”, both of which the browser is refused.'
         + (location.protocol === 'file:' ? ' If it keeps failing, try the app from http://localhost (npm start) instead of opening the file directly.' : ''));
     } finally {
       clearTimeout(t);
     }
     if (!r.ok) {
       throw new RegisterError(r.status === 401 || r.status === 403
-        ? `That address answered “not allowed” (HTTP ${r.status}). In Deploy → Manage deployments, set Who has access to “Anyone with the link”.`
+        ? `That address answered “not allowed” (HTTP ${r.status}). In Deploy → Manage deployments, set Who has access to “Anyone”.`
         : `That address answered with an error (HTTP ${r.status}).`);
     }
     const text = await r.text();
@@ -129,7 +129,7 @@ const Register = {
       return JSON.parse(text);
     } catch {
       throw new RegisterError(/<html/i.test(text)
-        ? 'That address answered with a web page instead of the register — almost always a Google sign-in page. In Deploy → Manage deployments, set Who has access to “Anyone with the link”.'
+        ? 'That address answered with a web page instead of the register — almost always a Google sign-in page. In Deploy → Manage deployments, set Who has access to “Anyone”.'
         : 'That address answered, but not with register data. Check the web-app address in Deploy → Manage deployments.');
     }
   },

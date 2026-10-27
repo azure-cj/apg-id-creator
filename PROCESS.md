@@ -563,7 +563,7 @@ app in front of a Google Sheet
 the shared answer overrides the local one, and an unreachable Sheet degrades
 to local-only with a note under the field rather than blocking. Only simple
 CORS requests are used because Apps Script cannot answer preflights. The
-address is never stored in the source, because with "Anyone with the link"
+address is never stored in the source, because with "Anyone"
 access it grants read and write to the register.
 
 ### 2.8 Privacy
