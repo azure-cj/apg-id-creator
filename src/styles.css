@@ -106,9 +106,17 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .name-block { display: grid; gap: 10px; }
 .name-row { display: grid; grid-template-columns: 1fr 96px; gap: 10px; align-items: start; }
 .name-block .msg:empty { display: none; }
-.name-preview { margin: 0; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--gold) 10%, transparent); font-size: 0.9rem; }
-.name-preview .as-printed { font-weight: 600; }
-.name-preview.is-error { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+.on-card { margin: 0; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--gold) 10%, transparent); font-size: 0.9rem; }
+.on-card .as-printed { font-weight: 600; }
+.on-card.is-error { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+
+.role-block { display: grid; gap: 10px; }
+.role-block select { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: 400 1rem var(--font-body); }
+.role-block select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 25%, transparent); }
+.role-block .has-error select { border-color: var(--danger); }
+.role-block input[type="text"] { margin-top: 6px; }
+.role-add { justify-self: start; }
+#field-title2 { padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; }
 
 .number-row { display: flex; align-items: center; gap: 8px; }
 .number-prefix { color: var(--muted); font-family: var(--font-mono); font-size: 0.9rem; white-space: nowrap; }

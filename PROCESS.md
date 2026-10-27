@@ -30,7 +30,12 @@ Capitals are kept as typed. The line under the fields — **On the card** —
 shows exactly what will be printed, so check that rather than the boxes. If
 the whole name is too long for the card even at the smallest size, that line
 turns red and says so.
-| Job title | Printed in capitals. If the card says "too long", shorten it (`Sr. HR Business Partner`, not `Senior Human Resources Business Partner`). |
+| Job title | Pick from the list. For a title not on the list, choose **Other…** and type it — it is remembered on that computer and appears in the list from then on. |
+| Second role | For someone who holds two roles, click **+ Add a second role** and pick the other one. The two are merged for the card: `IT Associate` + `Admin Associate` prints as `IT/ADMIN ASSOCIATE`. Two titles with nothing in common print in full, `IT ASSOCIATE / DRIVER`. **Remove** takes the second role off again. |
+
+The job title also has an **On the card** line, showing it in the capitals
+the card uses. If it is too long even at the smallest size, that line turns
+red.
 | Employee number | Pick the year of issue (defaults to this year), then type the 1–4 digit sequence HR assigned. The card prints `APG - <year> - <number>` with the number padded to 3 digits (`7` → `007`). The app checks the number against the **register** of cards already issued — on this computer, and in the shared Google Sheet if one is set up (see `register/README.md`). A number that is already taken turns the field red and names the holder. If this really is a re-print of the same person's card (lost, damaged, name change), tick **Replacement card**; otherwise get the right number from HR. |
 
 The preview updates as you type. The name shrinks and wraps onto up to three
@@ -160,6 +165,7 @@ Open **Batch from CSV** under the form.
    | --- | --- |
    | `last`, `first`, `title`, `seq` | required |
    | `middle`, `suffix` | optional parts of the name |
+   | `title2` | a second role, merged with `title` the same way the form does |
    | `name` | an older list with one whole-name column still works: it is printed as given, and the surname is guessed for the file name |
    | `year` | optional, defaults to this year |
    | `photo` | the photo's file name, e.g. `aureo.png` |
@@ -353,6 +359,22 @@ one-line change: set `cardFormat` to `'{last}, {first} {middle} {suffix}'`
 The register keeps the parts as well as the printed name, so a list of
 staff can be sorted by surname, and the PDF file name takes the surname
 directly instead of guessing it from the end of a whole name.
+
+### 2.4b Job titles
+
+`CONFIG.titles.list` holds the company's titles. Anything typed under
+"Other…" is kept per computer by `Titles` (`src/titles.js`) in
+`localStorage` under `apg-id-titles`, but only once a card has actually been
+downloaded, so abandoned typing never pollutes the list. Titles appear in
+the dropdown as: the company list, then the remembered ones, then "Other…".
+
+`composeTitle` (in `src/config.js`) merges two roles by finding the longest
+run of words they both end with. With a shared tail the leading parts are
+joined by `CONFIG.titles.mergeJoiner` and the tail is printed once
+(`IT Associate` + `Admin Associate` → `IT/Admin Associate`); with no shared
+tail the two titles are joined whole by `pairJoiner`. The register stores
+`role1` and `role2` next to the merged `title`, so a report can tell who
+holds two roles.
 
 ### 2.5a Scanned signatures
 

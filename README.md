@@ -44,6 +44,7 @@ src/
   config.js         EVERY measurement: card size, text boxes, photo placement, QR,
                     signature box, employee-number format, register URL, the AI photo prompt
   register.js       issued-ID register: local (localStorage) + optional shared Sheet
+  titles.js         the job-title list, plus custom titles this computer has used
   batch.js          CSV batch issuing: parsing, file matching, per-row checks
   text-fit.js       shrinks and wraps the name/title so they fit their boxes
   signature.js      the signature pad + drawing strokes onto the card
@@ -81,6 +82,8 @@ Common edits:
 | --- | --- |
 | Move or resize the name / title / employee number | `CONFIG.text.*.box` (mm) and the `maxSizePt` / `minSizePt` / `maxLines` limits |
 | Print the name surname-first, or show the middle name in full | `CONFIG.name` — `cardFormat` and `middle` |
+| Add or remove job titles in the dropdown | `CONFIG.titles.list` |
+| How two roles are merged on the card | `CONFIG.titles.mergeJoiner` / `pairJoiner` |
 | Change where the photo sits or how big the head is | `CONFIG.photo` — `headTop`, `headCenterX`, `headWidth`, `reachY`; manual-adjust limits `nudgeStepMm`, `zoomMin/Max` |
 | Change the QR link | `CONFIG.qr.content` |
 | New template artwork | Replace `assets/front-template.png` / `assets/back.png` (keep 638 × 1004 px). If the band or the photo window moved, re-trace `CONFIG.frontOutline.polygons` and `CONFIG.photoArea.polygon` |

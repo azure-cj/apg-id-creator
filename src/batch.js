@@ -8,6 +8,9 @@
 
    CSV columns (header row required, order free, extra columns ignored):
      last, first, title, seq     required
+     title2                      a second role, merged with title
+                                 ("IT Associate" + "Admin Associate"
+                                  prints as "IT/Admin Associate")
      middle, suffix              optional parts of the name
      name                        accepted instead of last/first for older
                                  lists: printed as given, surname guessed
@@ -68,10 +71,10 @@ function csvToObjects(text) {
   return { rows: out };
 }
 
-const CSV_TEMPLATE = 'last,first,middle,suffix,title,seq,year,photo,signature,replacement\r\n'
-  + 'Aureo,"Christopher Joseph",Villanueva,,"IT Associate",122,2026,aureo.png,aureo-sign.jpg,\r\n'
-  + 'Reyes,Ana,Santos,,"HR Associate",123,2026,reyes.png,,\r\n'
-  + '"dela Cruz",Juan,Santos,Jr.,Driver,124,2026,cruz.png,,\r\n';
+const CSV_TEMPLATE = 'last,first,middle,suffix,title,title2,seq,year,photo,signature,replacement\r\n'
+  + 'Aureo,"Christopher Joseph",Villanueva,,"IT Associate",,122,2026,aureo.png,aureo-sign.jpg,\r\n'
+  + 'Reyes,Ana,Santos,,"HR Associate","Admin Associate",123,2026,reyes.png,,\r\n'
+  + '"dela Cruz",Juan,Santos,Jr.,Driver,,124,2026,cruz.png,,\r\n';
 
 /* ---- matching uploaded files ------------------------------------- */
 
@@ -96,7 +99,7 @@ function fileIndex(fileList) {
 
 async function prepareBatchRow(row, findPhoto, findSignature, seen) {
   const fail = (problem) => ({ ok: false, problem });
-  const title = collapseSpaces(row.title || '');
+  const title = composeTitle(row.title || '', row.title2 || '');
 
   // either separate parts, or a whole name from an older list
   const parts = {
@@ -156,6 +159,7 @@ async function prepareBatchRow(row, findPhoto, findSignature, seen) {
     data: { name, title, year, seq, photo: { image: photo.image, placement: photo.check.placement }, signature },
     entry: {
       id, year, seq, name, title,
+      role1: collapseSpaces(row.title || ''), role2: collapseSpaces(row.title2 || ''),
       last: split ? parts.last : lastNameForFile(whole),
       first: split ? parts.first : '', middle: split ? parts.middle : '', suffix: split ? parts.suffix : '',
       issuedAt: new Date().toISOString(), replacement: !!already,

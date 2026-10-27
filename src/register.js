@@ -126,10 +126,11 @@ const Register = {
   /* ---- export ---- */
   csv() {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const rows = [['id', 'year', 'seq', 'last', 'first', 'middle', 'suffix', 'name', 'title', 'issuedAt', 'replacement']];
+    const rows = [['id', 'year', 'seq', 'last', 'first', 'middle', 'suffix', 'name',
+                   'title', 'role1', 'role2', 'issuedAt', 'replacement']];
     for (const e of this.all()) {
       rows.push([e.id, e.year, e.seq, e.last ?? '', e.first ?? '', e.middle ?? '', e.suffix ?? '',
-                 e.name, e.title, e.issuedAt, e.replacement ? 'yes' : 'no']);
+                 e.name, e.title, e.role1 ?? '', e.role2 ?? '', e.issuedAt, e.replacement ? 'yes' : 'no']);
     }
     return '﻿' + rows.map((r) => r.map(esc).join(',')).join('\r\n');
   },

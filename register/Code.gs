@@ -17,7 +17,7 @@
  *   POST body {"action":"record","entry":{...}}  -> {"ok":true}
  *
  * entry = { id, year, seq, name, title, issuedAt, replacement,
- *            last, first, middle, suffix }
+ *            last, first, middle, suffix, role1, role2 }
  */
 
 var SHEET_NAME = 'Register';
@@ -28,7 +28,7 @@ var SHEET_ID = '';
 // New columns are appended at the end so a Register tab created by an
 // earlier version keeps working; sheet_() tops up the header row.
 var HEADERS = ['id', 'year', 'seq', 'name', 'title', 'issuedAt', 'replacement', 'recordedBy',
-               'last', 'first', 'middle', 'suffix'];
+               'last', 'first', 'middle', 'suffix', 'role1', 'role2'];
 
 function sheet_() {
   var ss = SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
@@ -59,6 +59,7 @@ function rows_() {
       recordedBy: String(r[7] || ''),
       last: String(r[8] || ''), first: String(r[9] || ''),
       middle: String(r[10] || ''), suffix: String(r[11] || ''),
+      role1: String(r[12] || ''), role2: String(r[13] || ''),
       _row: i + 1,
     });
   }
@@ -97,7 +98,8 @@ function doPost(e) {
     var existing = rows_().filter(function (r) { return r.id === en.id; })[0];
     var line = [en.id, en.year, en.seq, en.name, en.title, en.issuedAt, en.replacement ? 'yes' : 'no',
                 Session.getActiveUser().getEmail() || '',
-                en.last || '', en.first || '', en.middle || '', en.suffix || ''];
+                en.last || '', en.first || '', en.middle || '', en.suffix || '',
+                en.role1 || '', en.role2 || ''];
     if (existing) sh.getRange(existing._row, 1, 1, line.length).setValues([line]);
     else sh.appendRow(line);
     return json_({ ok: true });

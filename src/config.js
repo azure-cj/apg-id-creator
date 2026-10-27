@@ -77,6 +77,26 @@ const CONFIG = {
     maxLengths: { last: 40, first: 40, middle: 40, suffix: 10 },
   },
 
+  // Job titles offered in the dropdown. Add, remove or reorder freely —
+  // this is the whole list HR sees. A title typed under "Other…" is
+  // remembered on that computer and joins the list below these.
+  //
+  // Someone with two roles picks a second title; composeTitle() merges
+  // them. When both end in the same word the leading parts are combined
+  // ("IT Associate" + "Admin Associate" -> "IT/Admin Associate");
+  // otherwise they are joined whole ("IT Associate / Driver").
+  titles: {
+    list: [
+      'IT Associate',
+      'Marketing Associate',
+      'HR Associate',
+    ],
+    mergeJoiner: '/',        // between the differing parts of merged titles
+    pairJoiner: ' / ',       // between two titles that share nothing
+    maxRemembered: 20,
+    storageKey: 'apg-id-titles',
+  },
+
   employeeNo: {
     prefix: 'APG',
     digits: 3,                                  // 122 -> "122", 7 -> "007"
@@ -233,6 +253,32 @@ function composeName(parts = {}) {
   // tidy up what the missing parts left behind: double spaces, a stray
   // leading comma, a space before a comma
   return collapseSpaces(filled).replace(/\s+,/g, ',').replace(/^,\s*/, '').replace(/,$/, '');
+}
+
+/**
+ * One job title from one or two roles.
+ *   ('IT Associate', 'Admin Associate') -> 'IT/Admin Associate'
+ *   ('IT Associate', 'Driver')          -> 'IT Associate / Driver'
+ *   ('IT Associate', '')                -> 'IT Associate'
+ */
+function composeTitle(first, second) {
+  const a = collapseSpaces(first || '');
+  const b = collapseSpaces(second || '');
+  if (!a || !b) return a || b;
+  if (a.toLocaleLowerCase('en-US') === b.toLocaleLowerCase('en-US')) return a;
+
+  const aw = a.split(' ');
+  const bw = b.split(' ');
+  let shared = 0;                      // words both titles end with
+  while (shared < aw.length - 1 && shared < bw.length - 1
+    && aw[aw.length - 1 - shared].toLocaleLowerCase('en-US') === bw[bw.length - 1 - shared].toLocaleLowerCase('en-US')) {
+    shared++;
+  }
+  if (!shared) return `${a}${CONFIG.titles.pairJoiner}${b}`;
+  const tail = aw.slice(aw.length - shared).join(' ');
+  const headA = aw.slice(0, aw.length - shared).join(' ');
+  const headB = bw.slice(0, bw.length - shared).join(' ');
+  return `${headA}${CONFIG.titles.mergeJoiner}${headB} ${tail}`;
 }
 
 // For file names: letters only, accents flattened. "Dela Cruz-Santos" -> "DelaCruzSantos"

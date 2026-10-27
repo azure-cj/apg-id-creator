@@ -7,16 +7,20 @@ const THIS_YEAR = new Date().getFullYear();
 const NAME_RE = /^[\p{L}\p{M} .,'’-]+$/u;
 const SUFFIX_RE = /^[\p{L}\p{M}. \d]+$/u;
 const NAME_PARTS = ['last', 'first', 'middle', 'suffix'];
+const CUSTOM_TITLE = '__custom__';          // the "Other…" option's value
+const TITLE_RE = /^[\p{L}\p{M}\d .,'’&()\/-]+$/u;
 const ROTATE_KEY = 'apg-id-rotate-back';
 const DRAFT_KEY = 'apg-id-draft';
 const FIELD_LABEL = {
   last: 'last name', first: 'first name', middle: 'middle name', suffix: 'suffix',
-  nameFit: 'a shorter name', title: 'job title', seq: 'employee number',
+  nameFit: 'a shorter name', title: 'job title', title2: 'second role',
+  titleFit: 'a shorter job title', seq: 'employee number',
   photo: 'photo', signature: 'signature',
 };
 const FIELD_INPUT = {
   last: 'f-last', first: 'f-first', middle: 'f-middle', suffix: 'f-suffix',
-  nameFit: 'f-first', title: 'f-title', seq: 'f-seq', photo: 'f-photo', signature: 'f-signature',
+  nameFit: 'f-first', title: 'f-title', title2: 'f-title2', titleFit: 'f-title',
+  seq: 'f-seq', photo: 'f-photo', signature: 'f-signature',
 };
 
 const state = {
@@ -29,14 +33,16 @@ const state = {
   first: '',
   middle: '',
   suffix: '',
-  title: '',
+  role1: { pick: '', custom: '' },      // pick is a title, or CUSTOM_TITLE
+  role2: { pick: '', custom: '' },
+  showRole2: false,
   seq: '',
   photo: null,          // result of processPhotoFile when check.ok
   photoError: '',
   adjust: { dx: 0, dy: 0, zoom: 1 },   // manual nudge on top of the automatic placement
   guides: false,        // maintainer overlay (Ctrl+Shift+G or #guides)
   signature: null,
-  touched: { last: false, first: false, middle: false, suffix: false, title: false, seq: false, photo: false, signature: false },
+  touched: { last: false, first: false, middle: false, suffix: false, title: false, title2: false, seq: false, photo: false, signature: false },
   example: false,
   checking: false,
   reissue: false,       // "Replacement card" ticked
@@ -47,8 +53,11 @@ const state = {
 /* ---- draft: survive an accidental reload (text only, this tab only) ---- */
 function saveDraft() {
   try {
-    const d = { ...nameParts(), title: state.title, seq: state.seq, year: state.year };
-    if (!d.last && !d.first && !d.title && !d.seq) sessionStorage.removeItem(DRAFT_KEY);
+    const d = {
+      ...nameParts(), seq: state.seq, year: state.year,
+      role1: state.role1, role2: state.role2, showRole2: state.showRole2,
+    };
+    if (!d.last && !d.first && !d.seq && !roleValue(d.role1)) sessionStorage.removeItem(DRAFT_KEY);
     else sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d));
   } catch { /* storage blocked */ }
 }
@@ -56,11 +65,16 @@ function clearDraft() { try { sessionStorage.removeItem(DRAFT_KEY); } catch { /*
 function restoreDraft() {
   try {
     const d = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null');
-    if (!d || (!d.last && !d.first && !d.title && !d.seq)) return false;
+    if (!d || (!d.last && !d.first && !d.seq && !d.role1?.pick)) return false;
     for (const k of NAME_PARTS) { state[k] = d[k] || ''; $(`f-${k}`).value = state[k]; }
-    state.title = d.title || ''; state.seq = d.seq || '';
+    state.seq = d.seq || '';
     state.year = Number(d.year) || THIS_YEAR;
-    $('f-title').value = state.title; $('f-seq').value = state.seq;
+    state.role1 = { pick: d.role1?.pick || '', custom: d.role1?.custom || '' };
+    state.role2 = { pick: d.role2?.pick || '', custom: d.role2?.custom || '' };
+    state.showRole2 = !!d.showRole2;
+    $('f-title-custom').value = state.role1.custom;
+    $('f-title2-custom').value = state.role2.custom;
+    $('f-seq').value = state.seq;
     refreshDuplicate();
     return true;
   } catch { return false; }
@@ -74,12 +88,16 @@ function writeRotate(on) { try { localStorage.setItem(ROTATE_KEY, on ? '1' : '0'
 function seqNumber() { return /^\d{1,4}$/.test(state.seq) && Number(state.seq) > 0 ? Number(state.seq) : null; }
 
 const nameParts = () => ({ last: state.last, first: state.first, middle: state.middle, suffix: state.suffix });
+const roleValue = (r) => (r.pick === CUSTOM_TITLE ? collapseSpaces(r.custom) : r.pick);
+const role1 = () => roleValue(state.role1);
+const role2 = () => (state.showRole2 ? roleValue(state.role2) : '');
+const jobTitle = () => composeTitle(role1(), role2());
 const printedName = () => composeName(nameParts());
 
 function cardData() {
   return {
     name: printedName(),
-    title: state.title,
+    title: jobTitle(),
     year: state.year,
     seq: seqNumber(),
     photo: state.photo ? { image: state.photo.image, placement: adjustedPlacement(state.photo.check.placement, state.adjust) } : null,
@@ -90,7 +108,7 @@ function cardData() {
 function problems() {
   const data = cardData();
   const layout = state.templates ? layoutText(data) : null;
-  const title = collapseSpaces(state.title);
+  const title = jobTitle();
   const badChars = 'Use letters, spaces, periods, hyphens and apostrophes only.';
   const last = collapseSpaces(state.last), first = collapseSpaces(state.first);
   const middle = collapseSpaces(state.middle), suffix = collapseSpaces(state.suffix);
@@ -101,9 +119,16 @@ function problems() {
     suffix: suffix && !SUFFIX_RE.test(suffix) ? 'Use something like Jr., Sr., II or III.' : '',
     nameFit: last && first && layout && !layout.name.fits
       ? 'This name is too long for the card, even at the smallest size. Try a shorter first name.' : '',
-    title: !title ? 'Enter the job title.'
-         : layout && !layout.title.fits ? 'Too long for the card. Try a shorter form, such as “Sr. HR Business Partner”.'
+    title: !state.role1.pick ? 'Choose the job title.'
+         : state.role1.pick === CUSTOM_TITLE && !collapseSpaces(state.role1.custom) ? 'Type the job title.'
+         : state.role1.pick === CUSTOM_TITLE && !TITLE_RE.test(collapseSpaces(state.role1.custom)) ? 'Use letters, numbers, spaces and . , & ( ) / - only.'
          : '',
+    title2: state.showRole2 && state.role2.pick === CUSTOM_TITLE && !collapseSpaces(state.role2.custom) ? 'Type the second role, or remove it.'
+          : state.showRole2 && state.role2.pick === CUSTOM_TITLE && !TITLE_RE.test(collapseSpaces(state.role2.custom)) ? 'Use letters, numbers, spaces and . , & ( ) / - only.'
+          : state.showRole2 && !state.role2.pick ? 'Choose the second role, or remove it.'
+          : '',
+    titleFit: title && layout && !layout.title.fits
+      ? 'This job title is too long for the card, even at the smallest size. Try a shorter wording.' : '',
     seq: !state.seq ? 'Enter the employee number HR assigned, such as 124.'
        : seqNumber() === null ? 'Use 1 to 4 digits, such as 124.'
        : duplicate() && !state.reissue ? duplicateMessage()
@@ -199,7 +224,33 @@ function render() {
     preview.append(strong);
   }
 
-  setMsg('field-title', 'f-title-msg', shown('title'), 'Shown in capitals on the card.');
+  // job title
+  setMsg('field-title', 'f-title-msg', shown('title'), '');
+  setMsg('field-title2', 'f-title2-msg', shown('title2'), '');
+  $('f-title').value = state.role1.pick;
+  $('f-title-custom').hidden = state.role1.pick !== CUSTOM_TITLE;
+  $('field-title2').hidden = !state.showRole2;
+  $('btn-role-add').hidden = state.showRole2;
+  if (state.showRole2) {
+    $('f-title2').value = state.role2.pick;
+    $('f-title2-custom').hidden = state.role2.pick !== CUSTOM_TITLE;
+  }
+  const titlePreview = $('title-preview');
+  const titleFit = state.touched.title ? p.titleFit : '';
+  titlePreview.classList.toggle('is-error', !!titleFit);
+  titlePreview.textContent = '';
+  if (titleFit) {
+    titlePreview.textContent = titleFit;
+    titlePreview.setAttribute('role', 'alert');
+  } else {
+    titlePreview.removeAttribute('role');
+    const shownTitle = CONFIG.text.title.uppercase ? jobTitle().toLocaleUpperCase('en-US') : jobTitle();
+    titlePreview.append('On the card: ');
+    const strong = document.createElement('span');
+    strong.className = 'as-printed';
+    strong.textContent = shownTitle || '—';
+    titlePreview.append(strong);
+  }
   const dup = duplicate();
   const seqHelp = Register.shared
     ? `The number HR assigned. Checked against this computer and the shared register.${state.dupShared === undefined ? ' (Shared register not reachable right now — only this computer was checked.)' : ''}`
@@ -304,7 +355,56 @@ for (const k of NAME_PARTS) {
     state.example = false; touch(k); state[k] = e.target.value; saveDraft(); render();
   });
 }
-$('f-title').addEventListener('input', (e) => { state.example = false; touch('title'); state.title = e.target.value; saveDraft(); render(); });
+function fillTitleOptions(select, { includeNone }) {
+  const current = select.value;
+  select.innerHTML = '';
+  const add = (value, label) => {
+    const o = document.createElement('option');
+    o.value = value; o.textContent = label;
+    select.appendChild(o);
+  };
+  add('', includeNone ? '— choose a role —' : '— choose a job title —');
+  for (const t of Titles.all()) add(t, t);
+  add(CUSTOM_TITLE, 'Other…');
+  select.value = current;
+}
+function refreshTitleOptions() {
+  fillTitleOptions($('f-title'), { includeNone: false });
+  fillTitleOptions($('f-title2'), { includeNone: true });
+}
+refreshTitleOptions();
+
+$('f-title').addEventListener('change', (e) => {
+  state.example = false; touch('title');
+  state.role1.pick = e.target.value;
+  saveDraft(); render();
+  if (state.role1.pick === CUSTOM_TITLE) $('f-title-custom').focus();
+});
+$('f-title-custom').addEventListener('input', (e) => {
+  state.example = false; touch('title'); state.role1.custom = e.target.value; saveDraft(); render();
+});
+$('f-title2').addEventListener('change', (e) => {
+  state.example = false; touch('title2');
+  state.role2.pick = e.target.value;
+  saveDraft(); render();
+  if (state.role2.pick === CUSTOM_TITLE) $('f-title2-custom').focus();
+});
+$('f-title2-custom').addEventListener('input', (e) => {
+  state.example = false; touch('title2'); state.role2.custom = e.target.value; saveDraft(); render();
+});
+$('btn-role-add').addEventListener('click', () => {
+  state.showRole2 = true; state.example = false;
+  saveDraft(); render();
+  $('f-title2').focus();
+});
+$('btn-role-remove').addEventListener('click', () => {
+  state.showRole2 = false;
+  state.role2 = { pick: '', custom: '' };
+  state.touched.title2 = false;
+  state.example = false;
+  saveDraft(); render();
+  $('btn-role-add').focus();
+});
 $('f-seq').addEventListener('input', (e) => {
   state.example = false; touch('seq');
   state.seq = e.target.value.replace(/\D/g, '').slice(0, 4);
@@ -327,7 +427,9 @@ $('opt-reissue').addEventListener('change', (e) => { state.reissue = e.target.ch
 $('btn-register-csv').addEventListener('click', () => {
   downloadBlob(`apg-id-register-${new Date().toISOString().slice(0, 10)}.csv`, new Blob([Register.csv()], { type: 'text/csv;charset=utf-8' }));
 });
-for (const k of [...NAME_PARTS, 'title', 'seq']) $(`f-${k}`).addEventListener('blur', () => { touch(k); render(); });
+for (const k of [...NAME_PARTS, 'seq']) $(`f-${k}`).addEventListener('blur', () => { touch(k); render(); });
+for (const id of ['f-title', 'f-title-custom']) $(id).addEventListener('blur', () => { touch('title'); render(); });
+for (const id of ['f-title2', 'f-title2-custom']) $(id).addEventListener('blur', () => { touch('title2'); render(); });
 
 $('side-front').addEventListener('click', () => { state.side = 'front'; render(); });
 $('side-back').addEventListener('click', () => { state.side = 'back'; render(); });
@@ -447,14 +549,17 @@ $('f-sig-image').addEventListener('change', async (e) => {
 $('btn-example').addEventListener('click', async () => {
   const photo = ASSETS.example ? await processPhotoUrl(ASSETS.example).catch(() => null) : null;
   for (const k of NAME_PARTS) { state[k] = EXAMPLE[k] ?? ''; $(`f-${k}`).value = state[k]; }
-  state.title = EXAMPLE.title; state.seq = EXAMPLE.seq; state.year = THIS_YEAR;
-  $('f-title').value = state.title; $('f-seq').value = state.seq;
+  state.role1 = { pick: EXAMPLE.title, custom: '' };
+  state.role2 = { pick: '', custom: '' };
+  state.showRole2 = false;
+  state.seq = EXAMPLE.seq; state.year = THIS_YEAR;
+  $('f-seq').value = state.seq;
   state.reissue = false; refreshDuplicate();
   state.photo = photo?.check.ok ? photo : null; state.photoError = '';
   state.adjust = { dx: 0, dy: 0, zoom: 1 };
   state.signature = EXAMPLE.signature;
   pad.setValue(EXAMPLE.signature);
-  state.touched = { last: false, first: false, middle: false, suffix: false, title: false, seq: false, photo: false, signature: false };
+  state.touched = { last: false, first: false, middle: false, suffix: false, title: false, title2: false, seq: false, photo: false, signature: false };
   state.example = true; state.side = 'front';
   render();
 });
@@ -492,6 +597,7 @@ function openReview() {
     last: collapseSpaces(parts.last), first: collapseSpaces(parts.first),
     middle: collapseSpaces(parts.middle), suffix: collapseSpaces(parts.suffix),
     title: collapseSpaces(data.title),
+    role1: role1(), role2: role2(),
     issuedAt: new Date().toISOString(), replacement: !!duplicate(),
   };
 
@@ -526,6 +632,9 @@ async function downloadPdf() {
     downloadBlob(review.fileName, blob);
     clearDraft();
     if (!state.example) {                      // the example is never a real card
+      if (state.role1.pick === CUSTOM_TITLE) Titles.remember(role1());
+      if (state.showRole2 && state.role2.pick === CUSTOM_TITLE) Titles.remember(role2());
+      refreshTitleOptions();
       Register.record(review.entry);
       state.dupLocal = review.entry;
       Register.recordShared(review.entry).then((ok) => { if (ok) state.dupShared = review.entry; });
@@ -547,13 +656,17 @@ async function downloadPdf() {
 
 function newId() {
   for (const k of NAME_PARTS) { state[k] = ''; $(`f-${k}`).value = ''; }
-  state.title = ''; state.seq = '';
-  $('f-title').value = ''; $('f-seq').value = '';
+  state.role1 = { pick: '', custom: '' };
+  state.role2 = { pick: '', custom: '' };
+  state.showRole2 = false;
+  $('f-title-custom').value = ''; $('f-title2-custom').value = '';
+  state.seq = '';
+  $('f-seq').value = '';
   state.photo = null; state.photoError = ''; state.signature = null;
   state.adjust = { dx: 0, dy: 0, zoom: 1 };
   state.year = THIS_YEAR; state.reissue = false; state.dupLocal = null; state.dupShared = null; dupToken++;
   pad.setValue(null);
-  state.touched = { last: false, first: false, middle: false, suffix: false, title: false, seq: false, photo: false, signature: false };
+  state.touched = { last: false, first: false, middle: false, suffix: false, title: false, title2: false, seq: false, photo: false, signature: false };
   state.example = false; state.side = 'front';
   clearDraft();
   $('restored-note').hidden = true;
