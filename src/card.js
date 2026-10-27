@@ -286,18 +286,22 @@ function composePairSheet(entries, plan, { pxPerMm } = {}) {
 }
 
 /**
- * One sheet in 'duplex' mode. `mirrorColumns` reverses the column order so
- * a backs sheet lines up with its fronts sheet after the paper is turned
- * over on its long edge.
+ * One sheet in 'duplex' mode.
+ *
+ * `mirror` lays the backs out so they end up behind the right fronts once
+ * the paper has been turned over. Turning a sheet about its long edge
+ * mirrors left-to-right, so the columns reverse; turning it about the
+ * short edge mirrors top-to-bottom, so the rows reverse instead. The
+ * fronts sheet is never mirrored.
  */
-function composeSheet(cards, plan, { mirrorColumns = false, pxPerMm } = {}) {
+function composeSheet(cards, plan, { mirror = 'none', pxPerMm } = {}) {
   const { canvas, ctx, pxPerMm: ppm } = blankSheet(plan, pxPerMm);
   const cells = sheetCells(plan);
   cards.slice(0, cells.length).forEach((card, i) => {
     const cell = cells[i];
-    const target = mirrorColumns
-      ? cells.find((c) => c.row === cell.row && c.col === plan.cols - 1 - cell.col)
-      : cell;
+    const col = mirror === 'columns' ? plan.cols - 1 - cell.col : cell.col;
+    const row = mirror === 'rows' ? plan.rows - 1 - cell.row : cell.row;
+    const target = cells.find((c) => c.row === row && c.col === col);
     placeCard(ctx, card, plan, target.x, target.y, ppm);
     drawCropMarks(ctx, target.x, target.y, plan.cardW, plan.cardH, ppm);
   });
@@ -306,9 +310,10 @@ function composeSheet(cards, plan, { mirrorColumns = false, pxPerMm } = {}) {
 
 /**
  * Turn a list of { front, back } card canvases into PDF page thunks.
- * `copies` repeats a single card to fill the sheet.
+ * In duplex mode each sheet becomes two pages, fronts then backs, with the
+ * backs mirrored on the axis the printer turns the paper about.
  */
-function sheetPages(entries, plan, { pxPerMm } = {}) {
+function sheetPages(entries, plan, { pxPerMm, flip = 'long' } = {}) {
   const pages = [];
   const per = plan.cols * plan.rows;
   for (let i = 0; i < entries.length; i += per) {
@@ -316,8 +321,9 @@ function sheetPages(entries, plan, { pxPerMm } = {}) {
     if (plan.mode === 'pairs') {
       pages.push(() => composePairSheet(group, plan, { pxPerMm }));
     } else {
+      const mirror = flip === 'short' ? 'rows' : 'columns';
       pages.push(() => composeSheet(group.map((e) => e.front), plan, { pxPerMm }));
-      pages.push(() => composeSheet(group.map((e) => e.back), plan, { mirrorColumns: true, pxPerMm }));
+      pages.push(() => composeSheet(group.map((e) => e.back), plan, { mirror, pxPerMm }));
     }
   }
   for (const p of pages) { p.widthMm = plan.pw; p.heightMm = plan.ph; }

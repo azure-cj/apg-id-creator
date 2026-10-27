@@ -10,6 +10,7 @@ const NAME_PARTS = ['last', 'first', 'middle', 'suffix'];
 const CUSTOM_TITLE = '__custom__';          // the "Other…" option's value
 const TITLE_RE = /^[\p{L}\p{M}\d .,'’&()\/-]+$/u;
 const ROTATE_KEY = 'apg-id-rotate-back';
+const FLIP_KEY = 'apg-id-duplex-flip';
 const DRAFT_KEY = 'apg-id-draft';
 const FIELD_LABEL = {
   last: 'last name', first: 'first name', middle: 'middle name', suffix: 'suffix',
@@ -40,6 +41,7 @@ const state = {
   loadError: '',
   side: 'front',
   rotateBack: readRotate(),
+  flip: readFlip(),                     // 'long' | 'short': how the printer turns the paper
   year: THIS_YEAR,
   last: '',
   first: '',
@@ -58,7 +60,7 @@ const state = {
   step: 0,
   // Cards always print front-and-back side by side, to be cut out and stuck
   // together. The batch panel still offers the other arrangements.
-  print: { layout: 'pairs', paper: CONFIG.sheet.defaultPaper, copies: null, page: 0 },
+  print: { layout: 'duplex', paper: CONFIG.sheet.defaultPaper, copies: null, page: 0 },
   queue: [],            // cards already finished, waiting to print with this one
   example: false,
   checking: false,
@@ -100,6 +102,8 @@ function restoreDraft() {
 
 function readRotate() { try { return localStorage.getItem(ROTATE_KEY) === '1'; } catch { return false; } }
 function writeRotate(on) { try { localStorage.setItem(ROTATE_KEY, on ? '1' : '0'); } catch { /* private mode */ } }
+function readFlip() { try { return localStorage.getItem(FLIP_KEY) === 'short' ? 'short' : 'long'; } catch { return 'long'; } }
+function writeFlip(v) { try { localStorage.setItem(FLIP_KEY, v); } catch { /* private mode */ } }
 
 /* ---- derived data ------------------------------------------------ */
 
@@ -295,8 +299,11 @@ function render() {
   $('side-back').setAttribute('aria-selected', state.side === 'back');
   // the stage shows the card while it is being made, the sheet at the end
   const onCheckStep = state.step === LAST_STEP;
+  const duplex = state.print.layout === 'duplex';
   $('caption').textContent = onCheckStep
-    ? 'This is the sheet that will print. Cut along the marks and stick each pair back to back.'
+    ? (duplex
+      ? 'These are the two pages that will print: the fronts, then the backs reversed to land behind them. Cut along the marks.'
+      : 'This is the sheet that will print. Cut along the marks and stick each pair back to back.')
     : state.side === 'back'
       ? 'The back is the same on every card.'
       : 'Updates as you type. The print file is drawn the same way at 300 DPI.';
@@ -426,6 +433,7 @@ function render() {
     : `Step ${state.step + 1} of ${STEPS.length} · ready for the next step.`;
 
   $('opt-rotate').checked = state.rotateBack;
+  $('opt-flip').value = state.flip;
 
   // one step at a time
   STEPS.forEach((s, i) => { $(`step-${s.id}`).hidden = i !== state.step; });
@@ -585,6 +593,7 @@ $('f-title2-custom').addEventListener('blur', () => { touch('title2'); render();
 $('side-front').addEventListener('click', () => { state.side = 'front'; render(); });
 $('side-back').addEventListener('click', () => { state.side = 'back'; render(); });
 $('opt-rotate').addEventListener('change', (e) => { state.rotateBack = e.target.checked; writeRotate(state.rotateBack); render(); });
+$('opt-flip').addEventListener('change', (e) => { state.flip = e.target.value === 'short' ? 'short' : 'long'; writeFlip(state.flip); renderPrint(); });
 
 // photo upload (button + drag & drop)
 async function acceptPhoto(file) {
@@ -930,15 +939,16 @@ function currentPlan() {
 }
 
 /**
- * Copies of each card. One card on its own fills the sheet; several cards
- * get one each, which is almost always what is wanted.
+ * Copies of each card. One each by default: a sheet of nine identical IDs
+ * is nine ID cards for one person, which is a security problem rather than
+ * a convenience. Ask for more and you get more.
  */
 function printCopies(plan, cards = jobCards().length) {
   if (!plan) return 1;
   const perSheet = plan.cols * plan.rows;
   const asked = state.print.copies;
   if (asked !== null) return Math.max(1, Math.min(perSheet * 20, asked));
-  return cards <= 1 ? Math.max(1, perSheet) : 1;
+  return 1;
 }
 
 function buildPrintControls() {
@@ -1004,16 +1014,19 @@ function printPages(pxPerMm) {
   if (!plan || !state.templates) return { plan: null, pages: [] };
   const cards = jobCards();
   const copies = printCopies(plan, cards.length);
+  // a short-edge turn lands the back of the cut card upside down, so it is
+  // drawn the other way up to cancel that out
+  const backUp = plan.mode === 'duplex' && state.flip === 'short' ? !state.rotateBack : state.rotateBack;
   const entries = [];
   for (const c of cards) {
     for (let n = 0; n < copies; n++) {
       entries.push({
         get front() { return renderSideCanvas(state.templates, 'front', c.data, state.rotateBack, pxPerMm); },
-        get back() { return renderSideCanvas(state.templates, 'back', c.data, state.rotateBack, pxPerMm); },
+        get back() { return renderSideCanvas(state.templates, 'back', c.data, backUp, pxPerMm); },
       });
     }
   }
-  return { plan, pages: sheetPages(entries, plan, { pxPerMm }) };
+  return { plan, pages: sheetPages(entries, plan, { pxPerMm, flip: state.flip }) };
 }
 
 function drawPrintPreview() {
@@ -1026,8 +1039,10 @@ function drawPrintPreview() {
   const canvas = pages[state.print.page]();
   $('preview-img').src = canvas.toDataURL('image/png');
   canvas.width = canvas.height = 0;
-  $('preview-img').alt = `Preview of the ${state.print.paper} sheet that will print`;
-  $('preview-caption').textContent = `Page ${state.print.page + 1} of ${pages.length} · ${state.print.paper}`;
+  const side = plan.mode !== 'duplex' ? ''
+    : (state.print.page % 2 === 0 ? 'Fronts — ' : 'Backs, reversed to match — ');
+  $('preview-img').alt = `Preview of ${side ? side.replace(/\s*—\s*$/, '') + ', ' : ''}page ${state.print.page + 1} of the ${state.print.paper} sheet`;
+  $('preview-caption').textContent = `${side}page ${state.print.page + 1} of ${pages.length} · ${state.print.paper}`;
   $('prev-page').hidden = pages.length < 2;
   $('next-page').hidden = pages.length < 2;
   $('prev-page').disabled = state.print.page === 0;
@@ -1061,7 +1076,9 @@ function renderPrint() {
       `${per} per ${state.print.paper} sheet (${plan.cols} × ${plan.rows}, ${orient}${turned}). `
       + `${total} card${total === 1 ? '' : 's'} → ${sheets} sheet${sheets === 1 ? '' : 's'}, `
       + `${sheets * pagesPerSheet} page${sheets * pagesPerSheet === 1 ? '' : 's'}. `
-      + 'Cut each pair out and stick them back to back.';
+      + (plan.mode === 'duplex'
+        ? `Print both sides at 100%, turning the paper on the ${state.flip === 'short' ? 'short' : 'long'} edge, then cut.`
+        : 'Cut each pair out and stick them back to back.');
   }
   if (review.fileName) $('review-file').textContent = printFileLine();
   schedulePreview();

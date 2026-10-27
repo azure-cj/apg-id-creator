@@ -170,13 +170,14 @@ sheet that will print**, with the crop marks and every card on it. It is
 redrawn whenever anything changes, and arrows appear when the job runs to
 more than one page. What you see is what comes out.
 
-Cards always print **front and back side by side**, to be cut out and stuck
-together — the way the office already does it. Two settings:
+Cards print on **two pages: all the fronts, then all the backs**. The backs
+page is laid out in reverse, so when the paper goes back through the
+printer each back lands behind the right front. Nine cards fit on an A4
+sheet this way. Two settings:
 
 - **Paper** — A4, Letter, Legal or A3.
-- **Copies of each card** — one person on their own fills the sheet (four
-  identical cards on A4); two or more people get one each. Change it if you
-  want something else.
+- **Copies of each card** — one each. Raise it if you want spares, but
+  remember that spare ID cards for one person are a security problem.
 
 The grid is worked out from the paper and the card, trying both the card
 and the page sideways and keeping whichever fits the most. A3 holds the
@@ -186,14 +187,21 @@ most.
 
 Open the PDF and print it:
 
-* **100 % scale / actual size** — never "fit to page";
-* for *one card per page*, print **both sides**;
-* for *separate sheets*, this is duplex — **print one sheet and check both
-  sides line up before running the rest**;
-* the card is 54 × 85.6 mm (CR80, the same size as a bank card), 300 DPI.
+* **100 % scale / actual size** — never "fit to page", which would make
+  the cards the wrong size;
+* **both sides of the paper** — either the printer's own two-sided setting,
+  or print page 1, put the stack back in, and print page 2;
+* **print one sheet first and check the backs landed behind the right
+  people** before running a batch.
 
-If the printer flips the back upside down, open **Printer setting** at the
-bottom of the form and tick **Turn the back 180°**. The browser remembers
+The app assumes the paper is turned **on the long edge**, which is what
+most printers do. If the backs come out behind the wrong people, open
+**Printer setting** at the bottom of the form and change *How your printer
+turns the paper over* to **short edge**, then print again. The browser
+remembers the choice on that computer.
+
+If instead the right backs land on the right cards but upside down, tick
+**Turn the back 180°** in the same place. The browser remembers
 this on that computer.
 
 ### 10. Next card
@@ -475,10 +483,20 @@ pairs; A3 → 21 duplex.**
 DPI, with 3 mm crop marks 1 mm outside each card corner; `placeCard` rotates
 the card when the plan calls for it. `sheetPages` turns a list of
 `{ front, back }` into PDF page thunks, so a long batch renders one page at
-a time. The backs sheet in duplex mode uses `mirrorColumns`, which places
-each card at the mirrored column so flipping on the long edge brings the
-sides together — **this has not been verified on a physical duplex
-printer.**
+a time.
+
+In duplex mode the backs page is mirrored, on the axis the paper is turned
+about: a long-edge turn mirrors left to right, so the **columns** reverse;
+a short-edge turn mirrors top to bottom, so the **rows** reverse instead.
+A short-edge turn also leaves the back of the cut card upside down, so the
+backs are drawn the other way up to cancel it — that is why `printPages()`
+flips `rotateBack` for the back side only in that mode.
+
+The geometry is verified: nine synthetic cards through `composeSheet` come
+back as `0 1 2 | 3 4 5 | 6 7 8` unmirrored, `2 1 0 | 5 4 3 | 8 7 6` on the
+long edge and `6 7 8 | 3 4 5 | 0 1 2` on the short edge. **It has still not
+been run through a physical duplex printer**, which is why the operator can
+change the axis without a code change.
 
 ### 2.6b Maintainer guides
 
@@ -511,8 +529,10 @@ over the stage on the last step only; `render()` hides it everywhere else,
 and also redraws the queue list, so navigating between steps never leaves a
 stale sheet or a stale "on screen" marker behind.
 
-The single-card and duplex arrangements still exist in `planSheet` and are
-offered by the batch panel, but the step-by-step flow always uses `pairs`.
+The step-by-step flow always uses `duplex`. The side-by-side (`pairs`) and
+one-card-per-page arrangements still exist in `planSheet` and are offered
+by the batch panel, so a printer that cannot register its two sides well
+enough has somewhere to go.
 
 ### 2.6d Batch (`src/batch.js`)
 

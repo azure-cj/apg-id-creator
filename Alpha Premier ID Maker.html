@@ -611,7 +611,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
             </div>
 
             <div id="saved-stage" hidden>
-              <p class="done">Saved <strong id="saved-name"></strong>. Print it at 100%, both sides, on the card printer.</p>
+              <p class="done">Saved <strong id="saved-name"></strong>. Print at 100% (not "fit to page"), on both sides of the paper.</p>
               <div class="dialog-actions">
                 <button type="button" id="btn-new-id" class="primary">Start a new ID</button>
                 <button type="button" id="btn-again" class="ghost">Download again</button>
@@ -671,8 +671,8 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
           <div class="field">
             <label for="f-layout">Print layout</label>
             <select id="f-layout">
+              <option value="duplex">Sheets, fronts then backs — print both sides</option>
               <option value="pairs">Sheets, front &amp; back side by side — cut and laminate</option>
-              <option value="duplex">Sheets, fronts then backs — duplex printer</option>
               <option value="cards">One card per page — card printer</option>
             </select>
             <p class="msg" id="layout-msg"></p>
@@ -689,6 +689,16 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 
         <details class="block printer">
           <summary>Printer setting</summary>
+          <div class="print-opts">
+            <label class="field" for="opt-flip">
+              <span class="field-label">How your printer turns the paper over</span>
+              <select id="opt-flip">
+                <option value="long">On the long edge (usual)</option>
+                <option value="short">On the short edge</option>
+              </select>
+            </label>
+          </div>
+          <p class="msg">Set this once. It decides how the backs sheet is reversed, so each back lands behind the right front. If the backs come out behind the wrong people, change it and print again.</p>
           <label class="toggle" for="opt-rotate">
             <input id="opt-rotate" type="checkbox" />
             <span>
@@ -3017,7 +3027,7 @@ const ASSETS = {"front":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAn4AAAPsC
    ------------------------------------------------------------------ */
 
 const APP_NAME = 'Alpha Premier ID Maker';
-const APP_VERSION = '1.6.1';          // stamped into every PDF's metadata
+const APP_VERSION = '1.7.0';          // stamped into every PDF's metadata
 
 const CONFIG = {
   card: {
@@ -4311,18 +4321,22 @@ function composePairSheet(entries, plan, { pxPerMm } = {}) {
 }
 
 /**
- * One sheet in 'duplex' mode. `mirrorColumns` reverses the column order so
- * a backs sheet lines up with its fronts sheet after the paper is turned
- * over on its long edge.
+ * One sheet in 'duplex' mode.
+ *
+ * `mirror` lays the backs out so they end up behind the right fronts once
+ * the paper has been turned over. Turning a sheet about its long edge
+ * mirrors left-to-right, so the columns reverse; turning it about the
+ * short edge mirrors top-to-bottom, so the rows reverse instead. The
+ * fronts sheet is never mirrored.
  */
-function composeSheet(cards, plan, { mirrorColumns = false, pxPerMm } = {}) {
+function composeSheet(cards, plan, { mirror = 'none', pxPerMm } = {}) {
   const { canvas, ctx, pxPerMm: ppm } = blankSheet(plan, pxPerMm);
   const cells = sheetCells(plan);
   cards.slice(0, cells.length).forEach((card, i) => {
     const cell = cells[i];
-    const target = mirrorColumns
-      ? cells.find((c) => c.row === cell.row && c.col === plan.cols - 1 - cell.col)
-      : cell;
+    const col = mirror === 'columns' ? plan.cols - 1 - cell.col : cell.col;
+    const row = mirror === 'rows' ? plan.rows - 1 - cell.row : cell.row;
+    const target = cells.find((c) => c.row === row && c.col === col);
     placeCard(ctx, card, plan, target.x, target.y, ppm);
     drawCropMarks(ctx, target.x, target.y, plan.cardW, plan.cardH, ppm);
   });
@@ -4331,9 +4345,10 @@ function composeSheet(cards, plan, { mirrorColumns = false, pxPerMm } = {}) {
 
 /**
  * Turn a list of { front, back } card canvases into PDF page thunks.
- * `copies` repeats a single card to fill the sheet.
+ * In duplex mode each sheet becomes two pages, fronts then backs, with the
+ * backs mirrored on the axis the printer turns the paper about.
  */
-function sheetPages(entries, plan, { pxPerMm } = {}) {
+function sheetPages(entries, plan, { pxPerMm, flip = 'long' } = {}) {
   const pages = [];
   const per = plan.cols * plan.rows;
   for (let i = 0; i < entries.length; i += per) {
@@ -4341,8 +4356,9 @@ function sheetPages(entries, plan, { pxPerMm } = {}) {
     if (plan.mode === 'pairs') {
       pages.push(() => composePairSheet(group, plan, { pxPerMm }));
     } else {
+      const mirror = flip === 'short' ? 'rows' : 'columns';
       pages.push(() => composeSheet(group.map((e) => e.front), plan, { pxPerMm }));
-      pages.push(() => composeSheet(group.map((e) => e.back), plan, { mirrorColumns: true, pxPerMm }));
+      pages.push(() => composeSheet(group.map((e) => e.back), plan, { mirror, pxPerMm }));
     }
   }
   for (const p of pages) { p.widthMm = plan.pw; p.heightMm = plan.ph; }
@@ -5100,6 +5116,7 @@ const NAME_PARTS = ['last', 'first', 'middle', 'suffix'];
 const CUSTOM_TITLE = '__custom__';          // the "Other…" option's value
 const TITLE_RE = /^[\p{L}\p{M}\d .,'’&()\/-]+$/u;
 const ROTATE_KEY = 'apg-id-rotate-back';
+const FLIP_KEY = 'apg-id-duplex-flip';
 const DRAFT_KEY = 'apg-id-draft';
 const FIELD_LABEL = {
   last: 'last name', first: 'first name', middle: 'middle name', suffix: 'suffix',
@@ -5130,6 +5147,7 @@ const state = {
   loadError: '',
   side: 'front',
   rotateBack: readRotate(),
+  flip: readFlip(),                     // 'long' | 'short': how the printer turns the paper
   year: THIS_YEAR,
   last: '',
   first: '',
@@ -5148,7 +5166,7 @@ const state = {
   step: 0,
   // Cards always print front-and-back side by side, to be cut out and stuck
   // together. The batch panel still offers the other arrangements.
-  print: { layout: 'pairs', paper: CONFIG.sheet.defaultPaper, copies: null, page: 0 },
+  print: { layout: 'duplex', paper: CONFIG.sheet.defaultPaper, copies: null, page: 0 },
   queue: [],            // cards already finished, waiting to print with this one
   example: false,
   checking: false,
@@ -5190,6 +5208,8 @@ function restoreDraft() {
 
 function readRotate() { try { return localStorage.getItem(ROTATE_KEY) === '1'; } catch { return false; } }
 function writeRotate(on) { try { localStorage.setItem(ROTATE_KEY, on ? '1' : '0'); } catch { /* private mode */ } }
+function readFlip() { try { return localStorage.getItem(FLIP_KEY) === 'short' ? 'short' : 'long'; } catch { return 'long'; } }
+function writeFlip(v) { try { localStorage.setItem(FLIP_KEY, v); } catch { /* private mode */ } }
 
 /* ---- derived data ------------------------------------------------ */
 
@@ -5385,8 +5405,11 @@ function render() {
   $('side-back').setAttribute('aria-selected', state.side === 'back');
   // the stage shows the card while it is being made, the sheet at the end
   const onCheckStep = state.step === LAST_STEP;
+  const duplex = state.print.layout === 'duplex';
   $('caption').textContent = onCheckStep
-    ? 'This is the sheet that will print. Cut along the marks and stick each pair back to back.'
+    ? (duplex
+      ? 'These are the two pages that will print: the fronts, then the backs reversed to land behind them. Cut along the marks.'
+      : 'This is the sheet that will print. Cut along the marks and stick each pair back to back.')
     : state.side === 'back'
       ? 'The back is the same on every card.'
       : 'Updates as you type. The print file is drawn the same way at 300 DPI.';
@@ -5516,6 +5539,7 @@ function render() {
     : `Step ${state.step + 1} of ${STEPS.length} · ready for the next step.`;
 
   $('opt-rotate').checked = state.rotateBack;
+  $('opt-flip').value = state.flip;
 
   // one step at a time
   STEPS.forEach((s, i) => { $(`step-${s.id}`).hidden = i !== state.step; });
@@ -5675,6 +5699,7 @@ $('f-title2-custom').addEventListener('blur', () => { touch('title2'); render();
 $('side-front').addEventListener('click', () => { state.side = 'front'; render(); });
 $('side-back').addEventListener('click', () => { state.side = 'back'; render(); });
 $('opt-rotate').addEventListener('change', (e) => { state.rotateBack = e.target.checked; writeRotate(state.rotateBack); render(); });
+$('opt-flip').addEventListener('change', (e) => { state.flip = e.target.value === 'short' ? 'short' : 'long'; writeFlip(state.flip); renderPrint(); });
 
 // photo upload (button + drag & drop)
 async function acceptPhoto(file) {
@@ -6020,15 +6045,16 @@ function currentPlan() {
 }
 
 /**
- * Copies of each card. One card on its own fills the sheet; several cards
- * get one each, which is almost always what is wanted.
+ * Copies of each card. One each by default: a sheet of nine identical IDs
+ * is nine ID cards for one person, which is a security problem rather than
+ * a convenience. Ask for more and you get more.
  */
 function printCopies(plan, cards = jobCards().length) {
   if (!plan) return 1;
   const perSheet = plan.cols * plan.rows;
   const asked = state.print.copies;
   if (asked !== null) return Math.max(1, Math.min(perSheet * 20, asked));
-  return cards <= 1 ? Math.max(1, perSheet) : 1;
+  return 1;
 }
 
 function buildPrintControls() {
@@ -6094,16 +6120,19 @@ function printPages(pxPerMm) {
   if (!plan || !state.templates) return { plan: null, pages: [] };
   const cards = jobCards();
   const copies = printCopies(plan, cards.length);
+  // a short-edge turn lands the back of the cut card upside down, so it is
+  // drawn the other way up to cancel that out
+  const backUp = plan.mode === 'duplex' && state.flip === 'short' ? !state.rotateBack : state.rotateBack;
   const entries = [];
   for (const c of cards) {
     for (let n = 0; n < copies; n++) {
       entries.push({
         get front() { return renderSideCanvas(state.templates, 'front', c.data, state.rotateBack, pxPerMm); },
-        get back() { return renderSideCanvas(state.templates, 'back', c.data, state.rotateBack, pxPerMm); },
+        get back() { return renderSideCanvas(state.templates, 'back', c.data, backUp, pxPerMm); },
       });
     }
   }
-  return { plan, pages: sheetPages(entries, plan, { pxPerMm }) };
+  return { plan, pages: sheetPages(entries, plan, { pxPerMm, flip: state.flip }) };
 }
 
 function drawPrintPreview() {
@@ -6116,8 +6145,10 @@ function drawPrintPreview() {
   const canvas = pages[state.print.page]();
   $('preview-img').src = canvas.toDataURL('image/png');
   canvas.width = canvas.height = 0;
-  $('preview-img').alt = `Preview of the ${state.print.paper} sheet that will print`;
-  $('preview-caption').textContent = `Page ${state.print.page + 1} of ${pages.length} · ${state.print.paper}`;
+  const side = plan.mode !== 'duplex' ? ''
+    : (state.print.page % 2 === 0 ? 'Fronts — ' : 'Backs, reversed to match — ');
+  $('preview-img').alt = `Preview of ${side ? side.replace(/\s*—\s*$/, '') + ', ' : ''}page ${state.print.page + 1} of the ${state.print.paper} sheet`;
+  $('preview-caption').textContent = `${side}page ${state.print.page + 1} of ${pages.length} · ${state.print.paper}`;
   $('prev-page').hidden = pages.length < 2;
   $('next-page').hidden = pages.length < 2;
   $('prev-page').disabled = state.print.page === 0;
@@ -6151,7 +6182,9 @@ function renderPrint() {
       `${per} per ${state.print.paper} sheet (${plan.cols} × ${plan.rows}, ${orient}${turned}). `
       + `${total} card${total === 1 ? '' : 's'} → ${sheets} sheet${sheets === 1 ? '' : 's'}, `
       + `${sheets * pagesPerSheet} page${sheets * pagesPerSheet === 1 ? '' : 's'}. `
-      + 'Cut each pair out and stick them back to back.';
+      + (plan.mode === 'duplex'
+        ? `Print both sides at 100%, turning the paper on the ${state.flip === 'short' ? 'short' : 'long'} edge, then cut.`
+        : 'Cut each pair out and stick them back to back.');
   }
   if (review.fileName) $('review-file').textContent = printFileLine();
   schedulePreview();

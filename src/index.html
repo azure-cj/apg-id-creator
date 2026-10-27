@@ -273,7 +273,7 @@
             </div>
 
             <div id="saved-stage" hidden>
-              <p class="done">Saved <strong id="saved-name"></strong>. Print it at 100%, both sides, on the card printer.</p>
+              <p class="done">Saved <strong id="saved-name"></strong>. Print at 100% (not "fit to page"), on both sides of the paper.</p>
               <div class="dialog-actions">
                 <button type="button" id="btn-new-id" class="primary">Start a new ID</button>
                 <button type="button" id="btn-again" class="ghost">Download again</button>
@@ -333,8 +333,8 @@
           <div class="field">
             <label for="f-layout">Print layout</label>
             <select id="f-layout">
+              <option value="duplex">Sheets, fronts then backs — print both sides</option>
               <option value="pairs">Sheets, front &amp; back side by side — cut and laminate</option>
-              <option value="duplex">Sheets, fronts then backs — duplex printer</option>
               <option value="cards">One card per page — card printer</option>
             </select>
             <p class="msg" id="layout-msg"></p>
@@ -351,6 +351,16 @@
 
         <details class="block printer">
           <summary>Printer setting</summary>
+          <div class="print-opts">
+            <label class="field" for="opt-flip">
+              <span class="field-label">How your printer turns the paper over</span>
+              <select id="opt-flip">
+                <option value="long">On the long edge (usual)</option>
+                <option value="short">On the short edge</option>
+              </select>
+            </label>
+          </div>
+          <p class="msg">Set this once. It decides how the backs sheet is reversed, so each back lands behind the right front. If the backs come out behind the wrong people, change it and print again.</p>
           <label class="toggle" for="opt-rotate">
             <input id="opt-rotate" type="checkbox" />
             <span>
