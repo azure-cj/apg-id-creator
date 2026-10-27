@@ -26,6 +26,31 @@ The card itself is drawn by the same HTML in the same Edge engine as
 before, so `npm test` still governs what comes out of the printer. Nothing
 about the output changes by installing it.
 
+## Giving it to someone else
+
+Three ways, in order of how little the other person has to understand.
+
+**One file they double-click.** Run `desktop\build-installer.cmd` to get
+`desktop\dist\AP-ID-Maker-Setup-<version>.exe` — a normal Windows
+installer with a wizard, a desktop-icon tick box, and an entry in Settings
+→ Apps. It needs [Inno Setup 6](https://jrsoftware.org/isdl.php) on the
+machine that builds it (free, about 5 MB); nothing extra on the machine
+that runs it. It installs per user, so Windows never asks for
+administrator rights.
+
+The catch is that it is **not code-signed**, so the first person to run it
+meets *"Windows protected your PC"* and has to click **More info → Run
+anyway**. Warn them, or they will assume it is broken. A signing
+certificate removes it and costs roughly $200–400 a year.
+
+**A zip.** `desktop\dist\Alpha Premier ID Maker - install.zip` from
+`desktop\pack.mjs`. They extract it and run `Setup.cmd`. No SmartScreen
+warning at all, because there is no exe — but "extract first" is a step
+people skip, and running `install.cmd` from inside the zip fails.
+
+**Nothing at all,** on the laptop that has the repository: open
+`desktop\Setup.cmd` and press Install.
+
 ## Rebuilding after a change
 
 Double-click **`desktop\rebuild.cmd`**. It rebuilds the single HTML file,
