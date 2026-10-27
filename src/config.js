@@ -7,7 +7,7 @@
    ------------------------------------------------------------------ */
 
 const APP_NAME = 'Alpha Premier ID Maker';
-const APP_VERSION = '1.7.2';          // stamped into every PDF's metadata
+const APP_VERSION = '1.7.3';          // stamped into every PDF's metadata
 
 const CONFIG = {
   card: {
@@ -136,7 +136,7 @@ const CONFIG = {
     storageKey: 'apg-id-register',
     urlStorageKey: 'apg-id-register-url',
     url: '',
-    timeoutMs: 6000,
+    timeoutMs: 20000,       // Apps Script is slow to wake: a cold call can take 10s+
   },
 
   qr: {
