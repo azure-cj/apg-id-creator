@@ -282,6 +282,26 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .print-opts .field { gap: 4px; }
 @media (width <= 420px) { .print-opts { grid-template-columns: 1fr; } }
 
+/* a number box with its own + and -, instead of the browser's tiny arrows,
+   which are a small target and look different in every browser */
+.stepper { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 10px; background: var(--field); overflow: hidden; }
+.stepper:focus-within { border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 25%, transparent); }
+.stepper .step-btn {
+  flex: none; width: 42px; min-height: 44px; padding: 0; border: 0; background: none;
+  color: var(--ink); font: 600 1.3rem var(--font-body); line-height: 1; cursor: pointer;
+}
+.stepper .step-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--gold) 20%, transparent); }
+.stepper .step-btn:active:not(:disabled) { background: color-mix(in srgb, var(--gold) 34%, transparent); }
+.stepper .step-btn:disabled { opacity: 0.3; cursor: default; }
+.print-opts .stepper input, .stepper input {
+  width: 58px; min-height: 44px; padding: 8px 2px; border: 0; border-radius: 0;
+  background: none; color: var(--ink); font: 400 1rem var(--font-mono); text-align: center;
+}
+.print-opts .stepper input:focus, .stepper input:focus { outline: none; border: 0; box-shadow: none; }
+.stepper input::-webkit-outer-spin-button,
+.stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.stepper input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
 /* ---- wizard ---- */
 .wizard { gap: 14px; }
 .steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
@@ -593,10 +613,14 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
                     <span class="field-label">Paper</span>
                     <select id="f-paper"></select>
                   </label>
-                  <label class="field" id="field-copies">
-                    <span class="field-label">Copies of this card</span>
-                    <input id="f-copies" type="number" min="1" max="200" step="1" />
-                  </label>
+                  <div class="field" id="field-copies">
+                    <label class="field-label" for="f-copies">Copies of this card</label>
+                    <div class="stepper">
+                      <button type="button" class="step-btn" id="copies-down" aria-label="One fewer copy">&minus;</button>
+                      <input id="f-copies" type="number" min="1" max="200" step="1" inputmode="numeric" aria-describedby="print-note" />
+                      <button type="button" class="step-btn" id="copies-up" aria-label="One more copy">+</button>
+                    </div>
+                  </div>
                 </div>
                 <p class="msg" id="print-note"></p>
                 <button type="button" id="btn-add-another" class="ghost">+ Add another ID to this print</button>
@@ -3027,7 +3051,7 @@ const ASSETS = {"front":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAn4AAAPsC
    ------------------------------------------------------------------ */
 
 const APP_NAME = 'Alpha Premier ID Maker';
-const APP_VERSION = '1.7.0';          // stamped into every PDF's metadata
+const APP_VERSION = '1.7.1';          // stamped into every PDF's metadata
 
 const CONFIG = {
   card: {
@@ -6071,6 +6095,16 @@ function buildPrintControls() {
     state.print.copies = Number.isFinite(n) ? n : null;
     renderPrint();
   });
+  $('copies-down').addEventListener('click', () => nudgeCopies(-1));
+  $('copies-up').addEventListener('click', () => nudgeCopies(1));
+}
+
+/** Step the copies box, starting from whatever it is showing now. */
+function nudgeCopies(by) {
+  const plan = currentPlan();
+  const max = plan ? plan.cols * plan.rows * 20 : 200;
+  state.print.copies = Math.max(1, Math.min(max, printCopies(plan) + by));
+  renderPrint();
 }
 
 function renderJob() {
@@ -6171,6 +6205,8 @@ function renderPrint() {
     $('f-paper').value = state.print.paper;
     $('f-copies').max = String(per * 20);
     if (document.activeElement !== $('f-copies')) $('f-copies').value = String(copies);
+    $('copies-down').disabled = copies <= 1;
+    $('copies-up').disabled = copies >= per * 20;
     $('field-copies').hidden = false;
     const sheets = Math.ceil(total / per);
     const pagesPerSheet = plan.mode === 'pairs' ? 1 : 2;

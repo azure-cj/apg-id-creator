@@ -255,10 +255,14 @@
                     <span class="field-label">Paper</span>
                     <select id="f-paper"></select>
                   </label>
-                  <label class="field" id="field-copies">
-                    <span class="field-label">Copies of this card</span>
-                    <input id="f-copies" type="number" min="1" max="200" step="1" />
-                  </label>
+                  <div class="field" id="field-copies">
+                    <label class="field-label" for="f-copies">Copies of this card</label>
+                    <div class="stepper">
+                      <button type="button" class="step-btn" id="copies-down" aria-label="One fewer copy">&minus;</button>
+                      <input id="f-copies" type="number" min="1" max="200" step="1" inputmode="numeric" aria-describedby="print-note" />
+                      <button type="button" class="step-btn" id="copies-up" aria-label="One more copy">+</button>
+                    </div>
+                  </div>
                 </div>
                 <p class="msg" id="print-note"></p>
                 <button type="button" id="btn-add-another" class="ghost">+ Add another ID to this print</button>

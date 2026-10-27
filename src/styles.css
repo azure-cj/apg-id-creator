@@ -272,6 +272,26 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .print-opts .field { gap: 4px; }
 @media (width <= 420px) { .print-opts { grid-template-columns: 1fr; } }
 
+/* a number box with its own + and -, instead of the browser's tiny arrows,
+   which are a small target and look different in every browser */
+.stepper { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 10px; background: var(--field); overflow: hidden; }
+.stepper:focus-within { border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 25%, transparent); }
+.stepper .step-btn {
+  flex: none; width: 42px; min-height: 44px; padding: 0; border: 0; background: none;
+  color: var(--ink); font: 600 1.3rem var(--font-body); line-height: 1; cursor: pointer;
+}
+.stepper .step-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--gold) 20%, transparent); }
+.stepper .step-btn:active:not(:disabled) { background: color-mix(in srgb, var(--gold) 34%, transparent); }
+.stepper .step-btn:disabled { opacity: 0.3; cursor: default; }
+.print-opts .stepper input, .stepper input {
+  width: 58px; min-height: 44px; padding: 8px 2px; border: 0; border-radius: 0;
+  background: none; color: var(--ink); font: 400 1rem var(--font-mono); text-align: center;
+}
+.print-opts .stepper input:focus, .stepper input:focus { outline: none; border: 0; box-shadow: none; }
+.stepper input::-webkit-outer-spin-button,
+.stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.stepper input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
 /* ---- wizard ---- */
 .wizard { gap: 14px; }
 .steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }

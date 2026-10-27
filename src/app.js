@@ -965,6 +965,16 @@ function buildPrintControls() {
     state.print.copies = Number.isFinite(n) ? n : null;
     renderPrint();
   });
+  $('copies-down').addEventListener('click', () => nudgeCopies(-1));
+  $('copies-up').addEventListener('click', () => nudgeCopies(1));
+}
+
+/** Step the copies box, starting from whatever it is showing now. */
+function nudgeCopies(by) {
+  const plan = currentPlan();
+  const max = plan ? plan.cols * plan.rows * 20 : 200;
+  state.print.copies = Math.max(1, Math.min(max, printCopies(plan) + by));
+  renderPrint();
 }
 
 function renderJob() {
@@ -1065,6 +1075,8 @@ function renderPrint() {
     $('f-paper').value = state.print.paper;
     $('f-copies').max = String(per * 20);
     if (document.activeElement !== $('f-copies')) $('f-copies').value = String(copies);
+    $('copies-down').disabled = copies <= 1;
+    $('copies-up').disabled = copies >= per * 20;
     $('field-copies').hidden = false;
     const sheets = Math.ceil(total / per);
     const pagesPerSheet = plan.mode === 'pairs' ? 1 : 2;
