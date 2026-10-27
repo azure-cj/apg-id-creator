@@ -248,6 +248,14 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 
 .colophon { color: var(--muted); font-size: 0.8rem; font-family: var(--font-mono); text-align: center; }
 
+/* ---- print layout ---- */
+.print-layout { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+.print-opts { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
+.print-opts select { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: 400 0.95rem var(--font-body); }
+.print-opts input { width: 90px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: 400 1rem var(--font-mono); }
+.print-opts .field { gap: 4px; }
+@media (width <= 420px) { .print-opts { grid-template-columns: 1fr; } }
+
 /* ---- wizard ---- */
 .wizard { gap: 14px; }
 .steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
@@ -538,6 +546,23 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
                 <li>The photo looks like the person and isn’t blurry</li>
                 <li>The signature is visible below the title</li>
               </ul>
+              <div class="print-layout">
+                <div class="block-head"><h2 id="print-h">How to print it</h2></div>
+                <div class="chips" id="layout-chips" role="radiogroup" aria-labelledby="print-h"></div>
+
+                <div class="print-opts" id="print-opts" hidden>
+                  <label class="field">
+                    <span class="field-label">Paper</span>
+                    <select id="f-paper"></select>
+                  </label>
+                  <label class="field" id="field-copies">
+                    <span class="field-label">Copies of this card</span>
+                    <input id="f-copies" type="number" min="1" max="200" step="1" />
+                  </label>
+                </div>
+                <p class="msg" id="print-note"></p>
+              </div>
+
               <p class="msg msg-error" id="review-error" role="alert" hidden></p>
               <div class="dialog-actions">
                 <button type="button" id="btn-download" class="primary">Download PDF</button>
@@ -607,9 +632,15 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
           <div class="field">
             <label for="f-layout">Print layout</label>
             <select id="f-layout">
-              <option value="cards">One card per page — for the card printer</option>
-              <option value="sheets">A4 sheets of 9, with crop marks — for an outside printer</option>
+              <option value="pairs">Sheets, front &amp; back side by side — cut and laminate</option>
+              <option value="duplex">Sheets, fronts then backs — duplex printer</option>
+              <option value="cards">One card per page — card printer</option>
             </select>
+            <p class="msg" id="layout-msg"></p>
+          </div>
+          <div class="field">
+            <label for="f-batch-paper">Paper</label>
+            <select id="f-batch-paper"></select>
           </div>
 
           <button type="button" id="btn-batch" class="primary" disabled>Generate batch</button>
@@ -2947,12 +2978,12 @@ const ASSETS = {"front":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAn4AAAPsC
    ------------------------------------------------------------------ */
 
 const APP_NAME = 'Alpha Premier ID Maker';
-const APP_VERSION = '1.3.0';          // stamped into every PDF's metadata
+const APP_VERSION = '1.4.0';          // stamped into every PDF's metadata
 
 const CONFIG = {
   card: {
-    widthMm: 54,
-    heightMm: 85,
+    widthMm: 54,                      // CR80 (ISO/IEC 7810 ID-1): 85.60 x 53.98 mm
+    heightMm: 85.6,
     printDpi: 300, // the PDF is rendered at this resolution
   },
 
@@ -2969,15 +3000,15 @@ const CONFIG = {
   // Traced from front-template.png. Points are [x, y] in mm.
   frontOutline: {
     polygons: [
-      [[36.7, 56.64], [54, 56.64], [54, 85], [0, 85], [0, 64.56], [28.79, 64.56]],
-      [[28.45, 58.71], [35.56, 58.71], [35.56, 59.01], [28.58, 59.01], [23.03, 64.56], [22.61, 64.56]],
+      [[36.7, 57.04], [54, 57.04], [54, 85.6], [0, 85.6], [0, 65.016], [28.79, 65.016]],
+      [[28.45, 59.124], [35.56, 59.124], [35.56, 59.427], [28.58, 59.427], [23.03, 65.016], [22.61, 65.016]],
     ],
   },
 
   // Where the photo may appear. It steps around the logo at the top
   // left and stops at the thin black edge on the right.
   photoArea: {
-    polygon: [[19.5, 10], [53.5, 10], [53.5, 67], [17, 67], [17, 17.5], [19.5, 17.5]],
+    polygon: [[19.5, 10.071], [53.5, 10.071], [53.5, 67.473], [17, 67.473], [17, 17.624], [19.5, 17.624]],
   },
 
   // Text boxes.
@@ -2990,17 +3021,17 @@ const CONFIG = {
   // minSizePt in quarter-point steps and wraps up to maxLines.
   text: {
     name: {
-      box: { x: 34.4, y: 59.3, w: 18, h: 5.2 },
+      box: { x: 34.4, y: 59.719, w: 18, h: 5.237 },
       font: 'name', color: '#E8CD77', align: 'center', vAlign: 'bottom',
       maxSizePt: 6, minSizePt: 4.5, maxLines: 3, lineHeight: 1, uppercase: false,
     },
     title: {
-      box: { x: 34.4, y: 65, w: 18, h: 3.2 },
+      box: { x: 34.4, y: 65.459, w: 18, h: 3.223 },
       font: 'title', color: '#FFFFFF', align: 'center', vAlign: 'top',
       maxSizePt: 4.5, minSizePt: 3.5, maxLines: 2, lineHeight: 1.1, uppercase: true,
     },
     employeeNo: {
-      box: { x: 28.6, y: 77.5, w: 23, h: 1.5 },
+      box: { x: 28.6, y: 78.047, w: 23, h: 1.511 },
       font: 'number', color: '#FFFFFF', align: 'right', vAlign: 'baseline',
       maxSizePt: 4, minSizePt: 3.5, maxLines: 1, lineHeight: 1, uppercase: false,
     },
@@ -3046,13 +3077,19 @@ const CONFIG = {
     yearsAhead: 1,
   },
 
-  // Printing several cards on one A4 sheet (for an outside printer).
-  // Cards are laid out in a grid with crop marks; the backs sheet mirrors
-  // the column order so the sides line up after flipping on the long edge.
+  // Printing several cards on one sheet of paper. The grid is worked out
+  // from the paper and card size, trying the card both ways round and the
+  // paper both ways round, and keeping whichever fits the most.
   sheet: {
-    widthMm: 210, heightMm: 297,      // A4
-    cols: 3, rows: 3,
-    gapMm: 4,                         // space between cards
+    papers: {
+      A4:     { label: 'A4 (210 × 297 mm)',       widthMm: 210, heightMm: 297 },
+      Letter: { label: 'Letter (216 × 279 mm)',   widthMm: 216, heightMm: 279 },
+      Legal:  { label: 'Legal (216 × 356 mm)',    widthMm: 216, heightMm: 356 },
+      A3:     { label: 'A3 (297 × 420 mm)',       widthMm: 297, heightMm: 420 },
+    },
+    defaultPaper: 'A4',
+    marginMm: 6,                      // most office printers cannot print nearer the edge
+    gapMm: 4,                         // space between cards, room for the cutter
     markMm: 3, markOffsetMm: 1,       // crop-mark length and distance from the card
   },
 
@@ -3074,7 +3111,7 @@ const CONFIG = {
   },
 
   qr: {
-    square: { x: 2, y: 66.1, size: 8.8 },       // white square incl. quiet zone
+    square: { x: 2, y: 66.567, size: 8.8 },       // white square incl. quiet zone
     content: 'https://alphapremiergroup.com/',
     errorCorrection: 'M',
     background: '#FFFFFF',
@@ -3086,10 +3123,10 @@ const CONFIG = {
   // and is 15 mm wide. The body must reach at least reachY so that it
   // continues behind the dark band.
   photo: {
-    headTop: 15.4,
+    headTop: 15.509,
     headCenterX: 36.6,
     headWidth: 15,
-    reachY: 66,
+    reachY: 66.466,
     minHeadPx: 180,   // below this the face prints a little soft (warning only)
     maxFileMb: 15,
     // manual adjustment after automatic placement
@@ -3104,7 +3141,7 @@ const CONFIG = {
   // drawn as curves whose width runs from strokeMm (slow pen) down to
   // minStrokeMm (fast pen).
   signature: {
-    box: { x: 34.9, y: 68.6, w: 17, h: 5.6 },
+    box: { x: 34.9, y: 69.084, w: 17, h: 5.64 },
     color: '#FFFFFF',
     strokeMm: 0.38,
     minStrokeMm: 0.16,
@@ -4106,71 +4143,171 @@ function drawBack(ctx, templates, pxPerMm, rotate180 = false) {
   ctx.restore();
 }
 
-/* ---- A4 sheets --------------------------------------------------- */
+/* ---- sheets of cards (imposition) -------------------------------- */
 
-/** Top-left corner (mm) of each card slot on the sheet, row-major. */
-function sheetSlots() {
-  const S = CONFIG.sheet, C = CONFIG.card;
-  const gridW = S.cols * C.widthMm + (S.cols - 1) * S.gapMm;
-  const gridH = S.rows * C.heightMm + (S.rows - 1) * S.gapMm;
-  const left = (S.widthMm - gridW) / 2, top = (S.heightMm - gridH) / 2;
-  const slots = [];
-  for (let r = 0; r < S.rows; r++) {
-    for (let c = 0; c < S.cols; c++) {
-      slots.push({ col: c, row: r, x: left + c * (C.widthMm + S.gapMm), y: top + r * (C.heightMm + S.gapMm) });
+/**
+ * How many cards fit on a sheet, and where.
+ *
+ *   mode 'duplex' — one card per cell. All the fronts go on one page and
+ *                   all the backs on the next, the backs mirrored by column
+ *                   so the two sides meet when the paper is turned over.
+ *   mode 'pairs'  — front and back side by side in one cell, for cutting
+ *                   out and sticking back to back.
+ *
+ * The card is tried upright and turned on its side, and the paper is tried
+ * both ways round; whichever fits the most cards wins.
+ */
+function planSheet(paperName = CONFIG.sheet.defaultPaper, mode = 'pairs') {
+  const S = CONFIG.sheet;
+  const paper = S.papers[paperName] ?? S.papers[S.defaultPaper];
+  const C = CONFIG.card;
+  const pair = mode === 'pairs';
+
+  let best = null;
+  for (const turned of [false, true]) {                 // the card on its side?
+    // one cell holds one card, or a front and a back next to each other
+    const cardW = turned ? C.heightMm : C.widthMm;
+    const cardH = turned ? C.widthMm : C.heightMm;
+    const cellW = pair ? cardW * 2 + S.gapMm : cardW;
+    const cellH = cardH;
+    for (const landscape of [false, true]) {            // the paper on its side?
+      const pw = landscape ? paper.heightMm : paper.widthMm;
+      const ph = landscape ? paper.widthMm : paper.heightMm;
+      const cols = Math.floor((pw - 2 * S.marginMm + S.gapMm) / (cellW + S.gapMm));
+      const rows = Math.floor((ph - 2 * S.marginMm + S.gapMm) / (cellH + S.gapMm));
+      if (cols < 1 || rows < 1) continue;
+      const count = cols * rows;
+      const waste = pw * ph - count * cellW * cellH;
+      if (!best || count > best.count || (count === best.count && waste < best.waste)) {
+        best = { paperName, mode, turned, landscape, cols, rows, count, waste, pw, ph, cardW, cardH, cellW, cellH };
+      }
     }
   }
-  return slots;
+  if (!best) return null;
+
+  // centre the grid on the page
+  const gridW = best.cols * best.cellW + (best.cols - 1) * S.gapMm;
+  const gridH = best.rows * best.cellH + (best.rows - 1) * S.gapMm;
+  best.left = (best.pw - gridW) / 2;
+  best.top = (best.ph - gridH) / 2;
+  return best;
 }
 
-const sheetCapacity = () => CONFIG.sheet.cols * CONFIG.sheet.rows;
+/** Top-left corner (mm) of every cell, row by row. */
+function sheetCells(plan) {
+  const S = CONFIG.sheet;
+  const cells = [];
+  for (let r = 0; r < plan.rows; r++) {
+    for (let c = 0; c < plan.cols; c++) {
+      cells.push({
+        col: c, row: r,
+        x: plan.left + c * (plan.cellW + S.gapMm),
+        y: plan.top + r * (plan.cellH + S.gapMm),
+      });
+    }
+  }
+  return cells;
+}
 
-function drawCropMarks(ctx, slot, pxPerMm) {
-  const S = CONFIG.sheet, C = CONFIG.card;
+function drawCropMarks(ctx, x, y, w, h, pxPerMm) {
+  const S = CONFIG.sheet;
   const o = S.markOffsetMm, len = S.markMm;
-  const xs = [slot.x, slot.x + C.widthMm], ys = [slot.y, slot.y + C.heightMm];
   ctx.strokeStyle = '#000';
   ctx.lineWidth = Math.max(1, 0.1 * pxPerMm);
   ctx.beginPath();
-  for (const x of xs) {
-    for (const y of ys) {
-      const sx = x === xs[0] ? -1 : 1, sy = y === ys[0] ? -1 : 1;
-      ctx.moveTo((x + sx * o) * pxPerMm, y * pxPerMm);
-      ctx.lineTo((x + sx * (o + len)) * pxPerMm, y * pxPerMm);
-      ctx.moveTo(x * pxPerMm, (y + sy * o) * pxPerMm);
-      ctx.lineTo(x * pxPerMm, (y + sy * (o + len)) * pxPerMm);
+  for (const cx of [x, x + w]) {
+    for (const cy of [y, y + h]) {
+      const sx = cx === x ? -1 : 1, sy = cy === y ? -1 : 1;
+      ctx.moveTo((cx + sx * o) * pxPerMm, cy * pxPerMm);
+      ctx.lineTo((cx + sx * (o + len)) * pxPerMm, cy * pxPerMm);
+      ctx.moveTo(cx * pxPerMm, (cy + sy * o) * pxPerMm);
+      ctx.lineTo(cx * pxPerMm, (cy + sy * (o + len)) * pxPerMm);
     }
   }
   ctx.stroke();
 }
 
-/**
- * composeSheet(cards, { mirrorColumns, marks }) -> canvas (A4 at print DPI)
- * `cards` holds up to sheetCapacity() card canvases, in reading order.
- * With mirrorColumns the columns are reversed, so a backs sheet lines up
- * with its fronts sheet after the paper is flipped on its long edge.
- */
-function composeSheet(cards, { mirrorColumns = false, marks = true } = {}) {
-  const S = CONFIG.sheet, C = CONFIG.card;
+/** Draw one card into a slot, turning it on its side when the plan says so. */
+function placeCard(ctx, card, plan, x, y, pxPerMm) {
+  const C = CONFIG.card;
+  ctx.save();
+  ctx.translate(x * pxPerMm, y * pxPerMm);
+  if (plan.turned) {
+    // the card is drawn upright then rotated into a landscape slot
+    ctx.translate(plan.cardW * pxPerMm, 0);
+    ctx.rotate(Math.PI / 2);
+  }
+  ctx.drawImage(card, 0, 0, C.widthMm * pxPerMm, C.heightMm * pxPerMm);
+  ctx.restore();
+}
+
+function blankSheet(plan) {
   const pxPerMm = printPxPerMm();
   const canvas = document.createElement('canvas');
-  canvas.width = Math.round(S.widthMm * pxPerMm);
-  canvas.height = Math.round(S.heightMm * pxPerMm);
+  canvas.width = Math.round(plan.pw * pxPerMm);
+  canvas.height = Math.round(plan.ph * pxPerMm);
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingQuality = 'high';
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  return { canvas, ctx, pxPerMm };
+}
 
-  const slots = sheetSlots();
-  cards.forEach((card, i) => {
-    const slot = slots[i];
-    const target = mirrorColumns
-      ? slots.find((s) => s.row === slot.row && s.col === S.cols - 1 - slot.col)
-      : slot;
-    ctx.drawImage(card, target.x * pxPerMm, target.y * pxPerMm, C.widthMm * pxPerMm, C.heightMm * pxPerMm);
-    if (marks) drawCropMarks(ctx, target, pxPerMm);
+/**
+ * One sheet in 'pairs' mode: each entry is { front, back } and lands as two
+ * cards side by side.
+ */
+function composePairSheet(entries, plan) {
+  const { canvas, ctx, pxPerMm } = blankSheet(plan);
+  const cells = sheetCells(plan);
+  entries.slice(0, cells.length).forEach((entry, i) => {
+    const cell = cells[i];
+    const stride = plan.cardW + CONFIG.sheet.gapMm;
+    placeCard(ctx, entry.front, plan, cell.x, cell.y, pxPerMm);
+    placeCard(ctx, entry.back, plan, cell.x + stride, cell.y, pxPerMm);
+    drawCropMarks(ctx, cell.x, cell.y, plan.cardW, plan.cardH, pxPerMm);
+    drawCropMarks(ctx, cell.x + stride, cell.y, plan.cardW, plan.cardH, pxPerMm);
   });
   return canvas;
+}
+
+/**
+ * One sheet in 'duplex' mode. `mirrorColumns` reverses the column order so
+ * a backs sheet lines up with its fronts sheet after the paper is turned
+ * over on its long edge.
+ */
+function composeSheet(cards, plan, { mirrorColumns = false } = {}) {
+  const { canvas, ctx, pxPerMm } = blankSheet(plan);
+  const cells = sheetCells(plan);
+  cards.slice(0, cells.length).forEach((card, i) => {
+    const cell = cells[i];
+    const target = mirrorColumns
+      ? cells.find((c) => c.row === cell.row && c.col === plan.cols - 1 - cell.col)
+      : cell;
+    placeCard(ctx, card, plan, target.x, target.y, pxPerMm);
+    drawCropMarks(ctx, target.x, target.y, plan.cardW, plan.cardH, pxPerMm);
+  });
+  return canvas;
+}
+
+/**
+ * Turn a list of { front, back } card canvases into PDF page thunks.
+ * `copies` repeats a single card to fill the sheet.
+ */
+function sheetPages(entries, plan) {
+  const pages = [];
+  const per = plan.cols * plan.rows;
+  for (let i = 0; i < entries.length; i += per) {
+    const group = entries.slice(i, i + per);
+    if (plan.mode === 'pairs') {
+      pages.push(() => composePairSheet(group, plan));
+    } else {
+      pages.push(() => composeSheet(group.map((e) => e.front), plan));
+      pages.push(() => composeSheet(group.map((e) => e.back), plan, { mirrorColumns: true }));
+    }
+  }
+  for (const p of pages) { p.widthMm = plan.pw; p.heightMm = plan.ph; }
+  return pages;
 }
 
 /** Render one side at print resolution (300 DPI) into a fresh canvas. */
@@ -4837,7 +4974,7 @@ async function prepareBatchRow(row, findPhoto, findSignature, seen) {
   return {
     ok: true,
     id, year, seq, name, title, parts: split ? parts : null,
-    warning: photo.check.warning,
+    warnings: photo.check.warnings ?? [],
     noSignature: !signature,
     data: { name, title, year, seq, photo: { image: photo.image, placement: photo.check.placement }, signature },
     entry: {
@@ -4854,10 +4991,11 @@ async function prepareBatchRow(row, findPhoto, findSignature, seen) {
 
 /**
  * runBatch({ csvText, photos, signatures, templates, rotateBack, layout,
- *            onProgress }) -> { error } | { results, pages, fileName, title }
- * `layout` is 'cards' (two pages per person) or 'sheets' (A4, 9 per sheet).
+ *            paper, onProgress }) -> { error } | { results, pages, fileName, title }
+ * `layout` is 'cards' (two pages per person), 'pairs' (sheets with the
+ * front and back side by side) or 'duplex' (sheets of fronts, then backs).
  */
-async function runBatch({ csvText, photos, signatures, templates, rotateBack, layout, onProgress }) {
+async function runBatch({ csvText, photos, signatures, templates, rotateBack, layout, paper, onProgress }) {
   const parsed = csvToObjects(csvText);
   if (parsed.error) return { error: parsed.error };
 
@@ -4876,20 +5014,20 @@ async function runBatch({ csvText, photos, signatures, templates, rotateBack, la
   if (!good.length) return { results, error: 'None of the rows could be used — see the list below.' };
 
   // Render each card once; the PDF writer pulls them in page order.
-  const pages = [];
-  if (layout === 'sheets') {
-    const per = sheetCapacity();
-    for (let i = 0; i < good.length; i += per) {
-      const group = good.slice(i, i + per);
-      pages.push(() => composeSheet(group.map((r) => renderSideCanvas(templates, 'front', r.data, false)), { mirrorColumns: false }));
-      pages.push(() => composeSheet(group.map((r) => renderSideCanvas(templates, 'back', r.data, rotateBack)), { mirrorColumns: true }));
-    }
-    for (const p of pages) { p.widthMm = CONFIG.sheet.widthMm; p.heightMm = CONFIG.sheet.heightMm; }
-  } else {
+  let pages;
+  if (layout === 'cards') {
+    pages = [];
     for (const r of good) {
       pages.push(() => renderSideCanvas(templates, 'front', r.data, false));
       pages.push(() => renderSideCanvas(templates, 'back', r.data, rotateBack));
     }
+  } else {
+    const plan = planSheet(paper, layout);
+    const entries = good.map((r) => ({
+      get front() { return renderSideCanvas(templates, 'front', r.data, false); },
+      get back() { return renderSideCanvas(templates, 'back', r.data, rotateBack); },
+    }));
+    pages = sheetPages(entries, plan);
   }
 
   const stamp = new Date().toISOString().slice(0, 10);
@@ -4897,7 +5035,7 @@ async function runBatch({ csvText, photos, signatures, templates, rotateBack, la
     results,
     good,
     pages,
-    fileName: layout === 'sheets' ? `apg-id-sheets-${stamp}.pdf` : `apg-id-batch-${stamp}.pdf`,
+    fileName: layout === 'cards' ? `apg-id-batch-${stamp}.pdf` : `apg-id-sheets-${stamp}.pdf`,
     title: `Alpha Premier IDs — ${good.length} card${good.length === 1 ? '' : 's'} — ${stamp}`,
   };
 }
@@ -4969,6 +5107,7 @@ const state = {
   signature: null,
   touched: { last: false, first: false, middle: false, suffix: false, title: false, title2: false, seq: false, photo: false, signature: false },
   step: 0,
+  print: { layout: 'single', paper: CONFIG.sheet.defaultPaper, copies: null },
   example: false,
   checking: false,
   reissue: false,       // "Replacement card" ticked
@@ -5381,7 +5520,7 @@ for (const k of NAME_PARTS) {
 // Build both chip rows. Called once at boot, and again whenever the list
 // of remembered titles changes — not on every keystroke, so focus and the
 // keyboard's position inside the radio group survive.
-function buildChips(container, groupName, onPick) {
+function buildChips(container, groupName, onPick, options = null) {
   container.innerHTML = '';
   const add = (value, label, removable) => {
     const chip = document.createElement('label');
@@ -5409,6 +5548,7 @@ function buildChips(container, groupName, onPick) {
     }
     container.append(chip);
   };
+  if (options) { for (const o of options) add(o.value, o.label, false); return; }
   for (const t of Titles.all()) add(t, t, !Titles.isStandard(t));
   add(CUSTOM_TITLE, 'Other…', false);
 }
@@ -5634,6 +5774,7 @@ function buildReview() {
   review.front = renderSideCanvas(state.templates, 'front', data, state.rotateBack);
   review.back = renderSideCanvas(state.templates, 'back', data, state.rotateBack);
   review.fileName = pdfFileName(state.year, data.seq, nameParts());
+  renderPrint();
   review.title = `${employeeId(state.year, data.seq)} ${collapseSpaces(data.name)}`;
   const parts = nameParts();
   review.entry = {
@@ -5672,7 +5813,7 @@ function buildReview() {
   $('review-front').alt = `Front of the card for ${collapseSpaces(data.name)}`;
   $('review-back').src = review.back.toDataURL('image/png');
   $('review-back-cap').textContent = `Back${state.rotateBack ? ' (turned 180°)' : ''}`;
-  $('review-file').textContent = `File: ${review.fileName} · 2 pages, ${CONFIG.card.widthMm} × ${CONFIG.card.heightMm} mm, ${CONFIG.card.printDpi} DPI`;
+  $('review-file').textContent = printFileLine();
   $('review-error').hidden = true;
   const photoWarnings = state.photo?.check?.warnings ?? [];
   $('review-warning').hidden = !photoWarnings.length;
@@ -5693,7 +5834,21 @@ async function downloadPdf() {
   $('btn-download').disabled = true; $('btn-download').textContent = 'Preparing PDF…'; $('btn-back').disabled = true;
   $('review-error').hidden = true;
   try {
-    const blob = await buildPdf([review.front, review.back], review.title);
+    const plan = currentPlan();
+    let pages;
+    if (!plan) {
+      pages = [review.front, review.back];
+    } else {
+      // one entry per copy; each renders on demand so a full sheet never
+      // holds more than one card bitmap at a time
+      const data = review.data;
+      const entry = {
+        get front() { return renderSideCanvas(state.templates, 'front', data, state.rotateBack); },
+        get back() { return renderSideCanvas(state.templates, 'back', data, state.rotateBack); },
+      };
+      pages = sheetPages(Array.from({ length: printCopies(plan) }, () => entry), plan).map(withPageSize);
+    }
+    const blob = await buildPdf(pages, review.title);
     downloadBlob(review.fileName, blob);
     clearDraft();
     if (!state.example) {                      // the example is never a real card
@@ -5757,6 +5912,88 @@ $('btn-png').addEventListener('click', async () => {
 $('btn-download').addEventListener('click', downloadPdf);
 $('btn-again').addEventListener('click', downloadPdf);
 $('btn-new-id').addEventListener('click', newId);
+
+/* ---- print layout (step 6) --------------------------------------- */
+
+const PRINT_LAYOUTS = [
+  { id: 'single', label: 'One card per page',
+    note: 'A page the size of the card itself — for a card printer that takes CR80 blanks.' },
+  { id: 'pairs', label: 'Front & back side by side',
+    note: 'Cut each pair out and stick them back to back. This is the usual choice for laminating pouches.' },
+  { id: 'duplex', label: 'Separate sheets, front and back',
+    note: 'One sheet of fronts, one of backs, the backs mirrored so they line up when the paper is turned over. Only for a duplex printer — print one sheet and check both sides before running the rest.' },
+];
+
+function currentPlan() {
+  return state.print.layout === 'single' ? null : planSheet(state.print.paper, state.print.layout);
+}
+
+/** How many cards this print job will produce. */
+function printCopies(plan) {
+  if (!plan) return 1;
+  const max = plan.cols * plan.rows;
+  const asked = state.print.copies;
+  return Math.max(1, Math.min(max, asked === null ? max : asked));
+}
+
+function buildPrintControls() {
+  buildChips($('layout-chips'), 'printLayout', (value) => {
+    state.print.layout = value;
+    state.print.copies = null;           // fill the sheet again
+    renderPrint();
+  }, PRINT_LAYOUTS.map((l) => ({ value: l.id, label: l.label })));
+
+  const paper = $('f-paper');
+  for (const [key, p] of Object.entries(CONFIG.sheet.papers)) {
+    const o = document.createElement('option');
+    o.value = key; o.textContent = p.label;
+    paper.append(o);
+  }
+  paper.value = state.print.paper;
+  paper.addEventListener('change', (e) => { state.print.paper = e.target.value; state.print.copies = null; renderPrint(); });
+  $('f-copies').addEventListener('input', (e) => {
+    const n = parseInt(e.target.value, 10);
+    state.print.copies = Number.isFinite(n) ? n : null;
+    renderPrint();
+  });
+}
+
+function renderPrint() {
+  syncChips($('layout-chips'), state.print.layout, null);
+  const plan = currentPlan();
+  $('print-opts').hidden = !plan;
+  const note = PRINT_LAYOUTS.find((l) => l.id === state.print.layout)?.note ?? '';
+
+  if (!plan) {
+    $('print-note').textContent = note;
+  } else {
+    const per = plan.cols * plan.rows;
+    const copies = printCopies(plan);
+    $('f-paper').value = state.print.paper;
+    $('f-copies').max = String(per * 20);
+    if (document.activeElement !== $('f-copies')) $('f-copies').value = String(copies);
+    $('field-copies').hidden = false;
+    const sheets = Math.ceil(copies / per);
+    const pagesPerSheet = plan.mode === 'pairs' ? 1 : 2;
+    const turned = plan.turned ? ', cards turned on their side' : '';
+    const orient = plan.landscape ? 'landscape' : 'portrait';
+    $('print-note').textContent =
+      `${per} card${per === 1 ? '' : 's'} per ${state.print.paper} sheet (${plan.cols} × ${plan.rows}, ${orient}${turned}). `
+      + `${copies} card${copies === 1 ? '' : 's'} → ${sheets} sheet${sheets === 1 ? '' : 's'}, `
+      + `${sheets * pagesPerSheet} page${sheets * pagesPerSheet === 1 ? '' : 's'}. ${note}`;
+  }
+  if (review.fileName) $('review-file').textContent = printFileLine();
+}
+
+function printFileLine() {
+  const plan = currentPlan();
+  const C = CONFIG.card;
+  if (!plan) return `File: ${review.fileName} · 2 pages, ${C.widthMm} × ${C.heightMm} mm, ${CONFIG.card.printDpi} DPI`;
+  const copies = printCopies(plan);
+  const sheets = Math.ceil(copies / (plan.cols * plan.rows));
+  const pages = plan.mode === 'pairs' ? sheets : sheets * 2;
+  return `File: ${review.fileName} · ${pages} page${pages === 1 ? '' : 's'} of ${state.print.paper}, cards ${C.widthMm} × ${C.heightMm} mm, ${CONFIG.card.printDpi} DPI`;
+}
 
 /* ---- shared register settings ------------------------------------ */
 
@@ -5850,6 +6087,7 @@ async function runBatchUi() {
       templates: state.templates,
       rotateBack: state.rotateBack,
       layout: $('f-layout').value,
+      paper: $('f-batch-paper').value,
       onProgress: (phase, i, n) => { $('batch-status').textContent = `Checking ${i} of ${n}…`; },
     });
     if (out.results) renderBatchReport(out.results);
@@ -5877,12 +6115,31 @@ async function runBatchUi() {
 }
 $('btn-batch').addEventListener('click', runBatchUi);
 
+// paper list and the "N per sheet" hint for the batch panel
+for (const [key, p] of Object.entries(CONFIG.sheet.papers)) {
+  const o = document.createElement('option');
+  o.value = key; o.textContent = p.label;
+  $('f-batch-paper').append(o);
+}
+$('f-batch-paper').value = CONFIG.sheet.defaultPaper;
+function renderBatchLayout() {
+  const layout = $('f-layout').value;
+  $('f-batch-paper').closest('.field').hidden = layout === 'cards';
+  if (layout === 'cards') { $('layout-msg').textContent = 'Two pages per person, each the size of the card.'; return; }
+  const plan = planSheet($('f-batch-paper').value, layout);
+  $('layout-msg').textContent = `${plan.count} cards per sheet (${plan.cols} × ${plan.rows}, ${plan.landscape ? 'landscape' : 'portrait'}).`;
+}
+$('f-layout').addEventListener('change', renderBatchLayout);
+$('f-batch-paper').addEventListener('change', renderBatchLayout);
+renderBatchLayout();
+
 /* ---- boot -------------------------------------------------------- */
 
 new ResizeObserver(drawPreview).observe(previewBox);
 
 $('app-version').textContent = `${APP_NAME} ${APP_VERSION}`;
 showRegisterUrl();
+buildPrintControls();
 if (restoreDraft()) {
   $('restored-note').hidden = false;
   // carry on where the typing stopped

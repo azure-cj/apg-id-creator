@@ -238,6 +238,14 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 
 .colophon { color: var(--muted); font-size: 0.8rem; font-family: var(--font-mono); text-align: center; }
 
+/* ---- print layout ---- */
+.print-layout { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+.print-opts { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
+.print-opts select { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: 400 0.95rem var(--font-body); }
+.print-opts input { width: 90px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: 400 1rem var(--font-mono); }
+.print-opts .field { gap: 4px; }
+@media (width <= 420px) { .print-opts { grid-template-columns: 1fr; } }
+
 /* ---- wizard ---- */
 .wizard { gap: 14px; }
 .steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }

@@ -234,6 +234,23 @@
                 <li>The photo looks like the person and isn’t blurry</li>
                 <li>The signature is visible below the title</li>
               </ul>
+              <div class="print-layout">
+                <div class="block-head"><h2 id="print-h">How to print it</h2></div>
+                <div class="chips" id="layout-chips" role="radiogroup" aria-labelledby="print-h"></div>
+
+                <div class="print-opts" id="print-opts" hidden>
+                  <label class="field">
+                    <span class="field-label">Paper</span>
+                    <select id="f-paper"></select>
+                  </label>
+                  <label class="field" id="field-copies">
+                    <span class="field-label">Copies of this card</span>
+                    <input id="f-copies" type="number" min="1" max="200" step="1" />
+                  </label>
+                </div>
+                <p class="msg" id="print-note"></p>
+              </div>
+
               <p class="msg msg-error" id="review-error" role="alert" hidden></p>
               <div class="dialog-actions">
                 <button type="button" id="btn-download" class="primary">Download PDF</button>
@@ -303,9 +320,15 @@
           <div class="field">
             <label for="f-layout">Print layout</label>
             <select id="f-layout">
-              <option value="cards">One card per page — for the card printer</option>
-              <option value="sheets">A4 sheets of 9, with crop marks — for an outside printer</option>
+              <option value="pairs">Sheets, front &amp; back side by side — cut and laminate</option>
+              <option value="duplex">Sheets, fronts then backs — duplex printer</option>
+              <option value="cards">One card per page — card printer</option>
             </select>
+            <p class="msg" id="layout-msg"></p>
+          </div>
+          <div class="field">
+            <label for="f-batch-paper">Paper</label>
+            <select id="f-batch-paper"></select>
           </div>
 
           <button type="button" id="btn-batch" class="primary" disabled>Generate batch</button>

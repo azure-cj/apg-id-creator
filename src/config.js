@@ -7,12 +7,12 @@
    ------------------------------------------------------------------ */
 
 const APP_NAME = 'Alpha Premier ID Maker';
-const APP_VERSION = '1.3.0';          // stamped into every PDF's metadata
+const APP_VERSION = '1.4.0';          // stamped into every PDF's metadata
 
 const CONFIG = {
   card: {
-    widthMm: 54,
-    heightMm: 85,
+    widthMm: 54,                      // CR80 (ISO/IEC 7810 ID-1): 85.60 x 53.98 mm
+    heightMm: 85.6,
     printDpi: 300, // the PDF is rendered at this resolution
   },
 
@@ -29,15 +29,15 @@ const CONFIG = {
   // Traced from front-template.png. Points are [x, y] in mm.
   frontOutline: {
     polygons: [
-      [[36.7, 56.64], [54, 56.64], [54, 85], [0, 85], [0, 64.56], [28.79, 64.56]],
-      [[28.45, 58.71], [35.56, 58.71], [35.56, 59.01], [28.58, 59.01], [23.03, 64.56], [22.61, 64.56]],
+      [[36.7, 57.04], [54, 57.04], [54, 85.6], [0, 85.6], [0, 65.016], [28.79, 65.016]],
+      [[28.45, 59.124], [35.56, 59.124], [35.56, 59.427], [28.58, 59.427], [23.03, 65.016], [22.61, 65.016]],
     ],
   },
 
   // Where the photo may appear. It steps around the logo at the top
   // left and stops at the thin black edge on the right.
   photoArea: {
-    polygon: [[19.5, 10], [53.5, 10], [53.5, 67], [17, 67], [17, 17.5], [19.5, 17.5]],
+    polygon: [[19.5, 10.071], [53.5, 10.071], [53.5, 67.473], [17, 67.473], [17, 17.624], [19.5, 17.624]],
   },
 
   // Text boxes.
@@ -50,17 +50,17 @@ const CONFIG = {
   // minSizePt in quarter-point steps and wraps up to maxLines.
   text: {
     name: {
-      box: { x: 34.4, y: 59.3, w: 18, h: 5.2 },
+      box: { x: 34.4, y: 59.719, w: 18, h: 5.237 },
       font: 'name', color: '#E8CD77', align: 'center', vAlign: 'bottom',
       maxSizePt: 6, minSizePt: 4.5, maxLines: 3, lineHeight: 1, uppercase: false,
     },
     title: {
-      box: { x: 34.4, y: 65, w: 18, h: 3.2 },
+      box: { x: 34.4, y: 65.459, w: 18, h: 3.223 },
       font: 'title', color: '#FFFFFF', align: 'center', vAlign: 'top',
       maxSizePt: 4.5, minSizePt: 3.5, maxLines: 2, lineHeight: 1.1, uppercase: true,
     },
     employeeNo: {
-      box: { x: 28.6, y: 77.5, w: 23, h: 1.5 },
+      box: { x: 28.6, y: 78.047, w: 23, h: 1.511 },
       font: 'number', color: '#FFFFFF', align: 'right', vAlign: 'baseline',
       maxSizePt: 4, minSizePt: 3.5, maxLines: 1, lineHeight: 1, uppercase: false,
     },
@@ -106,13 +106,19 @@ const CONFIG = {
     yearsAhead: 1,
   },
 
-  // Printing several cards on one A4 sheet (for an outside printer).
-  // Cards are laid out in a grid with crop marks; the backs sheet mirrors
-  // the column order so the sides line up after flipping on the long edge.
+  // Printing several cards on one sheet of paper. The grid is worked out
+  // from the paper and card size, trying the card both ways round and the
+  // paper both ways round, and keeping whichever fits the most.
   sheet: {
-    widthMm: 210, heightMm: 297,      // A4
-    cols: 3, rows: 3,
-    gapMm: 4,                         // space between cards
+    papers: {
+      A4:     { label: 'A4 (210 × 297 mm)',       widthMm: 210, heightMm: 297 },
+      Letter: { label: 'Letter (216 × 279 mm)',   widthMm: 216, heightMm: 279 },
+      Legal:  { label: 'Legal (216 × 356 mm)',    widthMm: 216, heightMm: 356 },
+      A3:     { label: 'A3 (297 × 420 mm)',       widthMm: 297, heightMm: 420 },
+    },
+    defaultPaper: 'A4',
+    marginMm: 6,                      // most office printers cannot print nearer the edge
+    gapMm: 4,                         // space between cards, room for the cutter
     markMm: 3, markOffsetMm: 1,       // crop-mark length and distance from the card
   },
 
@@ -134,7 +140,7 @@ const CONFIG = {
   },
 
   qr: {
-    square: { x: 2, y: 66.1, size: 8.8 },       // white square incl. quiet zone
+    square: { x: 2, y: 66.567, size: 8.8 },       // white square incl. quiet zone
     content: 'https://alphapremiergroup.com/',
     errorCorrection: 'M',
     background: '#FFFFFF',
@@ -146,10 +152,10 @@ const CONFIG = {
   // and is 15 mm wide. The body must reach at least reachY so that it
   // continues behind the dark band.
   photo: {
-    headTop: 15.4,
+    headTop: 15.509,
     headCenterX: 36.6,
     headWidth: 15,
-    reachY: 66,
+    reachY: 66.466,
     minHeadPx: 180,   // below this the face prints a little soft (warning only)
     maxFileMb: 15,
     // manual adjustment after automatic placement
@@ -164,7 +170,7 @@ const CONFIG = {
   // drawn as curves whose width runs from strokeMm (slow pen) down to
   // minStrokeMm (fast pen).
   signature: {
-    box: { x: 34.9, y: 68.6, w: 17, h: 5.6 },
+    box: { x: 34.9, y: 69.084, w: 17, h: 5.64 },
     color: '#FFFFFF',
     strokeMm: 0.38,
     minStrokeMm: 0.16,

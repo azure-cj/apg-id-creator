@@ -157,71 +157,171 @@ function drawBack(ctx, templates, pxPerMm, rotate180 = false) {
   ctx.restore();
 }
 
-/* ---- A4 sheets --------------------------------------------------- */
+/* ---- sheets of cards (imposition) -------------------------------- */
 
-/** Top-left corner (mm) of each card slot on the sheet, row-major. */
-function sheetSlots() {
-  const S = CONFIG.sheet, C = CONFIG.card;
-  const gridW = S.cols * C.widthMm + (S.cols - 1) * S.gapMm;
-  const gridH = S.rows * C.heightMm + (S.rows - 1) * S.gapMm;
-  const left = (S.widthMm - gridW) / 2, top = (S.heightMm - gridH) / 2;
-  const slots = [];
-  for (let r = 0; r < S.rows; r++) {
-    for (let c = 0; c < S.cols; c++) {
-      slots.push({ col: c, row: r, x: left + c * (C.widthMm + S.gapMm), y: top + r * (C.heightMm + S.gapMm) });
+/**
+ * How many cards fit on a sheet, and where.
+ *
+ *   mode 'duplex' — one card per cell. All the fronts go on one page and
+ *                   all the backs on the next, the backs mirrored by column
+ *                   so the two sides meet when the paper is turned over.
+ *   mode 'pairs'  — front and back side by side in one cell, for cutting
+ *                   out and sticking back to back.
+ *
+ * The card is tried upright and turned on its side, and the paper is tried
+ * both ways round; whichever fits the most cards wins.
+ */
+function planSheet(paperName = CONFIG.sheet.defaultPaper, mode = 'pairs') {
+  const S = CONFIG.sheet;
+  const paper = S.papers[paperName] ?? S.papers[S.defaultPaper];
+  const C = CONFIG.card;
+  const pair = mode === 'pairs';
+
+  let best = null;
+  for (const turned of [false, true]) {                 // the card on its side?
+    // one cell holds one card, or a front and a back next to each other
+    const cardW = turned ? C.heightMm : C.widthMm;
+    const cardH = turned ? C.widthMm : C.heightMm;
+    const cellW = pair ? cardW * 2 + S.gapMm : cardW;
+    const cellH = cardH;
+    for (const landscape of [false, true]) {            // the paper on its side?
+      const pw = landscape ? paper.heightMm : paper.widthMm;
+      const ph = landscape ? paper.widthMm : paper.heightMm;
+      const cols = Math.floor((pw - 2 * S.marginMm + S.gapMm) / (cellW + S.gapMm));
+      const rows = Math.floor((ph - 2 * S.marginMm + S.gapMm) / (cellH + S.gapMm));
+      if (cols < 1 || rows < 1) continue;
+      const count = cols * rows;
+      const waste = pw * ph - count * cellW * cellH;
+      if (!best || count > best.count || (count === best.count && waste < best.waste)) {
+        best = { paperName, mode, turned, landscape, cols, rows, count, waste, pw, ph, cardW, cardH, cellW, cellH };
+      }
     }
   }
-  return slots;
+  if (!best) return null;
+
+  // centre the grid on the page
+  const gridW = best.cols * best.cellW + (best.cols - 1) * S.gapMm;
+  const gridH = best.rows * best.cellH + (best.rows - 1) * S.gapMm;
+  best.left = (best.pw - gridW) / 2;
+  best.top = (best.ph - gridH) / 2;
+  return best;
 }
 
-const sheetCapacity = () => CONFIG.sheet.cols * CONFIG.sheet.rows;
+/** Top-left corner (mm) of every cell, row by row. */
+function sheetCells(plan) {
+  const S = CONFIG.sheet;
+  const cells = [];
+  for (let r = 0; r < plan.rows; r++) {
+    for (let c = 0; c < plan.cols; c++) {
+      cells.push({
+        col: c, row: r,
+        x: plan.left + c * (plan.cellW + S.gapMm),
+        y: plan.top + r * (plan.cellH + S.gapMm),
+      });
+    }
+  }
+  return cells;
+}
 
-function drawCropMarks(ctx, slot, pxPerMm) {
-  const S = CONFIG.sheet, C = CONFIG.card;
+function drawCropMarks(ctx, x, y, w, h, pxPerMm) {
+  const S = CONFIG.sheet;
   const o = S.markOffsetMm, len = S.markMm;
-  const xs = [slot.x, slot.x + C.widthMm], ys = [slot.y, slot.y + C.heightMm];
   ctx.strokeStyle = '#000';
   ctx.lineWidth = Math.max(1, 0.1 * pxPerMm);
   ctx.beginPath();
-  for (const x of xs) {
-    for (const y of ys) {
-      const sx = x === xs[0] ? -1 : 1, sy = y === ys[0] ? -1 : 1;
-      ctx.moveTo((x + sx * o) * pxPerMm, y * pxPerMm);
-      ctx.lineTo((x + sx * (o + len)) * pxPerMm, y * pxPerMm);
-      ctx.moveTo(x * pxPerMm, (y + sy * o) * pxPerMm);
-      ctx.lineTo(x * pxPerMm, (y + sy * (o + len)) * pxPerMm);
+  for (const cx of [x, x + w]) {
+    for (const cy of [y, y + h]) {
+      const sx = cx === x ? -1 : 1, sy = cy === y ? -1 : 1;
+      ctx.moveTo((cx + sx * o) * pxPerMm, cy * pxPerMm);
+      ctx.lineTo((cx + sx * (o + len)) * pxPerMm, cy * pxPerMm);
+      ctx.moveTo(cx * pxPerMm, (cy + sy * o) * pxPerMm);
+      ctx.lineTo(cx * pxPerMm, (cy + sy * (o + len)) * pxPerMm);
     }
   }
   ctx.stroke();
 }
 
-/**
- * composeSheet(cards, { mirrorColumns, marks }) -> canvas (A4 at print DPI)
- * `cards` holds up to sheetCapacity() card canvases, in reading order.
- * With mirrorColumns the columns are reversed, so a backs sheet lines up
- * with its fronts sheet after the paper is flipped on its long edge.
- */
-function composeSheet(cards, { mirrorColumns = false, marks = true } = {}) {
-  const S = CONFIG.sheet, C = CONFIG.card;
+/** Draw one card into a slot, turning it on its side when the plan says so. */
+function placeCard(ctx, card, plan, x, y, pxPerMm) {
+  const C = CONFIG.card;
+  ctx.save();
+  ctx.translate(x * pxPerMm, y * pxPerMm);
+  if (plan.turned) {
+    // the card is drawn upright then rotated into a landscape slot
+    ctx.translate(plan.cardW * pxPerMm, 0);
+    ctx.rotate(Math.PI / 2);
+  }
+  ctx.drawImage(card, 0, 0, C.widthMm * pxPerMm, C.heightMm * pxPerMm);
+  ctx.restore();
+}
+
+function blankSheet(plan) {
   const pxPerMm = printPxPerMm();
   const canvas = document.createElement('canvas');
-  canvas.width = Math.round(S.widthMm * pxPerMm);
-  canvas.height = Math.round(S.heightMm * pxPerMm);
+  canvas.width = Math.round(plan.pw * pxPerMm);
+  canvas.height = Math.round(plan.ph * pxPerMm);
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingQuality = 'high';
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  return { canvas, ctx, pxPerMm };
+}
 
-  const slots = sheetSlots();
-  cards.forEach((card, i) => {
-    const slot = slots[i];
-    const target = mirrorColumns
-      ? slots.find((s) => s.row === slot.row && s.col === S.cols - 1 - slot.col)
-      : slot;
-    ctx.drawImage(card, target.x * pxPerMm, target.y * pxPerMm, C.widthMm * pxPerMm, C.heightMm * pxPerMm);
-    if (marks) drawCropMarks(ctx, target, pxPerMm);
+/**
+ * One sheet in 'pairs' mode: each entry is { front, back } and lands as two
+ * cards side by side.
+ */
+function composePairSheet(entries, plan) {
+  const { canvas, ctx, pxPerMm } = blankSheet(plan);
+  const cells = sheetCells(plan);
+  entries.slice(0, cells.length).forEach((entry, i) => {
+    const cell = cells[i];
+    const stride = plan.cardW + CONFIG.sheet.gapMm;
+    placeCard(ctx, entry.front, plan, cell.x, cell.y, pxPerMm);
+    placeCard(ctx, entry.back, plan, cell.x + stride, cell.y, pxPerMm);
+    drawCropMarks(ctx, cell.x, cell.y, plan.cardW, plan.cardH, pxPerMm);
+    drawCropMarks(ctx, cell.x + stride, cell.y, plan.cardW, plan.cardH, pxPerMm);
   });
   return canvas;
+}
+
+/**
+ * One sheet in 'duplex' mode. `mirrorColumns` reverses the column order so
+ * a backs sheet lines up with its fronts sheet after the paper is turned
+ * over on its long edge.
+ */
+function composeSheet(cards, plan, { mirrorColumns = false } = {}) {
+  const { canvas, ctx, pxPerMm } = blankSheet(plan);
+  const cells = sheetCells(plan);
+  cards.slice(0, cells.length).forEach((card, i) => {
+    const cell = cells[i];
+    const target = mirrorColumns
+      ? cells.find((c) => c.row === cell.row && c.col === plan.cols - 1 - cell.col)
+      : cell;
+    placeCard(ctx, card, plan, target.x, target.y, pxPerMm);
+    drawCropMarks(ctx, target.x, target.y, plan.cardW, plan.cardH, pxPerMm);
+  });
+  return canvas;
+}
+
+/**
+ * Turn a list of { front, back } card canvases into PDF page thunks.
+ * `copies` repeats a single card to fill the sheet.
+ */
+function sheetPages(entries, plan) {
+  const pages = [];
+  const per = plan.cols * plan.rows;
+  for (let i = 0; i < entries.length; i += per) {
+    const group = entries.slice(i, i + per);
+    if (plan.mode === 'pairs') {
+      pages.push(() => composePairSheet(group, plan));
+    } else {
+      pages.push(() => composeSheet(group.map((e) => e.front), plan));
+      pages.push(() => composeSheet(group.map((e) => e.back), plan, { mirrorColumns: true }));
+    }
+  }
+  for (const p of pages) { p.widthMm = plan.pw; p.heightMm = plan.ph; }
+  return pages;
 }
 
 /** Render one side at print resolution (300 DPI) into a fresh canvas. */

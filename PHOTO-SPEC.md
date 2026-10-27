@@ -67,10 +67,10 @@ cannot tell.
 
 | | |
 | --- | --- |
-| Card | 54 × 85 mm at 300 DPI = 638 × 1004 px, portrait, fixed |
+| Card | **54 × 85.6 mm** (CR80 / ISO-7810 ID-1) at 300 DPI = 638 × 1011 px, portrait, fixed |
 | Photo crop | **Not a fixed ratio.** The photo is scaled and positioned, then clipped by the `photoArea` polygon |
 | Framing | Head width 15 mm, head top 15.4 mm, centre x 36.6 mm, body must reach y 66 mm — all in `CONFIG.photo`, identical for every photo |
-| Files | 2-page PDF (`/DeviceRGB`, `/FlateDecode`, lossless) and optional front/back PNGs |
+| Files | PDF (`/DeviceRGB`, `/FlateDecode`, lossless): either 2 card-sized pages, or sheets of cards laid out for the chosen paper. Optional front/back PNGs |
 | Colour profile | **None embedded.** Untagged DeviceRGB, treated as sRGB by most RIPs |
 | Background | `#00FF00` is only what the *prompt asks for*. The key is tolerance-based, so any strong green or blue works; no pixel is ever compared against `#00FF00` |
 

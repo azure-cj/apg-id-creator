@@ -142,19 +142,38 @@ example card is never recorded). Keep the PDF with the employee's HR record.
 The **Issued IDs** panel under the form lists what this computer has
 issued; **Download register (CSV)** exports it for HR's records.
 
-### 7. Print
+### 7. Choose how to print it
 
-Open the PDF and print it on the card printer:
+Still on the last step, under **How to print it**, pick one:
+
+| Choice | What you get | Use it when |
+| --- | --- | --- |
+| **One card per page** | Two pages, each exactly 54 × 85.6 mm | You have a card printer that takes CR80 blanks |
+| **Front & back side by side** | Sheets with each card's front and back next to each other, with crop marks | You print on paper, cut them out and stick them back to back in a laminating pouch — **4 per A4** |
+| **Separate sheets, front and back** | One sheet of fronts, then one of backs with the columns mirrored | You have a duplex printer — **9 per A4** |
+
+For the two sheet choices you also pick the **paper** (A4, Letter, Legal,
+A3) and, for a single card, how many **copies** to put on the sheet. Copies
+defaults to filling the sheet, so one card becomes 4 or 9 identical cards,
+and a batch of three people fills the first three slots. The app works out
+the grid from the paper and card size and turns the page sideways when that
+fits more — A3 takes 21 cards.
+
+### 8. Print
+
+Open the PDF and print it:
 
 * **100 % scale / actual size** — never "fit to page";
-* **both sides** (page 1 front, page 2 back);
-* page size is the card itself, 54 × 85 mm, 300 DPI.
+* for *one card per page*, print **both sides**;
+* for *separate sheets*, this is duplex — **print one sheet and check both
+  sides line up before running the rest**;
+* the card is 54 × 85.6 mm (CR80, the same size as a bank card), 300 DPI.
 
 If the printer flips the back upside down, open **Printer setting** at the
 bottom of the form and tick **Turn the back 180°**. The browser remembers
 this on that computer.
 
-### 8. Next card
+### 9. Next card
 
 Click **Start a new ID**. Everything is cleared, including the photo and
 signature, and you are back at step 1.
@@ -417,14 +436,26 @@ rejected if it is effectively blank (under 0.04 % coverage), mostly dark
 fitted into the same box as a drawn signature, without stretching, and
 tinted white through a cached `source-in` fill.
 
-### 2.6a A4 sheets
+### 2.6a Sheets of cards
 
-`composeSheet` (in `src/card.js`) lays rendered cards on an A4 canvas at 300
-DPI using `CONFIG.sheet` — a 3 × 3 grid with 4 mm gutters, centred, with 3 mm
-crop marks 1 mm outside each card corner. The backs sheet is composed with
-`mirrorColumns: true`, which places each card at the mirrored column so that
-flipping the paper on its long edge brings front and back together. This has
-not been verified on a physical duplex printer; test one sheet first.
+`planSheet(paper, mode)` in `src/card.js` works out the grid. It tries the
+card upright and turned on its side, and the paper portrait and landscape —
+four combinations — and keeps whichever fits the most cards, breaking ties
+on wasted area. In `pairs` mode the cell holds a front and a back side by
+side; in `duplex` mode it holds one card. Margins (6 mm) and gutters (4 mm)
+come from `CONFIG.sheet`.
+
+Current results: **A4 → 4 pairs or 9 duplex; Letter → 4 pairs; Legal → 6
+pairs; A3 → 21 duplex.**
+
+`composePairSheet` and `composeSheet` draw onto a page-sized canvas at 300
+DPI, with 3 mm crop marks 1 mm outside each card corner; `placeCard` rotates
+the card when the plan calls for it. `sheetPages` turns a list of
+`{ front, back }` into PDF page thunks, so a long batch renders one page at
+a time. The backs sheet in duplex mode uses `mirrorColumns`, which places
+each card at the mirrored column so flipping on the long edge brings the
+sides together — **this has not been verified on a physical duplex
+printer.**
 
 ### 2.6b Maintainer guides
 

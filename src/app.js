@@ -56,6 +56,7 @@ const state = {
   signature: null,
   touched: { last: false, first: false, middle: false, suffix: false, title: false, title2: false, seq: false, photo: false, signature: false },
   step: 0,
+  print: { layout: 'single', paper: CONFIG.sheet.defaultPaper, copies: null },
   example: false,
   checking: false,
   reissue: false,       // "Replacement card" ticked
@@ -468,7 +469,7 @@ for (const k of NAME_PARTS) {
 // Build both chip rows. Called once at boot, and again whenever the list
 // of remembered titles changes — not on every keystroke, so focus and the
 // keyboard's position inside the radio group survive.
-function buildChips(container, groupName, onPick) {
+function buildChips(container, groupName, onPick, options = null) {
   container.innerHTML = '';
   const add = (value, label, removable) => {
     const chip = document.createElement('label');
@@ -496,6 +497,7 @@ function buildChips(container, groupName, onPick) {
     }
     container.append(chip);
   };
+  if (options) { for (const o of options) add(o.value, o.label, false); return; }
   for (const t of Titles.all()) add(t, t, !Titles.isStandard(t));
   add(CUSTOM_TITLE, 'Other…', false);
 }
@@ -721,6 +723,7 @@ function buildReview() {
   review.front = renderSideCanvas(state.templates, 'front', data, state.rotateBack);
   review.back = renderSideCanvas(state.templates, 'back', data, state.rotateBack);
   review.fileName = pdfFileName(state.year, data.seq, nameParts());
+  renderPrint();
   review.title = `${employeeId(state.year, data.seq)} ${collapseSpaces(data.name)}`;
   const parts = nameParts();
   review.entry = {
@@ -759,7 +762,7 @@ function buildReview() {
   $('review-front').alt = `Front of the card for ${collapseSpaces(data.name)}`;
   $('review-back').src = review.back.toDataURL('image/png');
   $('review-back-cap').textContent = `Back${state.rotateBack ? ' (turned 180°)' : ''}`;
-  $('review-file').textContent = `File: ${review.fileName} · 2 pages, ${CONFIG.card.widthMm} × ${CONFIG.card.heightMm} mm, ${CONFIG.card.printDpi} DPI`;
+  $('review-file').textContent = printFileLine();
   $('review-error').hidden = true;
   const photoWarnings = state.photo?.check?.warnings ?? [];
   $('review-warning').hidden = !photoWarnings.length;
@@ -780,7 +783,21 @@ async function downloadPdf() {
   $('btn-download').disabled = true; $('btn-download').textContent = 'Preparing PDF…'; $('btn-back').disabled = true;
   $('review-error').hidden = true;
   try {
-    const blob = await buildPdf([review.front, review.back], review.title);
+    const plan = currentPlan();
+    let pages;
+    if (!plan) {
+      pages = [review.front, review.back];
+    } else {
+      // one entry per copy; each renders on demand so a full sheet never
+      // holds more than one card bitmap at a time
+      const data = review.data;
+      const entry = {
+        get front() { return renderSideCanvas(state.templates, 'front', data, state.rotateBack); },
+        get back() { return renderSideCanvas(state.templates, 'back', data, state.rotateBack); },
+      };
+      pages = sheetPages(Array.from({ length: printCopies(plan) }, () => entry), plan).map(withPageSize);
+    }
+    const blob = await buildPdf(pages, review.title);
     downloadBlob(review.fileName, blob);
     clearDraft();
     if (!state.example) {                      // the example is never a real card
@@ -844,6 +861,88 @@ $('btn-png').addEventListener('click', async () => {
 $('btn-download').addEventListener('click', downloadPdf);
 $('btn-again').addEventListener('click', downloadPdf);
 $('btn-new-id').addEventListener('click', newId);
+
+/* ---- print layout (step 6) --------------------------------------- */
+
+const PRINT_LAYOUTS = [
+  { id: 'single', label: 'One card per page',
+    note: 'A page the size of the card itself — for a card printer that takes CR80 blanks.' },
+  { id: 'pairs', label: 'Front & back side by side',
+    note: 'Cut each pair out and stick them back to back. This is the usual choice for laminating pouches.' },
+  { id: 'duplex', label: 'Separate sheets, front and back',
+    note: 'One sheet of fronts, one of backs, the backs mirrored so they line up when the paper is turned over. Only for a duplex printer — print one sheet and check both sides before running the rest.' },
+];
+
+function currentPlan() {
+  return state.print.layout === 'single' ? null : planSheet(state.print.paper, state.print.layout);
+}
+
+/** How many cards this print job will produce. */
+function printCopies(plan) {
+  if (!plan) return 1;
+  const max = plan.cols * plan.rows;
+  const asked = state.print.copies;
+  return Math.max(1, Math.min(max, asked === null ? max : asked));
+}
+
+function buildPrintControls() {
+  buildChips($('layout-chips'), 'printLayout', (value) => {
+    state.print.layout = value;
+    state.print.copies = null;           // fill the sheet again
+    renderPrint();
+  }, PRINT_LAYOUTS.map((l) => ({ value: l.id, label: l.label })));
+
+  const paper = $('f-paper');
+  for (const [key, p] of Object.entries(CONFIG.sheet.papers)) {
+    const o = document.createElement('option');
+    o.value = key; o.textContent = p.label;
+    paper.append(o);
+  }
+  paper.value = state.print.paper;
+  paper.addEventListener('change', (e) => { state.print.paper = e.target.value; state.print.copies = null; renderPrint(); });
+  $('f-copies').addEventListener('input', (e) => {
+    const n = parseInt(e.target.value, 10);
+    state.print.copies = Number.isFinite(n) ? n : null;
+    renderPrint();
+  });
+}
+
+function renderPrint() {
+  syncChips($('layout-chips'), state.print.layout, null);
+  const plan = currentPlan();
+  $('print-opts').hidden = !plan;
+  const note = PRINT_LAYOUTS.find((l) => l.id === state.print.layout)?.note ?? '';
+
+  if (!plan) {
+    $('print-note').textContent = note;
+  } else {
+    const per = plan.cols * plan.rows;
+    const copies = printCopies(plan);
+    $('f-paper').value = state.print.paper;
+    $('f-copies').max = String(per * 20);
+    if (document.activeElement !== $('f-copies')) $('f-copies').value = String(copies);
+    $('field-copies').hidden = false;
+    const sheets = Math.ceil(copies / per);
+    const pagesPerSheet = plan.mode === 'pairs' ? 1 : 2;
+    const turned = plan.turned ? ', cards turned on their side' : '';
+    const orient = plan.landscape ? 'landscape' : 'portrait';
+    $('print-note').textContent =
+      `${per} card${per === 1 ? '' : 's'} per ${state.print.paper} sheet (${plan.cols} × ${plan.rows}, ${orient}${turned}). `
+      + `${copies} card${copies === 1 ? '' : 's'} → ${sheets} sheet${sheets === 1 ? '' : 's'}, `
+      + `${sheets * pagesPerSheet} page${sheets * pagesPerSheet === 1 ? '' : 's'}. ${note}`;
+  }
+  if (review.fileName) $('review-file').textContent = printFileLine();
+}
+
+function printFileLine() {
+  const plan = currentPlan();
+  const C = CONFIG.card;
+  if (!plan) return `File: ${review.fileName} · 2 pages, ${C.widthMm} × ${C.heightMm} mm, ${CONFIG.card.printDpi} DPI`;
+  const copies = printCopies(plan);
+  const sheets = Math.ceil(copies / (plan.cols * plan.rows));
+  const pages = plan.mode === 'pairs' ? sheets : sheets * 2;
+  return `File: ${review.fileName} · ${pages} page${pages === 1 ? '' : 's'} of ${state.print.paper}, cards ${C.widthMm} × ${C.heightMm} mm, ${CONFIG.card.printDpi} DPI`;
+}
 
 /* ---- shared register settings ------------------------------------ */
 
@@ -937,6 +1036,7 @@ async function runBatchUi() {
       templates: state.templates,
       rotateBack: state.rotateBack,
       layout: $('f-layout').value,
+      paper: $('f-batch-paper').value,
       onProgress: (phase, i, n) => { $('batch-status').textContent = `Checking ${i} of ${n}…`; },
     });
     if (out.results) renderBatchReport(out.results);
@@ -964,12 +1064,31 @@ async function runBatchUi() {
 }
 $('btn-batch').addEventListener('click', runBatchUi);
 
+// paper list and the "N per sheet" hint for the batch panel
+for (const [key, p] of Object.entries(CONFIG.sheet.papers)) {
+  const o = document.createElement('option');
+  o.value = key; o.textContent = p.label;
+  $('f-batch-paper').append(o);
+}
+$('f-batch-paper').value = CONFIG.sheet.defaultPaper;
+function renderBatchLayout() {
+  const layout = $('f-layout').value;
+  $('f-batch-paper').closest('.field').hidden = layout === 'cards';
+  if (layout === 'cards') { $('layout-msg').textContent = 'Two pages per person, each the size of the card.'; return; }
+  const plan = planSheet($('f-batch-paper').value, layout);
+  $('layout-msg').textContent = `${plan.count} cards per sheet (${plan.cols} × ${plan.rows}, ${plan.landscape ? 'landscape' : 'portrait'}).`;
+}
+$('f-layout').addEventListener('change', renderBatchLayout);
+$('f-batch-paper').addEventListener('change', renderBatchLayout);
+renderBatchLayout();
+
 /* ---- boot -------------------------------------------------------- */
 
 new ResizeObserver(drawPreview).observe(previewBox);
 
 $('app-version').textContent = `${APP_NAME} ${APP_VERSION}`;
 showRegisterUrl();
+buildPrintControls();
 if (restoreDraft()) {
   $('restored-note').hidden = false;
   // carry on where the typing stopped

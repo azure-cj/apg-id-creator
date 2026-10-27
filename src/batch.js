@@ -154,7 +154,7 @@ async function prepareBatchRow(row, findPhoto, findSignature, seen) {
   return {
     ok: true,
     id, year, seq, name, title, parts: split ? parts : null,
-    warning: photo.check.warning,
+    warnings: photo.check.warnings ?? [],
     noSignature: !signature,
     data: { name, title, year, seq, photo: { image: photo.image, placement: photo.check.placement }, signature },
     entry: {
@@ -171,10 +171,11 @@ async function prepareBatchRow(row, findPhoto, findSignature, seen) {
 
 /**
  * runBatch({ csvText, photos, signatures, templates, rotateBack, layout,
- *            onProgress }) -> { error } | { results, pages, fileName, title }
- * `layout` is 'cards' (two pages per person) or 'sheets' (A4, 9 per sheet).
+ *            paper, onProgress }) -> { error } | { results, pages, fileName, title }
+ * `layout` is 'cards' (two pages per person), 'pairs' (sheets with the
+ * front and back side by side) or 'duplex' (sheets of fronts, then backs).
  */
-async function runBatch({ csvText, photos, signatures, templates, rotateBack, layout, onProgress }) {
+async function runBatch({ csvText, photos, signatures, templates, rotateBack, layout, paper, onProgress }) {
   const parsed = csvToObjects(csvText);
   if (parsed.error) return { error: parsed.error };
 
@@ -193,20 +194,20 @@ async function runBatch({ csvText, photos, signatures, templates, rotateBack, la
   if (!good.length) return { results, error: 'None of the rows could be used — see the list below.' };
 
   // Render each card once; the PDF writer pulls them in page order.
-  const pages = [];
-  if (layout === 'sheets') {
-    const per = sheetCapacity();
-    for (let i = 0; i < good.length; i += per) {
-      const group = good.slice(i, i + per);
-      pages.push(() => composeSheet(group.map((r) => renderSideCanvas(templates, 'front', r.data, false)), { mirrorColumns: false }));
-      pages.push(() => composeSheet(group.map((r) => renderSideCanvas(templates, 'back', r.data, rotateBack)), { mirrorColumns: true }));
-    }
-    for (const p of pages) { p.widthMm = CONFIG.sheet.widthMm; p.heightMm = CONFIG.sheet.heightMm; }
-  } else {
+  let pages;
+  if (layout === 'cards') {
+    pages = [];
     for (const r of good) {
       pages.push(() => renderSideCanvas(templates, 'front', r.data, false));
       pages.push(() => renderSideCanvas(templates, 'back', r.data, rotateBack));
     }
+  } else {
+    const plan = planSheet(paper, layout);
+    const entries = good.map((r) => ({
+      get front() { return renderSideCanvas(templates, 'front', r.data, false); },
+      get back() { return renderSideCanvas(templates, 'back', r.data, rotateBack); },
+    }));
+    pages = sheetPages(entries, plan);
   }
 
   const stamp = new Date().toISOString().slice(0, 10);
@@ -214,7 +215,7 @@ async function runBatch({ csvText, photos, signatures, templates, rotateBack, la
     results,
     good,
     pages,
-    fileName: layout === 'sheets' ? `apg-id-sheets-${stamp}.pdf` : `apg-id-batch-${stamp}.pdf`,
+    fileName: layout === 'cards' ? `apg-id-batch-${stamp}.pdf` : `apg-id-sheets-${stamp}.pdf`,
     title: `Alpha Premier IDs — ${good.length} card${good.length === 1 ? '' : 's'} — ${stamp}`,
   };
 }

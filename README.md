@@ -90,7 +90,8 @@ Common edits:
 | Change the QR link | `CONFIG.qr.content` |
 | New template artwork | Replace `assets/front-template.png` / `assets/back.png` (keep 638 × 1004 px). If the band or the photo window moved, re-trace `CONFIG.frontOutline.polygons` and `CONFIG.photoArea.polygon` |
 | Different number format | `CONFIG.employeeNo` (`prefix`, `digits`, `label`, years offered) |
-| Sheet grid, gaps or crop marks | `CONFIG.sheet` |
+| Paper sizes, margins, gutters, crop marks | `CONFIG.sheet` |
+| The card's physical size | `CONFIG.card` — currently CR80, 54 × 85.6 mm |
 | Bump the version stamped into PDFs | `APP_VERSION` in `config.js` (and `package.json`) |
 | Share the issued-ID register between computers | Nothing in the code: paste the web-app address into the app (Issued IDs → Shared register) — see `register/README.md` |
 | Reword the AI photo prompt | `PHOTO_PROMPT` in `config.js` and `photo-prompt.txt` |
