@@ -14,7 +14,13 @@ The card itself is drawn by the same HTML in the same Edge engine as
 before, so `npm test` still governs what comes out of the printer. Nothing
 about the output changes by installing it.
 
-## Making the package
+## Rebuilding after a change
+
+Double-click **`desktop\rebuild.cmd`**. It rebuilds the single HTML file,
+repacks the installer zip, and publishes the exe if the .NET SDK is on the
+machine — and says which of those it skipped rather than failing silently.
+
+By hand it is:
 
 ```
 node build.mjs            # only if anything in src/ changed
