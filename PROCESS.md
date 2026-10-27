@@ -142,7 +142,26 @@ example card is never recorded). Keep the PDF with the employee's HR record.
 The **Issued IDs** panel under the form lists what this computer has
 issued; **Download register (CSV)** exports it for HR's records.
 
-### 7. Choose how to print it
+### 7. Several people on one sheet
+
+Under **Cards in this print** the last step lists everyone going on this
+print — at first just the card on screen.
+
+To put more people on the same sheet, click **+ Add another ID to this
+print**. The finished card is put aside and the form returns to step 1 for
+the next person. Repeat for as many as the sheet holds (four on A4). When
+you reach the last step again, everyone is listed, and **Download PDF**
+gives you one sheet with all of them.
+
+- A card waiting in the print is **not issued yet**. Only when you download
+  does every card in the list go into the register.
+- A number already waiting in the print is refused, the same as one already
+  issued.
+- **×** takes someone out of the list.
+- The list is lost if the page is reloaded, because no photo is ever stored.
+  Download before closing the tab.
+
+### 8. Choose how to print it
 
 Still on the last step, under **How to print it**, pick one:
 
@@ -153,13 +172,19 @@ Still on the last step, under **How to print it**, pick one:
 | **Separate sheets, front and back** | One sheet of fronts, then one of backs with the columns mirrored | You have a duplex printer — **9 per A4** |
 
 For the two sheet choices you also pick the **paper** (A4, Letter, Legal,
-A3) and, for a single card, how many **copies** to put on the sheet. Copies
-defaults to filling the sheet, so one card becomes 4 or 9 identical cards,
-and a batch of three people fills the first three slots. The app works out
-the grid from the paper and card size and turns the page sideways when that
-fits more — A3 takes 21 cards.
+A3) and how many **copies** of each card to print. One card on its own
+fills the sheet — four identical cards on A4 — while two or three people
+get one each. Either way you can set the number yourself.
 
-### 8. Print
+Under the controls is a **preview of the actual sheet**, redrawn whenever
+you change anything, with arrows to look through the pages. What you see is
+what prints.
+
+The app works out the grid from the paper and card size, trying the card
+and the page both ways round and keeping whichever fits the most — A3 takes
+21 cards.
+
+### 9. Print
 
 Open the PDF and print it:
 
@@ -173,7 +198,7 @@ If the printer flips the back upside down, open **Printer setting** at the
 bottom of the form and tick **Turn the back 180°**. The browser remembers
 this on that computer.
 
-### 9. Next card
+### 10. Next card
 
 Click **Start a new ID**. Everything is cleared, including the photo and
 signature, and you are back at step 1.
@@ -464,7 +489,28 @@ outline the photo area in pink and the front-outline polygons in blue on
 the preview. Use it after replacing the template artwork to re-trace
 `CONFIG.photoArea` and `CONFIG.frontOutline` in `src/config.js`.
 
-### 2.6c Batch (`src/batch.js`)
+### 2.6b The print queue
+
+`state.queue` holds finished cards: for each, the card data (with its own
+photo and signature canvases), the register entry and a label. `jobCards()`
+returns the queue plus the card on screen when that one is complete, and
+everything downstream — the list, the totals, the preview and the PDF —
+works from it. `addAnother()` pushes the current card and calls
+`clearCard({ keepQueue: true })`.
+
+Nothing is written to the register until the download succeeds, so a card
+abandoned in the queue was never issued. `queuedDuplicate()` makes the
+number check look at the queue as well as the register.
+
+The queue is in memory only — it holds photographs, and the app stores none.
+
+### 2.6c Preview
+
+`drawPrintPreview()` builds the real sheet through the same `sheetPages()`
+the PDF uses, but at 96 DPI instead of 300, debounced by 120 ms. The page
+bitmap is released as soon as it has been turned into a data URL.
+
+### 2.6d Batch (`src/batch.js`)
 
 A small RFC-4180 CSV parser (quoted fields, doubled quotes, CR/LF) feeds
 `prepareBatchRow`, which runs each row through the same validation, photo

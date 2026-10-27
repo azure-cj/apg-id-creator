@@ -234,6 +234,16 @@
                 <li>The photo looks like the person and isn’t blurry</li>
                 <li>The signature is visible below the title</li>
               </ul>
+              <div class="print-job">
+                <div class="block-head">
+                  <h2 id="job-h">Cards in this print</h2>
+                  <span class="job-count" id="job-count"></span>
+                </div>
+                <ol class="job-list" id="job-list" aria-labelledby="job-h"></ol>
+                <button type="button" id="btn-add-another" class="ghost">+ Add another ID to this print</button>
+                <p class="msg" id="job-note"></p>
+              </div>
+
               <div class="print-layout">
                 <div class="block-head"><h2 id="print-h">How to print it</h2></div>
                 <div class="chips" id="layout-chips" role="radiogroup" aria-labelledby="print-h"></div>
@@ -249,6 +259,15 @@
                   </label>
                 </div>
                 <p class="msg" id="print-note"></p>
+
+                <figure class="print-preview" id="print-preview" hidden>
+                  <img id="preview-img" alt="Preview of the printed sheet" />
+                  <figcaption>
+                    <button type="button" id="prev-page" class="ghost" hidden>‹</button>
+                    <span id="preview-caption"></span>
+                    <button type="button" id="next-page" class="ghost" hidden>›</button>
+                  </figcaption>
+                </figure>
               </div>
 
               <p class="msg msg-error" id="review-error" role="alert" hidden></p>

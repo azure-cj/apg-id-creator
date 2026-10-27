@@ -56,7 +56,8 @@ const state = {
   signature: null,
   touched: { last: false, first: false, middle: false, suffix: false, title: false, title2: false, seq: false, photo: false, signature: false },
   step: 0,
-  print: { layout: 'single', paper: CONFIG.sheet.defaultPaper, copies: null },
+  print: { layout: 'pairs', paper: CONFIG.sheet.defaultPaper, copies: null, page: 0 },
+  queue: [],            // cards already finished, waiting to print with this one
   example: false,
   checking: false,
   reissue: false,       // "Replacement card" ticked
@@ -156,10 +157,19 @@ function problems() {
   };
 }
 
-// The register entry that already holds this number (shared wins over local).
-function duplicate() { return state.dupShared || state.dupLocal || null; }
+// The register entry that already holds this number: one waiting in this
+// print job, or one already issued (shared wins over local).
+function queuedDuplicate() {
+  const seq = seqNumber();
+  if (seq === null) return null;
+  const id = employeeId(state.year, seq);
+  const hit = state.queue.find((q) => q.id === id);
+  return hit ? { ...hit.entry, queued: true } : null;
+}
+function duplicate() { return queuedDuplicate() || state.dupShared || state.dupLocal || null; }
 function duplicateMessage() {
   const d = duplicate();
+  if (d.queued) return `${d.id} is already waiting in this print, for ${d.name}. Use a different number.`;
   const where = d === state.dupShared ? 'in the shared register' : 'on this computer';
   return `${d.id} was already issued to ${d.name} on ${formatIssuedAt(d.issuedAt)} (${where}). Check the number with HR, or tick “Replacement card” below.`;
 }
@@ -722,9 +732,13 @@ function buildReview() {
   review.data = data;
   review.front = renderSideCanvas(state.templates, 'front', data, state.rotateBack);
   review.back = renderSideCanvas(state.templates, 'back', data, state.rotateBack);
-  review.fileName = pdfFileName(state.year, data.seq, nameParts());
-  renderPrint();
-  review.title = `${employeeId(state.year, data.seq)} ${collapseSpaces(data.name)}`;
+  const jobSize = state.queue.length + 1;
+  review.fileName = jobSize > 1 && state.print.layout !== 'single'
+    ? `apg-ids-${jobSize}-${new Date().toISOString().slice(0, 10)}.pdf`
+    : pdfFileName(state.year, data.seq, nameParts());
+  review.title = jobSize > 1 && state.print.layout !== 'single'
+    ? `Alpha Premier IDs — ${jobSize} cards`
+    : `${employeeId(state.year, data.seq)} ${collapseSpaces(data.name)}`;
   const parts = nameParts();
   review.entry = {
     id: employeeId(state.year, data.seq), year: state.year, seq: data.seq,
@@ -735,6 +749,7 @@ function buildReview() {
     role1: role1(), role2: role2(),
     issuedAt: new Date().toISOString(), replacement: !!duplicate(),
   };
+  renderPrint();
 
   $('step-check-h').textContent = 'Is everything correct?';
   $('review-sub').textContent = 'Check the card against the details below, then download the print file.';
@@ -784,19 +799,10 @@ async function downloadPdf() {
   $('review-error').hidden = true;
   try {
     const plan = currentPlan();
-    let pages;
-    if (!plan) {
-      pages = [review.front, review.back];
-    } else {
-      // one entry per copy; each renders on demand so a full sheet never
-      // holds more than one card bitmap at a time
-      const data = review.data;
-      const entry = {
-        get front() { return renderSideCanvas(state.templates, 'front', data, state.rotateBack); },
-        get back() { return renderSideCanvas(state.templates, 'back', data, state.rotateBack); },
-      };
-      pages = sheetPages(Array.from({ length: printCopies(plan) }, () => entry), plan).map(withPageSize);
-    }
+    const cards = jobCards();
+    const pages = plan
+      ? printPages(printPxPerMm()).pages.map(withPageSize)      // renders one page at a time
+      : [review.front, review.back];
     const blob = await buildPdf(pages, review.title);
     downloadBlob(review.fileName, blob);
     clearDraft();
@@ -804,11 +810,15 @@ async function downloadPdf() {
       if (state.role1.pick === CUSTOM_TITLE) Titles.remember(role1());
       if (state.showRole2 && state.role2.pick === CUSTOM_TITLE) Titles.remember(role2());
       refreshTitleOptions();
-      Register.record(review.entry);
+      // every card in the print is issued, not just the one on screen
+      const issued = (plan ? cards : [cards[cards.length - 1]]).filter(Boolean).map((c) => c.entry);
+      for (const entry of issued) Register.record(entry);
       state.dupLocal = review.entry;
-      Register.recordShared(review.entry).then((ok) => { if (ok) state.dupShared = review.entry; });
+      (async () => { for (const entry of issued) await Register.recordShared(entry); })();
+      state.queue = [];                        // the job has been printed
+      renderJob();
     }
-    $('step-check-h').textContent = 'ID ready to print';
+    $('step-check-h').textContent = cards.length > 1 ? `${cards.length} IDs ready to print` : 'ID ready to print';
     $('review-sub').textContent = '';
     $('saved-name').textContent = review.fileName;
     $('review-stage').hidden = true;
@@ -825,7 +835,7 @@ async function downloadPdf() {
   }
 }
 
-function newId() {
+function clearCard({ keepQueue = false } = {}) {
   for (const k of NAME_PARTS) { state[k] = ''; $(`f-${k}`).value = ''; }
   state.role1 = { pick: '', custom: '' };
   state.role2 = { pick: '', custom: '' };
@@ -839,8 +849,15 @@ function newId() {
   pad.setValue(null);
   state.touched = { last: false, first: false, middle: false, suffix: false, title: false, title2: false, seq: false, photo: false, signature: false };
   state.example = false; state.side = 'front';
+  if (!keepQueue) { state.queue = []; state.print.copies = null; }
+  state.print.page = 0;
   clearDraft();
   $('restored-note').hidden = true;
+  refreshDuplicate();
+}
+
+function newId() {
+  clearCard();
   goStep(0);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -873,16 +890,60 @@ const PRINT_LAYOUTS = [
     note: 'One sheet of fronts, one of backs, the backs mirrored so they line up when the paper is turned over. Only for a duplex printer — print one sheet and check both sides before running the rest.' },
 ];
 
+/** Everyone in this print: the queued cards, then the one on screen. */
+function jobCards() {
+  const list = state.queue.map((q) => ({ ...q, current: false }));
+  const p = problems();
+  const ready = !!state.templates && Object.keys(p).every((k) => !p[k]);
+  if (ready) {
+    const data = cardData();
+    list.push({
+      id: employeeId(state.year, data.seq),
+      label: collapseSpaces(data.name),
+      title: data.title,
+      data,
+      entry: review.entry,
+      current: true,
+    });
+  }
+  return list;
+}
+
+/** Put the finished card in the queue and start a fresh one. */
+function addAnother() {
+  const data = cardData();
+  state.queue.push({
+    id: employeeId(state.year, data.seq),
+    label: collapseSpaces(data.name),
+    title: data.title,
+    data,                                  // holds its own photo and signature
+    entry: { ...review.entry },
+  });
+  clearCard({ keepQueue: true });
+  goStep(0);
+}
+
+function removeFromQueue(i) {
+  state.queue.splice(i, 1);
+  refreshDuplicate();
+  renderPrint();
+  render();
+}
+
 function currentPlan() {
   return state.print.layout === 'single' ? null : planSheet(state.print.paper, state.print.layout);
 }
 
-/** How many cards this print job will produce. */
-function printCopies(plan) {
+/**
+ * Copies of each card. One card on its own fills the sheet; several cards
+ * get one each, which is almost always what is wanted.
+ */
+function printCopies(plan, cards = jobCards().length) {
   if (!plan) return 1;
-  const max = plan.cols * plan.rows;
+  const perSheet = plan.cols * plan.rows;
   const asked = state.print.copies;
-  return Math.max(1, Math.min(max, asked === null ? max : asked));
+  if (asked !== null) return Math.max(1, Math.min(perSheet * 20, asked));
+  return cards <= 1 ? Math.max(1, perSheet) : 1;
 }
 
 function buildPrintControls() {
@@ -907,7 +968,82 @@ function buildPrintControls() {
   });
 }
 
+function renderJob() {
+  const cards = jobCards();
+  const list = $('job-list');
+  list.innerHTML = '';
+  cards.forEach((c, i) => {
+    const li = document.createElement('li');
+    if (c.current) li.className = 'is-current';
+    const num = document.createElement('span'); num.className = 'num'; num.textContent = `${i + 1}.`;
+    const who = document.createElement('span'); who.className = 'who'; who.textContent = `${c.label} · ${c.id}`;
+    li.append(num, who);
+    if (c.current) {
+      const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = 'on screen';
+      li.append(tag);
+    } else {
+      const x = document.createElement('button');
+      x.type = 'button'; x.className = 'chip-x'; x.textContent = '×';
+      x.setAttribute('aria-label', `Take ${c.label} out of this print`);
+      x.addEventListener('click', () => removeFromQueue(i));
+      li.append(x);
+    }
+    list.append(li);
+  });
+  $('job-count').textContent = `${cards.length} card${cards.length === 1 ? '' : 's'}`;
+  $('btn-add-another').hidden = state.print.layout === 'single';
+  $('job-note').textContent = state.print.layout === 'single'
+    ? 'One card per page prints just the card on screen. Choose a sheet layout to print several people together.'
+    : state.queue.length
+      ? 'Added cards are held until you download. They are lost if the page is reloaded.'
+      : 'Finish this card, then add another to put several people on the same sheet.';
+}
+
+let previewTimer = null;
+const PREVIEW_DPI = 96;
+
+function schedulePreview() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(drawPrintPreview, 120);
+}
+
+function printPages(pxPerMm) {
+  const plan = currentPlan();
+  if (!plan || !state.templates) return { plan: null, pages: [] };
+  const cards = jobCards();
+  const copies = printCopies(plan, cards.length);
+  const entries = [];
+  for (const c of cards) {
+    for (let n = 0; n < copies; n++) {
+      entries.push({
+        get front() { return renderSideCanvas(state.templates, 'front', c.data, state.rotateBack, pxPerMm); },
+        get back() { return renderSideCanvas(state.templates, 'back', c.data, state.rotateBack, pxPerMm); },
+      });
+    }
+  }
+  return { plan, pages: sheetPages(entries, plan, { pxPerMm }) };
+}
+
+function drawPrintPreview() {
+  const fig = $('print-preview');
+  const plan = currentPlan();
+  if (!plan || !state.templates) { fig.hidden = true; return; }
+  const { pages } = printPages(PREVIEW_DPI / 25.4);
+  if (!pages.length) { fig.hidden = true; return; }
+  state.print.page = Math.max(0, Math.min(pages.length - 1, state.print.page));
+  const canvas = pages[state.print.page]();
+  $('preview-img').src = canvas.toDataURL('image/png');
+  canvas.width = canvas.height = 0;
+  $('preview-caption').textContent = `Page ${state.print.page + 1} of ${pages.length} · ${state.print.paper}`;
+  $('prev-page').hidden = pages.length < 2;
+  $('next-page').hidden = pages.length < 2;
+  $('prev-page').disabled = state.print.page === 0;
+  $('next-page').disabled = state.print.page === pages.length - 1;
+  fig.hidden = false;
+}
+
 function renderPrint() {
+  renderJob();
   syncChips($('layout-chips'), state.print.layout, null);
   const plan = currentPlan();
   $('print-opts').hidden = !plan;
@@ -915,31 +1051,37 @@ function renderPrint() {
 
   if (!plan) {
     $('print-note').textContent = note;
+    $('print-preview').hidden = true;
   } else {
     const per = plan.cols * plan.rows;
-    const copies = printCopies(plan);
+    const cards = jobCards().length;
+    const copies = printCopies(plan, cards);
+    const total = cards * copies;
     $('f-paper').value = state.print.paper;
     $('f-copies').max = String(per * 20);
     if (document.activeElement !== $('f-copies')) $('f-copies').value = String(copies);
     $('field-copies').hidden = false;
-    const sheets = Math.ceil(copies / per);
+    const sheets = Math.ceil(total / per);
     const pagesPerSheet = plan.mode === 'pairs' ? 1 : 2;
-    const turned = plan.turned ? ', cards turned on their side' : '';
+    const turned = plan.turned ? ', turned on their side' : '';
     const orient = plan.landscape ? 'landscape' : 'portrait';
+    $('field-copies').querySelector('.field-label').textContent =
+      jobCards().length > 1 ? 'Copies of each card' : 'Copies of this card';
     $('print-note').textContent =
-      `${per} card${per === 1 ? '' : 's'} per ${state.print.paper} sheet (${plan.cols} × ${plan.rows}, ${orient}${turned}). `
-      + `${copies} card${copies === 1 ? '' : 's'} → ${sheets} sheet${sheets === 1 ? '' : 's'}, `
+      `${per} per ${state.print.paper} sheet (${plan.cols} × ${plan.rows}, ${orient}${turned}). `
+      + `${total} card${total === 1 ? '' : 's'} → ${sheets} sheet${sheets === 1 ? '' : 's'}, `
       + `${sheets * pagesPerSheet} page${sheets * pagesPerSheet === 1 ? '' : 's'}. ${note}`;
   }
   if (review.fileName) $('review-file').textContent = printFileLine();
+  schedulePreview();
 }
 
 function printFileLine() {
   const plan = currentPlan();
   const C = CONFIG.card;
   if (!plan) return `File: ${review.fileName} · 2 pages, ${C.widthMm} × ${C.heightMm} mm, ${CONFIG.card.printDpi} DPI`;
-  const copies = printCopies(plan);
-  const sheets = Math.ceil(copies / (plan.cols * plan.rows));
+  const cards = jobCards().length;
+  const sheets = Math.ceil((cards * printCopies(plan, cards)) / (plan.cols * plan.rows));
   const pages = plan.mode === 'pairs' ? sheets : sheets * 2;
   return `File: ${review.fileName} · ${pages} page${pages === 1 ? '' : 's'} of ${state.print.paper}, cards ${C.widthMm} × ${C.heightMm} mm, ${CONFIG.card.printDpi} DPI`;
 }
@@ -1062,6 +1204,10 @@ async function runBatchUi() {
     updateBatchButton();
   }
 }
+$('btn-add-another').addEventListener('click', addAnother);
+$('prev-page').addEventListener('click', () => { state.print.page--; drawPrintPreview(); });
+$('next-page').addEventListener('click', () => { state.print.page++; drawPrintPreview(); });
+
 $('btn-batch').addEventListener('click', runBatchUi);
 
 // paper list and the "N per sheet" hint for the batch panel

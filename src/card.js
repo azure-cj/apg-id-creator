@@ -255,12 +255,12 @@ function placeCard(ctx, card, plan, x, y, pxPerMm) {
   ctx.restore();
 }
 
-function blankSheet(plan) {
-  const pxPerMm = printPxPerMm();
+function blankSheet(plan, pxPerMm = printPxPerMm()) {
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(plan.pw * pxPerMm);
   canvas.height = Math.round(plan.ph * pxPerMm);
   const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -271,16 +271,16 @@ function blankSheet(plan) {
  * One sheet in 'pairs' mode: each entry is { front, back } and lands as two
  * cards side by side.
  */
-function composePairSheet(entries, plan) {
-  const { canvas, ctx, pxPerMm } = blankSheet(plan);
+function composePairSheet(entries, plan, { pxPerMm } = {}) {
+  const { canvas, ctx, pxPerMm: ppm } = blankSheet(plan, pxPerMm);
   const cells = sheetCells(plan);
   entries.slice(0, cells.length).forEach((entry, i) => {
     const cell = cells[i];
     const stride = plan.cardW + CONFIG.sheet.gapMm;
-    placeCard(ctx, entry.front, plan, cell.x, cell.y, pxPerMm);
-    placeCard(ctx, entry.back, plan, cell.x + stride, cell.y, pxPerMm);
-    drawCropMarks(ctx, cell.x, cell.y, plan.cardW, plan.cardH, pxPerMm);
-    drawCropMarks(ctx, cell.x + stride, cell.y, plan.cardW, plan.cardH, pxPerMm);
+    placeCard(ctx, entry.front, plan, cell.x, cell.y, ppm);
+    placeCard(ctx, entry.back, plan, cell.x + stride, cell.y, ppm);
+    drawCropMarks(ctx, cell.x, cell.y, plan.cardW, plan.cardH, ppm);
+    drawCropMarks(ctx, cell.x + stride, cell.y, plan.cardW, plan.cardH, ppm);
   });
   return canvas;
 }
@@ -290,16 +290,16 @@ function composePairSheet(entries, plan) {
  * a backs sheet lines up with its fronts sheet after the paper is turned
  * over on its long edge.
  */
-function composeSheet(cards, plan, { mirrorColumns = false } = {}) {
-  const { canvas, ctx, pxPerMm } = blankSheet(plan);
+function composeSheet(cards, plan, { mirrorColumns = false, pxPerMm } = {}) {
+  const { canvas, ctx, pxPerMm: ppm } = blankSheet(plan, pxPerMm);
   const cells = sheetCells(plan);
   cards.slice(0, cells.length).forEach((card, i) => {
     const cell = cells[i];
     const target = mirrorColumns
       ? cells.find((c) => c.row === cell.row && c.col === plan.cols - 1 - cell.col)
       : cell;
-    placeCard(ctx, card, plan, target.x, target.y, pxPerMm);
-    drawCropMarks(ctx, target.x, target.y, plan.cardW, plan.cardH, pxPerMm);
+    placeCard(ctx, card, plan, target.x, target.y, ppm);
+    drawCropMarks(ctx, target.x, target.y, plan.cardW, plan.cardH, ppm);
   });
   return canvas;
 }
@@ -308,16 +308,16 @@ function composeSheet(cards, plan, { mirrorColumns = false } = {}) {
  * Turn a list of { front, back } card canvases into PDF page thunks.
  * `copies` repeats a single card to fill the sheet.
  */
-function sheetPages(entries, plan) {
+function sheetPages(entries, plan, { pxPerMm } = {}) {
   const pages = [];
   const per = plan.cols * plan.rows;
   for (let i = 0; i < entries.length; i += per) {
     const group = entries.slice(i, i + per);
     if (plan.mode === 'pairs') {
-      pages.push(() => composePairSheet(group, plan));
+      pages.push(() => composePairSheet(group, plan, { pxPerMm }));
     } else {
-      pages.push(() => composeSheet(group.map((e) => e.front), plan));
-      pages.push(() => composeSheet(group.map((e) => e.back), plan, { mirrorColumns: true }));
+      pages.push(() => composeSheet(group.map((e) => e.front), plan, { pxPerMm }));
+      pages.push(() => composeSheet(group.map((e) => e.back), plan, { mirrorColumns: true, pxPerMm }));
     }
   }
   for (const p of pages) { p.widthMm = plan.pw; p.heightMm = plan.ph; }
@@ -325,10 +325,10 @@ function sheetPages(entries, plan) {
 }
 
 /** Render one side at print resolution (300 DPI) into a fresh canvas. */
-function renderSideCanvas(templates, side, data, rotateBack) {
+function renderSideCanvas(templates, side, data, rotateBack, pxPerMm = printPxPerMm()) {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
-  if (side === 'front') drawFront(ctx, templates, printPxPerMm(), data);
-  else drawBack(ctx, templates, printPxPerMm(), rotateBack);
+  if (side === 'front') drawFront(ctx, templates, pxPerMm, data);
+  else drawBack(ctx, templates, pxPerMm, rotateBack);
   return canvas;
 }
