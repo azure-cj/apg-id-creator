@@ -1224,6 +1224,7 @@ renderBatchLayout();
 new ResizeObserver(drawPreview).observe(previewBox);
 
 $('app-version').textContent = `${APP_NAME} ${APP_VERSION}`;
+$('brand-logo').src = ASSETS.logo;
 showRegisterUrl();
 buildPrintControls();
 if (restoreDraft()) {

@@ -26,6 +26,7 @@ prepared) are in **PROCESS.md**.
 | `assets/front-template.png` | Front of the card, 638 × 1004 px = 54 × 85 mm at 300 DPI. |
 | `assets/back.png` | Back of the card (terms, contacts, CEO signature). Same size. |
 | `assets/example-cut-out.png` | The cut-out used by "Show an example". |
+| `assets/logo.png` | The peacock mark in the app's header — lifted from the card artwork, so the screen and the print agree. |
 | `assets/fonts/` | Poppins 700 (name), Montserrat 800 (title), Arimo 400 (employee number) as latin + latin-ext WOFF2 subsets. |
 | `src/` | The readable source code. See "How the app is built" below. |
 | `build.mjs` | Rebuilds `Alpha Premier ID Maker.html` from `src/` + `assets/`. |
@@ -93,6 +94,7 @@ Common edits:
 | Different number format | `CONFIG.employeeNo` (`prefix`, `digits`, `label`, years offered) |
 | Paper sizes, margins, gutters, crop marks | `CONFIG.sheet` |
 | The card's physical size | `CONFIG.card` — currently CR80, 54 × 85.6 mm |
+| Restyle the app after a rebrand | The tokens at the top of `src/styles.css` (`--gold`, `--gold-strong`, `--tray`, the fonts) and `assets/logo.png`. None of them touch the printed card. |
 | Bump the version stamped into PDFs | `APP_VERSION` in `config.js` (and `package.json`) |
 | Share the issued-ID register between computers | Nothing in the code: paste the web-app address into the app (Issued IDs → Shared register) — see `register/README.md` |
 | Reword the AI photo prompt | `PHOTO_PROMPT` in `config.js` and `photo-prompt.txt` |
@@ -119,6 +121,18 @@ Note that the browser keeps the issued-ID register per address, so cards
 issued from the double-clicked file and from `http://localhost` are kept in
 separate lists. The shared Google Sheet register (see `register/README.md`)
 is not affected.
+
+## How it looks
+
+The screen takes its colours from **alphapremiergroup.com**: brand gold
+`#D4AF37`, black panels, and Plus Jakarta Sans (the fonts come from Google
+Fonts; without a connection the app falls back to the system typeface and
+everything still works). Gold is used for fills and on black. On white it
+is only 2.1:1 against the background — too faint to read — so gold *text*
+on a light background uses a darker `#8A6A14`, which passes WCAG AA.
+
+**The printed card is not affected by any of this.** Its colours come from
+the template artwork, and `npm test` fails if a single pixel of it moves.
 
 ## Data protection
 

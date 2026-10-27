@@ -8,6 +8,7 @@ const ASSETS = {
   front: '../assets/front-template.png',
   back: '../assets/back.png',
   example: '../assets/example-cut-out.png',
+  logo: '../assets/logo.png',
   fonts: {
     name:   ['../assets/fonts/poppins-700-latin.woff2',    '../assets/fonts/poppins-700-latin-ext.woff2'],
     title:  ['../assets/fonts/montserrat-800-latin.woff2', '../assets/fonts/montserrat-800-latin-ext.woff2'],

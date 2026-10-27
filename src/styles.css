@@ -6,29 +6,29 @@
   --ink: #1d1c1a;
   --muted: #66625a;
   --line: #e2dfd6;
-  --tray: #1f1e1b;
-  --tray-ink: #d8d3c6;
-  --gold: #9a7420;
-  --gold-strong: #b8902f;
-  --on-gold: #1d1c1a;
+  --tray: #000;
+  --tray-ink: #e0e0e0;
+  --gold: #8a6a14;
+  --gold-strong: #d4af37;
+  --on-gold: #141412;
   --focus: #2f6fd6;
   --danger: #b3261e;
   --field: #fff;
-  --font-display: "Montserrat", "Segoe UI", system-ui, sans-serif;
-  --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Montserrat", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", "Source Sans 3", "Segoe UI", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #141412; --surface: #1c1b19; --ink: #ece8de; --muted: #a39e92; --line: #2e2c28;
-    --tray: #0d0d0c; --tray-ink: #bdb7a8; --gold: #d6b25a; --gold-strong: #d6b25a; --on-gold: #141412;
+    --tray: #000; --tray-ink: #e0e0e0; --gold: #d4af37; --gold-strong: #d4af37; --on-gold: #141412;
     --focus: #79a8ff; --danger: #ff8a80; --field: #141412; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #141412; --surface: #1c1b19; --ink: #ece8de; --muted: #a39e92; --line: #2e2c28;
-  --tray: #0d0d0c; --tray-ink: #bdb7a8; --gold: #d6b25a; --gold-strong: #d6b25a; --on-gold: #141412;
+  --tray: #000; --tray-ink: #e0e0e0; --gold: #d4af37; --gold-strong: #d4af37; --on-gold: #141412;
   --focus: #79a8ff; --danger: #ff8a80; --field: #141412; color-scheme: dark;
 }
 
@@ -57,9 +57,11 @@ img { max-width: 100%; }
 }
 .masthead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 24px; }
 .brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+/* the peacock mark, lifted from the card artwork so it matches what is printed.
+   It is fine gold linework, so it sits on black the way it does on the website. */
 .brand-mark {
-  flex: none; width: 14px; height: 44px; transform: skew(-12deg);
-  background: linear-gradient(180deg, var(--gold-strong) 0 60%, var(--ink) 60% 100%);
+  flex: none; width: 52px; height: 52px; padding: 5px; box-sizing: border-box;
+  object-fit: contain; border-radius: 13px; background: #000;
 }
 h1 { margin: 0; font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; line-height: 1.15; letter-spacing: -0.01em; text-wrap: balance; }
 .sub { margin: 2px 0 0; color: var(--muted); font-size: 0.95rem; }
