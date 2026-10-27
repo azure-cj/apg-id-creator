@@ -21,7 +21,7 @@ const stage = join(here, 'dist', 'Alpha Premier ID Maker');
 rmSync(join(here, 'dist'), { recursive: true, force: true });
 mkdirSync(stage, { recursive: true });
 
-for (const f of ['install.cmd', 'uninstall.cmd', 'setup.ps1', 'app.ico']) {
+for (const f of ['Setup.cmd', 'setup-window.ps1', 'install.cmd', 'uninstall.cmd', 'shortcuts.ps1', 'app.ico']) {
   copyFileSync(join(here, f), join(stage, f));
 }
 copyFileSync(app, join(stage, 'Alpha Premier ID Maker.html'));

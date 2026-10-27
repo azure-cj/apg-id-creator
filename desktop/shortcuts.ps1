@@ -1,5 +1,6 @@
 # Shortcuts, and the entry that makes Windows consider this an installed
-# application. Called by install.cmd, which passes everything through the
+# application. Called by install.cmd (not by the setup window, which only
+# runs install.cmd itself), which passes everything through the
 # environment so neither batch nor PowerShell has to escape the other's
 # quotes.
 $ErrorActionPreference = 'Stop'

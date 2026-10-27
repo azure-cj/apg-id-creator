@@ -1,6 +1,18 @@
 # Installing the ID Maker on the HR laptop
 
-`install.cmd` here makes the ID Maker a proper installed Windows
+**Double-click `Setup.cmd`.** It opens one window that shows what is
+installed, what is available, and whether Edge and the build tools are
+present, with a button for each of the three things anyone does: install
+or update, rebuild after a change, and remove. It is a front for
+`install.cmd`, `rebuild.cmd` and `uninstall.cmd` rather than a second copy
+of them — each still works on its own, and each still shows its real
+output in a console window.
+
+The rest of this file is what those three do.
+
+---
+
+`install.cmd` makes the ID Maker a proper installed Windows
 application: an entry in the Start menu, an icon you can pin to the
 taskbar, a window with no address bar and no tabs, and a line in
 **Settings → Apps → Installed apps** with a working Uninstall button.
@@ -33,7 +45,8 @@ is the version actually installed.
 
 ## Installing it
 
-Unzip anywhere and double-click **install.cmd**. It copies the app to
+Unzip anywhere and use **Setup.cmd**, or double-click **install.cmd**
+directly. It copies the app to
 `%LOCALAPPDATA%\AlphaPremierIDMaker`, makes the shortcuts, and registers
 the Windows entry.
 

@@ -83,7 +83,7 @@ copy /y "%FILES%app.ico" "%APP_TARGET%\app.ico" >nul || goto :failed
 copy /y "%SRC%uninstall.cmd" "%APP_TARGET%\uninstall.cmd" >nul 2>nul
 if exist "%FILES%version.txt" copy /y "%FILES%version.txt" "%APP_TARGET%\version.txt" >nul 2>nul
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%SRC%setup.ps1" || goto :failed
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SRC%shortcuts.ps1" || goto :failed
 
 echo   Done.
 echo.
