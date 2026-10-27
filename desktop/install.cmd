@@ -12,8 +12,15 @@ rem ---------------------------------------------------------------
 set "APP_NAME=Alpha Premier ID Maker"
 set "APP_TARGET=%LOCALAPPDATA%\AlphaPremierIDMaker"
 set "SRC=%~dp0"
+rem --- the app and the icon normally sit beside this file, as they do
+rem     in the package. Run it from the repository's own desktop\ folder
+rem     and they are one level up instead, so look there too. ---
+set "FILES=%SRC%"
+if not exist "%FILES%Alpha Premier ID Maker.html" if exist "%SRC%..\Alpha Premier ID Maker.html" set "FILES=%SRC%..\"
+
 set "APP_VERSION=unknown"
-if exist "%SRC%version.txt" set /p APP_VERSION=<"%SRC%version.txt"
+if exist "%FILES%version.txt" set /p APP_VERSION=<"%FILES%version.txt"
+if "%APP_VERSION%"=="unknown" if exist "%SRC%..\src\config.js" for /f "tokens=2 delims='" %%v in ('findstr /c:"const APP_VERSION" "%SRC%..\src\config.js"') do set "APP_VERSION=%%v"
 
 echo.
 echo   %APP_NAME%  %APP_VERSION%
@@ -22,9 +29,9 @@ echo.
 
 rem --- the files have to be side by side: running this straight out of
 rem     a zip extracts the .cmd on its own to a temp folder ---
-if not exist "%SRC%Alpha Premier ID Maker.html" (
+if not exist "%FILES%Alpha Premier ID Maker.html" (
   echo   PROBLEM: "Alpha Premier ID Maker.html" is not next to this
-  echo   installer.
+  echo   installer, nor one folder up.
   echo.
   echo   It is looking in:
   echo     %SRC%
@@ -71,10 +78,10 @@ if exist "%APP_TARGET%\index.html" (
 echo.
 
 if not exist "%APP_TARGET%" mkdir "%APP_TARGET%" 2>nul
-copy /y "%SRC%Alpha Premier ID Maker.html" "%APP_TARGET%\index.html" >nul || goto :failed
-copy /y "%SRC%app.ico" "%APP_TARGET%\app.ico" >nul || goto :failed
+copy /y "%FILES%Alpha Premier ID Maker.html" "%APP_TARGET%\index.html" >nul || goto :failed
+copy /y "%FILES%app.ico" "%APP_TARGET%\app.ico" >nul || goto :failed
 copy /y "%SRC%uninstall.cmd" "%APP_TARGET%\uninstall.cmd" >nul 2>nul
-if exist "%SRC%version.txt" copy /y "%SRC%version.txt" "%APP_TARGET%\version.txt" >nul 2>nul
+if exist "%FILES%version.txt" copy /y "%FILES%version.txt" "%APP_TARGET%\version.txt" >nul 2>nul
 
 powershell -NoProfile -ExecutionPolicy Bypass -File "%SRC%setup.ps1" || goto :failed
 
