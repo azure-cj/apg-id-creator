@@ -8,7 +8,7 @@
    the built single file, not the sources.
    ------------------------------------------------------------------ */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, rmSync, copyFileSync, existsSync } from 'node:fs';
+import { mkdirSync, rmSync, copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,10 +21,18 @@ const stage = join(here, 'dist', 'Alpha Premier ID Maker');
 rmSync(join(here, 'dist'), { recursive: true, force: true });
 mkdirSync(stage, { recursive: true });
 
-for (const f of ['install.cmd', 'uninstall.cmd', 'shortcut.ps1', 'app.ico']) {
+for (const f of ['install.cmd', 'uninstall.cmd', 'setup.ps1', 'app.ico']) {
   copyFileSync(join(here, f), join(stage, f));
 }
 copyFileSync(app, join(stage, 'Alpha Premier ID Maker.html'));
+
+// the installer stamps this into the Windows entry, so what Settings >
+// Apps reports is the version actually installed rather than whatever was
+// typed into a batch file months ago
+const cfg = readFileSync(join(root, 'src', 'config.js'), 'utf8');
+const version = /APP_VERSION\s*=\s*'([^']+)'/.exec(cfg)?.[1];
+if (!version) { console.error('No APP_VERSION in src/config.js'); process.exit(1); }
+writeFileSync(join(stage, 'version.txt'), version);
 
 const out = join(here, 'dist', 'Alpha Premier ID Maker - install.zip');
 try {
@@ -33,4 +41,4 @@ try {
   console.error('`zip` is not available here. The folder is ready at:\n  ' + stage + '\nZip it yourself and send that.');
   process.exit(1);
 }
-console.log('wrote ' + out);
+console.log(`wrote ${out}  (version ${version})`);

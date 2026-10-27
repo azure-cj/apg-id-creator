@@ -1,116 +1,108 @@
-# Giving HR the app to install
+# Installing the ID Maker on the HR laptop
 
-Two routes. The first needs nothing installed on anyone's machine and is
-what the `install.cmd` in this folder does. The second produces a real
-`.exe` and needs a build on a Windows machine once.
+`install.cmd` here makes the ID Maker a proper installed Windows
+application: an entry in the Start menu, an icon you can pin to the
+taskbar, a window with no address bar and no tabs, and a line in
+**Settings → Apps → Installed apps** with a working Uninstall button.
 
-Both end up looking the same to the person using it: an entry in the Start
-menu, an icon they can pin to the taskbar, and a window with no address
-bar. Neither changes a pixel of the printed card — the drawing is the same
-HTML in the same Edge engine either way, so `npm test` still governs the
-output.
+It needs no administrator rights. Everything it writes lives in the
+person's own `%LOCALAPPDATA%` and their own `HKCU` registry branch, which
+is why there is no "Windows protected your PC" warning: there is no `.exe`
+to sign, so SmartScreen has nothing to object to.
+
+The card itself is drawn by the same HTML in the same Edge engine as
+before, so `npm test` still governs what comes out of the printer. Nothing
+about the output changes by installing it.
+
+## Making the package
+
+```
+node build.mjs            # only if anything in src/ changed
+node desktop/pack.mjs
+```
+
+That writes `desktop/dist/Alpha Premier ID Maker - install.zip`, about
+1 MB, with the version read out of `src/config.js` so what Windows reports
+is the version actually installed.
+
+## Installing it
+
+Unzip anywhere and double-click **install.cmd**. It copies the app to
+`%LOCALAPPDATA%\AlphaPremierIDMaker`, makes the shortcuts, and registers
+the Windows entry.
+
+The app gets **its own Edge profile**, so its settings and its issued-ID
+list are not mixed up with anyone's ordinary browsing — and a cleared
+browser history cannot wipe the ID register.
+
+Then, once: **Issued IDs → Shared register**, and paste the web-app
+address. Read the next section before deciding that is optional.
+
+## Updating
+
+Re-run `install.cmd` from a newer zip. It overwrites in place, keeps the
+issued-ID list and the settings, and says it is updating rather than
+installing.
+
+## The thing to get right on a single laptop
+
+With one machine doing the issuing, **that machine is the only copy of who
+has which ID number** — unless the shared Google Sheet is set up. The local
+list lives in the app's Edge profile. A reimaged laptop, a wiped profile or
+a dead disk takes it with it, and the duplicate check silently starts
+again from nothing, which is exactly the failure this app was built to
+prevent.
+
+So on a single-laptop setup the shared register is not the optional extra
+it is described as in `register/README.md` — it is the backup. Set it up,
+and once in a while use **Download register (CSV)** and keep the file
+somewhere else as well.
+
+## Removing it
+
+`uninstall.cmd`, or the Uninstall button in Settings → Apps. It takes the
+shortcuts and the Windows entry, then asks before deleting the app and its
+local list. The Google Sheet is never touched.
 
 ---
 
-## Route 1 — the installer in this folder
-
-**Send people a zip containing these four files:**
-
-```
-Alpha Premier ID Maker.html     the app itself
-install.cmd                     what they double-click
-shortcut.ps1                    used by install.cmd
-app.ico                         the icon
-```
-
-They unzip it anywhere and double-click **install.cmd**. It:
-
-- copies the app to `%LOCALAPPDATA%\AlphaPremierIDMaker`,
-- makes a Start-menu shortcut and a desktop shortcut that open it in
-  Microsoft Edge **in app mode** — its own window, its own icon, no address
-  bar and no tabs,
-- gives the app its own browser profile, so its settings and issued-ID list
-  are not mixed up with that person's ordinary browsing.
-
-No administrator rights, nothing in Program Files, nothing in the registry,
-and nothing for SmartScreen to warn about, because there is no `.exe` to
-sign. `uninstall.cmd` removes all of it and asks before deleting that
-computer's issued-ID list.
-
-Requires Microsoft Edge, which is on every supported Windows. The installer
-checks and says so if it is missing.
-
-**Each person still pastes the shared-register address once** — Issued IDs
-→ Shared register. The installer says so at the end. Without it, that
-computer checks only its own list of ID numbers.
-
-### Updating everyone
-
-Send the new zip and have them run `install.cmd` again; it overwrites in
-place and keeps their settings and their issued-ID list. This is the part
-that does not scale — see "Worth knowing" below.
-
----
-
-## Route 2 — the real `.exe` (`shell/`)
+## If you later want a real `.exe` (`shell/`)
 
 A small WinForms window hosting **WebView2**, Microsoft's embedding of the
-Edge engine. About 110 lines. It exists for one technical reason beyond
-looking the part: it serves the app from a made-up host name
-(`https://idmaker.alphapremier.local/`) instead of from a file, so the page
-has an ordinary origin. Browser storage is then reliable, and cross-site
-requests — the shared Google Sheet register among them — behave exactly as
-they do on a real website.
+Edge engine — about 110 lines in `shell/Program.cs`.
 
-It also sends any link that is not the app itself to the person's normal
-browser, so the window can never turn into a way to browse the web.
+Its reason to exist is not that it looks more official. It serves the app
+from a host name (`https://idmaker.alphapremier.local/`) instead of from a
+file, so the page has an ordinary web origin: browser storage is reliable
+and cross-site requests — the shared Google Sheet among them — behave
+exactly as they do on a real website. It also sends any link that is not
+the app itself to the normal browser, so the window cannot become a way to
+browse the web.
 
-**Build it on a Windows machine with the [.NET 8 SDK](https://dotnet.microsoft.com/download):**
+Build it on a Windows machine with the [.NET 8 SDK](https://dotnet.microsoft.com/download):
 
 ```
+node build.mjs
 cd desktop\shell
 dotnet publish -c Release -r win-x64
 ```
 
-The result lands in `bin\Release\net8.0-windows\win-x64\publish\`. Copy
-`app.ico` in beside the exe. Run `node build.mjs` in the project root first
-if you have changed anything in `src/`, since the project copies the built
-HTML.
+The result is in `bin\Release\net8.0-windows\win-x64\publish\`; copy
+`app.ico` in beside the exe.
 
-**Before handing that exe to anyone, read these:**
+Before using it in earnest:
 
 - **The WebView2 Runtime must be present.** It ships with Windows 11 and
   with Edge on Windows 10, so usually it is. When it is not, the app says
-  so and points at the download rather than showing a blank window.
-- **An unsigned exe triggers "Windows protected your PC".** Staff will
-  either be alarmed or learn to click through security warnings. A signing
-  certificate is roughly $200–400 a year. Route 1 has no such problem.
-- **You now have a build step** — the .NET SDK, and a version number in
-  `AlphaPremierIDMaker.csproj` that has to be kept in step with
-  `APP_VERSION` in `src/config.js`.
-- Making a proper installer for it needs something like Inno Setup or WiX
-  on top.
+  so and points at the download instead of showing a blank window.
+- **An unsigned exe triggers "Windows protected your PC"** on first run. A
+  signing certificate is roughly $200–400 a year. `install.cmd` has no such
+  problem, which is why it is the route described above.
+- The version in `AlphaPremierIDMaker.csproj` has to be kept in step with
+  `APP_VERSION` in `src/config.js` by hand.
 
----
+## Do not publish the repository
 
-## Worth knowing, whichever route
-
-**Neither one solves updates.** Both mean sending a file to every computer
-and trusting that nobody keeps an old copy — and with a tool that issues
-identity cards, somebody quietly running last month's version is a real
-problem, not an inconvenience.
-
-The thing that does solve it is hosting the page privately — Cloudflare
-Pages behind Cloudflare Access, locked to the HR email addresses — and
-having people install it from Edge with *Apps → Install this site as an
-app*. Same Start-menu entry, same icon, same windowless frame, no installer
-and no certificate, and everyone is on the current version the moment it is
-published. The cost is that it needs the network, which the shared register
-needs anyway.
-
-Keeping `Alpha Premier ID Maker.html` on each machine as an offline standby
-covers the day the internet is out.
-
-**Do not publish the repository, only the built HTML.** `assets/back.png`
-carries the CEO's signature and `test/golden-front.png` is a complete
-sample card. Serving the folder would hand both to anyone who asked.
+Only ever hand out the built HTML. `assets/back.png` carries the CEO's
+signature and `test/golden-front.png` is a complete sample card; serving
+the folder would give both to anyone who asked.

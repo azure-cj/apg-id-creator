@@ -3,17 +3,20 @@ setlocal
 title Install Alpha Premier ID Maker
 
 rem ---------------------------------------------------------------
-rem  Installs the ID Maker for whoever runs it. No admin rights, and
-rem  nothing outside this person's own AppData folder.
-rem  uninstall.cmd undoes every line of it.
+rem  Installs the ID Maker for whoever runs it. No administrator
+rem  rights, and nothing outside this person's own AppData folder
+rem  and their own corner of the registry.
+rem  uninstall.cmd, and Settings > Apps, undo every line of it.
 rem ---------------------------------------------------------------
 
 set "APP_NAME=Alpha Premier ID Maker"
 set "APP_TARGET=%LOCALAPPDATA%\AlphaPremierIDMaker"
 set "SRC=%~dp0"
+set "APP_VERSION=unknown"
+if exist "%SRC%version.txt" set /p APP_VERSION=<"%SRC%version.txt"
 
 echo.
-echo   %APP_NAME%
+echo   %APP_NAME%  %APP_VERSION%
 echo   ------------------------------------------------
 echo.
 
@@ -38,24 +41,32 @@ if not exist "%SRC%Alpha Premier ID Maker.html" (
   exit /b 1
 )
 
-echo   Installing to %APP_TARGET%
+if exist "%APP_TARGET%\index.html" (
+  echo   Updating the copy already installed here.
+  echo   Your issued-ID list and settings are kept.
+) else (
+  echo   Installing to %APP_TARGET%
+)
+echo.
+
 if not exist "%APP_TARGET%" mkdir "%APP_TARGET%" 2>nul
 copy /y "%SRC%Alpha Premier ID Maker.html" "%APP_TARGET%\index.html" >nul || goto :failed
 copy /y "%SRC%app.ico" "%APP_TARGET%\app.ico" >nul || goto :failed
 copy /y "%SRC%uninstall.cmd" "%APP_TARGET%\uninstall.cmd" >nul 2>nul
+if exist "%SRC%version.txt" copy /y "%SRC%version.txt" "%APP_TARGET%\version.txt" >nul 2>nul
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%SRC%shortcut.ps1" || goto :failed
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SRC%setup.ps1" || goto :failed
 
-echo.
 echo   Done.
 echo.
-echo   Open it from the Start menu, or from the shortcut on your
-echo   desktop. Right-click it on the taskbar to pin it there.
+echo   It is in the Start menu and on your desktop, and in
+echo   Settings ^> Apps like any other program. Right-click it on
+echo   the taskbar to pin it there.
 echo.
-echo   Once, before your first card: open "Issued IDs", then
-echo   "Shared register", and paste the address your HR lead gives
-echo   you. That is what makes this computer check the same list of
-echo   ID numbers as everyone else's.
+echo   Once, before the first card: open "Issued IDs", then
+echo   "Shared register", and paste the web-app address. That is
+echo   what keeps a record of every ID off this laptop, which
+echo   matters more than it sounds - see the note in the README.
 echo.
 pause
 exit /b 0

@@ -8,16 +8,20 @@ echo.
 echo   Removing %APP_NAME%...
 echo.
 del /q "%APPDATA%\Microsoft\Windows\Start Menu\Programs\%APP_NAME%.lnk" 2>nul
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Remove-Item (Join-Path ([Environment]::GetFolderPath('Desktop')) ('%APP_NAME%' + '.lnk')) -ErrorAction SilentlyContinue" 2>nul
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "Remove-Item (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Alpha Premier ID Maker.lnk') -ErrorAction SilentlyContinue;" ^
+  "Remove-Item 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\AlphaPremierIDMaker' -Recurse -Force -ErrorAction SilentlyContinue" 2>nul
 
-echo   The list of IDs issued on this computer lives with the app.
-echo   Removing the app removes that list too. The shared Google
-echo   Sheet is not touched either way.
+echo   The list of IDs issued on this laptop lives with the app, so
+echo   removing it removes that list. The shared Google Sheet is not
+echo   touched either way - if the register is set up, nothing is
+echo   really lost.
 echo.
-choice /c YN /n /m "   Remove the app and its list as well? (Y/N) "
+choice /c YN /n /m "   Remove the app and its local list as well? (Y/N) "
 if errorlevel 2 (
   echo.
-  echo   Shortcuts removed. The app is still in %APP_TARGET%.
+  echo   Shortcuts and the Windows entry are gone. The app is still
+  echo   in %APP_TARGET%.
   echo.
   pause
   exit /b 0
