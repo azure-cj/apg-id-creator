@@ -255,6 +255,8 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .queue-strip .job-list li { background: #ffffff14; color: var(--tray-ink); }
 .queue-strip .job-list li.is-current { background: color-mix(in srgb, var(--gold-strong) 28%, transparent); }
 .queue-strip .num, .queue-strip .tag { color: var(--tray-ink); opacity: 0.7; }
+.queue-strip #btn-cancel-add { width: 100%; min-height: 40px; margin-top: 10px; color: var(--tray-ink); border-color: #ffffff33; font-size: 0.9rem; }
+.queue-strip #btn-cancel-add:hover { background: #ffffff14; }
 .job-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; counter-reset: job; }
 .job-list li { display: flex; align-items: baseline; gap: 8px; padding: 6px 8px; border-radius: 8px; background: color-mix(in srgb, var(--line) 25%, transparent); font-size: 0.9rem; }
 .job-list li.is-current { background: color-mix(in srgb, var(--gold) 14%, transparent); }

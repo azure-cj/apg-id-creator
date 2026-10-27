@@ -151,9 +151,15 @@ To put more people on the same sheet, click **+ Add another ID to this
 print**. The finished card is put aside, the preview goes back to showing
 the card being made, and the form returns to step 1 for the next person.
 Everyone already waiting stays listed under the preview, so you can always
-see who is in the print. Repeat for as many as the sheet holds (four on
+see who is in the print. Repeat for as many as the sheet holds (nine on
 A4). On the last step everyone is listed again, and **Download PDF** gives
 you one sheet with all of them.
+
+Changed your mind? **Cancel — back to printing**, under that list, drops
+the card you have started and takes you straight back to the printing step
+with everyone already waiting, and the paper and copies as you left them.
+If you had typed anything into the new card it asks first. Nothing in the
+print is lost either way.
 
 - A card waiting in the print is **not issued yet**. Only when you download
   does every card in the list go into the register.

@@ -427,8 +427,11 @@ function render() {
   $('card-line').textContent = employeeNoLine(state.year, seqNumber());
   const missingHere = stepProblems(state.step, p);
   const missingAll = Object.keys(p).filter((k) => p[k]);
+  // after cancelling an "Add another ID" the form is empty on purpose and
+  // the job is whatever is queued, so nothing is outstanding
+  const queueOnly = state.step === LAST_STEP && !!state.queue.length && !startedCard();
   $('status').textContent = !state.templates ? 'Loading the card template…'
-    : state.step === LAST_STEP ? (missingAll.length ? `Still needed: ${missingAll.map((k) => FIELD_LABEL[k]).join(', ')}.` : '')
+    : state.step === LAST_STEP ? (missingAll.length && !queueOnly ? `Still needed: ${missingAll.map((k) => FIELD_LABEL[k]).join(', ')}.` : '')
     : missingHere.length ? `Still needed on this step: ${missingHere.map((k) => FIELD_LABEL[k]).join(', ')}.`
     : `Step ${state.step + 1} of ${STEPS.length} · ready for the next step.`;
 
@@ -748,32 +751,45 @@ function buildReview() {
   review.data = data;
   review.front = renderSideCanvas(state.templates, 'front', data, state.rotateBack);
   review.back = renderSideCanvas(state.templates, 'back', data, state.rotateBack);
-  const jobSize = state.queue.length + 1;
-  review.fileName = jobSize > 1 && state.print.layout !== 'single'
-    ? `apg-ids-${jobSize}-${new Date().toISOString().slice(0, 10)}.pdf`
-    : pdfFileName(state.year, data.seq, nameParts());
-  review.title = jobSize > 1 && state.print.layout !== 'single'
-    ? `Alpha Premier IDs — ${jobSize} cards`
-    : `${employeeId(state.year, data.seq)} ${collapseSpaces(data.name)}`;
-  const parts = nameParts();
-  review.entry = {
-    id: employeeId(state.year, data.seq), year: state.year, seq: data.seq,
-    name: collapseSpaces(data.name),
-    last: collapseSpaces(parts.last), first: collapseSpaces(parts.first),
-    middle: collapseSpaces(parts.middle), suffix: collapseSpaces(parts.suffix),
-    title: collapseSpaces(data.title),
-    role1: role1(), role2: role2(),
-    issuedAt: new Date().toISOString(), replacement: !!duplicate(),
-  };
+  // cancelling "Add another ID" leaves the form blank and the queue full,
+  // so the card on screen is not always part of the job
+  const probs = problems();
+  const hasCurrent = Object.keys(probs).every((k) => !probs[k]);
+  if (hasCurrent) {
+    const parts = nameParts();
+    review.entry = {
+      id: employeeId(state.year, data.seq), year: state.year, seq: data.seq,
+      name: collapseSpaces(data.name),
+      last: collapseSpaces(parts.last), first: collapseSpaces(parts.first),
+      middle: collapseSpaces(parts.middle), suffix: collapseSpaces(parts.suffix),
+      title: collapseSpaces(data.title),
+      role1: role1(), role2: role2(),
+      issuedAt: new Date().toISOString(), replacement: !!duplicate(),
+    };
+  }
+  const cards = jobCards();                 // after review.entry: the current card carries it
+  const jobSize = Math.max(1, cards.length);
+  const only = jobSize === 1 ? cards[0] : null;
+  if (jobSize > 1 && state.print.layout !== 'single') {
+    review.fileName = `apg-ids-${jobSize}-${new Date().toISOString().slice(0, 10)}.pdf`;
+    review.title = `Alpha Premier IDs — ${jobSize} cards`;
+  } else if (only) {
+    review.fileName = pdfFileName(only.entry.year, only.entry.seq, only.entry);
+    review.title = `${only.id} ${only.label}`;
+  }
   renderPrint();
 
-  $('step-check-h').textContent = 'Is everything correct?';
-  $('review-sub').textContent = 'Check the details, then print. The sheet on the left is exactly what comes out.';
+  $('step-check-h').textContent = hasCurrent ? 'Is everything correct?' : 'Ready to print';
+  $('review-sub').textContent = hasCurrent
+    ? 'Check the details, then print. The sheet on the left is exactly what comes out.'
+    : `Printing the ${jobSize} card${jobSize === 1 ? '' : 's'} already in this job, listed under the sheet. Add another ID to put someone else on the same paper.`;
 
-  // a plain summary, each line editable in one click
+  // a plain summary of the card on screen, each line editable in one click
   const summary = $('summary');
   summary.innerHTML = '';
-  const rows = [
+  summary.hidden = !hasCurrent;
+  $('review-list').hidden = !hasCurrent;
+  const rows = !hasCurrent ? [] : [
     ['Name', collapseSpaces(data.name), 0],
     ['Job title', CONFIG.text.title.uppercase ? data.title.toLocaleUpperCase('en-US') : data.title, 1],
     ['Employee number', employeeId(state.year, data.seq), 2],
@@ -825,7 +841,7 @@ async function downloadPdf() {
       // every card in the print is issued, not just the one on screen
       const issued = (plan ? cards : [cards[cards.length - 1]]).filter(Boolean).map((c) => c.entry);
       for (const entry of issued) Register.record(entry);
-      state.dupLocal = review.entry;
+      state.dupLocal = issued[issued.length - 1] ?? review.entry;
       (async () => { for (const entry of issued) await Register.recordShared(entry); })();
       state.queue = [];                        // the job has been printed
       renderJob();
@@ -915,6 +931,8 @@ function jobCards() {
 
 /** Put the finished card in the queue and start a fresh one. */
 function addAnother() {
+  const p = problems();
+  if (Object.keys(p).some((k) => p[k])) { goStep(0); return; }   // nothing to bank yet
   const data = cardData();
   state.queue.push({
     id: employeeId(state.year, data.seq),
@@ -925,6 +943,25 @@ function addAnother() {
   });
   clearCard({ keepQueue: true });
   goStep(0);
+}
+
+/** Anything at all typed, picked or uploaded into the card on screen? */
+function startedCard() {
+  return NAME_PARTS.some((k) => state[k].trim()) || state.seq.trim()
+    || !!state.role1.pick || !!state.photo || hasInk(state.signature);
+}
+
+/**
+ * Give up on the card being filled in and go back to the print. The queue
+ * and the printing options are left exactly as they were, so this undoes
+ * "Add another ID" rather than the whole job.
+ */
+function cancelAdding() {
+  if (!state.queue.length) return;
+  if (startedCard() && !confirm('Discard the ID you have started? The cards already in this print are kept.')) return;
+  clearCard({ keepQueue: true });
+  goStep(LAST_STEP, { focus: false });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function removeFromQueue(i) {
@@ -1007,8 +1044,9 @@ function renderJob() {
   $('queue-strip').hidden = !(state.queue.length || (onCheck && cards.length));
   $('job-note').textContent = state.queue.length
     ? (onCheck ? 'All of these print on one sheet, and are issued when you download.'
-               : 'Waiting to print. Finish this card and they all go on the same sheet.')
+               : 'Waiting to print. Finish this card and they all go on the same sheet, or cancel to print just these.')
     : 'Add another ID to put several people on the same sheet.';
+  $('btn-cancel-add').hidden = !(state.queue.length && !onCheck);
 }
 
 let previewTimer = null;
@@ -1225,6 +1263,7 @@ async function runBatchUi() {
   }
 }
 $('btn-add-another').addEventListener('click', addAnother);
+$('btn-cancel-add').addEventListener('click', cancelAdding);
 $('prev-page').addEventListener('click', () => { state.print.page--; drawPrintPreview(); });
 $('next-page').addEventListener('click', () => { state.print.page++; drawPrintPreview(); });
 
