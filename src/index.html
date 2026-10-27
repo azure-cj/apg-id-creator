@@ -251,6 +251,13 @@
               </ul>
               <div class="print-layout">
                 <div class="block-head"><h2 id="print-h">Printing</h2></div>
+                <div class="field" id="field-layout">
+                  <span class="field-label">Layout</span>
+                  <div class="segmented layout-seg" role="tablist" aria-label="Print layout">
+                    <button type="button" id="lay-pairs" role="tab" class="seg">Side by side</button>
+                    <button type="button" id="lay-duplex" role="tab" class="seg">Both sides</button>
+                  </div>
+                </div>
                 <div class="print-opts" id="print-opts">
                   <label class="field">
                     <span class="field-label">Paper</span>
@@ -356,7 +363,7 @@
 
         <details class="block printer">
           <summary>Printer setting</summary>
-          <div class="print-opts">
+          <div class="print-opts" id="flip-opts">
             <label class="field" for="opt-flip">
               <span class="field-label">How your printer turns the paper over</span>
               <select id="opt-flip">
@@ -365,7 +372,7 @@
               </select>
             </label>
           </div>
-          <p class="msg">Set this once. It decides how the backs sheet is reversed, so each back lands behind the right front. If the backs come out behind the wrong people, change it and print again.</p>
+          <p class="msg" id="flip-msg">Set this once. It decides how the backs sheet is reversed, so each back lands behind the right front. If the backs come out behind the wrong people, change it and print again. It only applies to the <strong>Both sides</strong> layout.</p>
           <label class="toggle" for="opt-rotate">
             <input id="opt-rotate" type="checkbox" />
             <span>

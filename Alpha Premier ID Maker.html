@@ -278,6 +278,10 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 
 /* ---- print layout ---- */
 .print-layout { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+/* the tray's segmented control, restyled for a light panel */
+.layout-seg { display: flex; width: 100%; padding: 3px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.layout-seg .seg { flex: 1; min-height: 38px; padding: 6px 10px; color: var(--ink); white-space: nowrap; }
+.layout-seg .seg.on { background: var(--gold-strong); color: var(--on-gold); }
 .print-opts { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
 .print-opts select { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: 400 0.95rem var(--font-body); }
 .print-opts input { width: 90px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: 400 1rem var(--font-mono); }
@@ -611,6 +615,13 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
               </ul>
               <div class="print-layout">
                 <div class="block-head"><h2 id="print-h">Printing</h2></div>
+                <div class="field" id="field-layout">
+                  <span class="field-label">Layout</span>
+                  <div class="segmented layout-seg" role="tablist" aria-label="Print layout">
+                    <button type="button" id="lay-pairs" role="tab" class="seg">Side by side</button>
+                    <button type="button" id="lay-duplex" role="tab" class="seg">Both sides</button>
+                  </div>
+                </div>
                 <div class="print-opts" id="print-opts">
                   <label class="field">
                     <span class="field-label">Paper</span>
@@ -716,7 +727,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 
         <details class="block printer">
           <summary>Printer setting</summary>
-          <div class="print-opts">
+          <div class="print-opts" id="flip-opts">
             <label class="field" for="opt-flip">
               <span class="field-label">How your printer turns the paper over</span>
               <select id="opt-flip">
@@ -725,7 +736,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
               </select>
             </label>
           </div>
-          <p class="msg">Set this once. It decides how the backs sheet is reversed, so each back lands behind the right front. If the backs come out behind the wrong people, change it and print again.</p>
+          <p class="msg" id="flip-msg">Set this once. It decides how the backs sheet is reversed, so each back lands behind the right front. If the backs come out behind the wrong people, change it and print again. It only applies to the <strong>Both sides</strong> layout.</p>
           <label class="toggle" for="opt-rotate">
             <input id="opt-rotate" type="checkbox" />
             <span>
@@ -3054,7 +3065,7 @@ const ASSETS = {"front":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAn4AAAPsC
    ------------------------------------------------------------------ */
 
 const APP_NAME = 'Alpha Premier ID Maker';
-const APP_VERSION = '1.8.0';          // stamped into every PDF's metadata
+const APP_VERSION = '1.9.0';          // stamped into every PDF's metadata
 
 const CONFIG = {
   card: {
@@ -5210,6 +5221,7 @@ const CUSTOM_TITLE = '__custom__';          // the "Other…" option's value
 const TITLE_RE = /^[\p{L}\p{M}\d .,'’&()\/-]+$/u;
 const ROTATE_KEY = 'apg-id-rotate-back';
 const FLIP_KEY = 'apg-id-duplex-flip';
+const LAYOUT_KEY = 'apg-id-print-layout';
 const DRAFT_KEY = 'apg-id-draft';
 const FIELD_LABEL = {
   last: 'last name', first: 'first name', middle: 'middle name', suffix: 'suffix',
@@ -5259,7 +5271,7 @@ const state = {
   step: 0,
   // Cards always print front-and-back side by side, to be cut out and stuck
   // together. The batch panel still offers the other arrangements.
-  print: { layout: 'duplex', paper: CONFIG.sheet.defaultPaper, copies: null, page: 0 },
+  print: { layout: readLayout(), paper: CONFIG.sheet.defaultPaper, copies: null, page: 0 },
   queue: [],            // cards already finished, waiting to print with this one
   example: false,
   checking: false,
@@ -5303,6 +5315,8 @@ function readRotate() { try { return localStorage.getItem(ROTATE_KEY) === '1'; }
 function writeRotate(on) { try { localStorage.setItem(ROTATE_KEY, on ? '1' : '0'); } catch { /* private mode */ } }
 function readFlip() { try { return localStorage.getItem(FLIP_KEY) === 'short' ? 'short' : 'long'; } catch { return 'long'; } }
 function writeFlip(v) { try { localStorage.setItem(FLIP_KEY, v); } catch { /* private mode */ } }
+function readLayout() { try { return localStorage.getItem(LAYOUT_KEY) === 'duplex' ? 'duplex' : 'pairs'; } catch { return 'pairs'; } }
+function writeLayout(v) { try { localStorage.setItem(LAYOUT_KEY, v); } catch { /* private mode */ } }
 
 /* ---- derived data ------------------------------------------------ */
 
@@ -6210,6 +6224,20 @@ function buildPrintControls() {
   });
   $('copies-down').addEventListener('click', () => nudgeCopies(-1));
   $('copies-up').addEventListener('click', () => nudgeCopies(1));
+  for (const [id, mode] of [['lay-pairs', 'pairs'], ['lay-duplex', 'duplex']]) {
+    $(id).addEventListener('click', () => setLayout(mode));
+  }
+}
+
+/** Switch between one sheet of pairs and two sides of the paper. */
+function setLayout(mode) {
+  if (state.print.layout === mode) return;
+  state.print.layout = mode;
+  state.print.page = 0;
+  state.print.copies = null;          // the two layouts hold different numbers
+  writeLayout(mode);
+  renderPrint();
+  render();                           // the caption under the sheet changes too
 }
 
 /** Step the copies box, starting from whatever it is showing now. */
@@ -6296,7 +6324,7 @@ function drawPrintPreview() {
   const side = plan.mode !== 'duplex' ? ''
     : (state.print.page % 2 === 0 ? 'Fronts — ' : 'Backs, reversed to match — ');
   $('preview-img').alt = `Preview of ${side ? side.replace(/\s*—\s*$/, '') + ', ' : ''}page ${state.print.page + 1} of the ${state.print.paper} sheet`;
-  $('preview-caption').textContent = `${side}page ${state.print.page + 1} of ${pages.length} · ${state.print.paper}`;
+  $('preview-caption').textContent = `${side}${side ? 'page' : 'Page'} ${state.print.page + 1} of ${pages.length} · ${state.print.paper}`;
   $('prev-page').hidden = pages.length < 2;
   $('next-page').hidden = pages.length < 2;
   $('prev-page').disabled = state.print.page === 0;
@@ -6317,6 +6345,11 @@ function renderPrint() {
     const copies = printCopies(plan, cards);
     const total = cards * copies;
     $('f-paper').value = state.print.paper;
+    $('lay-pairs').classList.toggle('on', plan.mode === 'pairs');
+    $('lay-duplex').classList.toggle('on', plan.mode === 'duplex');
+    $('lay-pairs').setAttribute('aria-selected', plan.mode === 'pairs');
+    $('lay-duplex').setAttribute('aria-selected', plan.mode === 'duplex');
+    $('flip-opts').hidden = plan.mode !== 'duplex';
     $('f-copies').max = String(per * 20);
     if (document.activeElement !== $('f-copies')) $('f-copies').value = String(copies);
     $('copies-down').disabled = copies <= 1;

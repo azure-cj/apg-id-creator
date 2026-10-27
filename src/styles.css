@@ -268,6 +268,10 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 
 /* ---- print layout ---- */
 .print-layout { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+/* the tray's segmented control, restyled for a light panel */
+.layout-seg { display: flex; width: 100%; padding: 3px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.layout-seg .seg { flex: 1; min-height: 38px; padding: 6px 10px; color: var(--ink); white-space: nowrap; }
+.layout-seg .seg.on { background: var(--gold-strong); color: var(--on-gold); }
 .print-opts { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
 .print-opts select { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: 400 0.95rem var(--font-body); }
 .print-opts input { width: 90px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: 400 1rem var(--font-mono); }

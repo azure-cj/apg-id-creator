@@ -11,6 +11,7 @@ const CUSTOM_TITLE = '__custom__';          // the "Other…" option's value
 const TITLE_RE = /^[\p{L}\p{M}\d .,'’&()\/-]+$/u;
 const ROTATE_KEY = 'apg-id-rotate-back';
 const FLIP_KEY = 'apg-id-duplex-flip';
+const LAYOUT_KEY = 'apg-id-print-layout';
 const DRAFT_KEY = 'apg-id-draft';
 const FIELD_LABEL = {
   last: 'last name', first: 'first name', middle: 'middle name', suffix: 'suffix',
@@ -60,7 +61,7 @@ const state = {
   step: 0,
   // Cards always print front-and-back side by side, to be cut out and stuck
   // together. The batch panel still offers the other arrangements.
-  print: { layout: 'duplex', paper: CONFIG.sheet.defaultPaper, copies: null, page: 0 },
+  print: { layout: readLayout(), paper: CONFIG.sheet.defaultPaper, copies: null, page: 0 },
   queue: [],            // cards already finished, waiting to print with this one
   example: false,
   checking: false,
@@ -104,6 +105,8 @@ function readRotate() { try { return localStorage.getItem(ROTATE_KEY) === '1'; }
 function writeRotate(on) { try { localStorage.setItem(ROTATE_KEY, on ? '1' : '0'); } catch { /* private mode */ } }
 function readFlip() { try { return localStorage.getItem(FLIP_KEY) === 'short' ? 'short' : 'long'; } catch { return 'long'; } }
 function writeFlip(v) { try { localStorage.setItem(FLIP_KEY, v); } catch { /* private mode */ } }
+function readLayout() { try { return localStorage.getItem(LAYOUT_KEY) === 'duplex' ? 'duplex' : 'pairs'; } catch { return 'pairs'; } }
+function writeLayout(v) { try { localStorage.setItem(LAYOUT_KEY, v); } catch { /* private mode */ } }
 
 /* ---- derived data ------------------------------------------------ */
 
@@ -1011,6 +1014,20 @@ function buildPrintControls() {
   });
   $('copies-down').addEventListener('click', () => nudgeCopies(-1));
   $('copies-up').addEventListener('click', () => nudgeCopies(1));
+  for (const [id, mode] of [['lay-pairs', 'pairs'], ['lay-duplex', 'duplex']]) {
+    $(id).addEventListener('click', () => setLayout(mode));
+  }
+}
+
+/** Switch between one sheet of pairs and two sides of the paper. */
+function setLayout(mode) {
+  if (state.print.layout === mode) return;
+  state.print.layout = mode;
+  state.print.page = 0;
+  state.print.copies = null;          // the two layouts hold different numbers
+  writeLayout(mode);
+  renderPrint();
+  render();                           // the caption under the sheet changes too
 }
 
 /** Step the copies box, starting from whatever it is showing now. */
@@ -1097,7 +1114,7 @@ function drawPrintPreview() {
   const side = plan.mode !== 'duplex' ? ''
     : (state.print.page % 2 === 0 ? 'Fronts — ' : 'Backs, reversed to match — ');
   $('preview-img').alt = `Preview of ${side ? side.replace(/\s*—\s*$/, '') + ', ' : ''}page ${state.print.page + 1} of the ${state.print.paper} sheet`;
-  $('preview-caption').textContent = `${side}page ${state.print.page + 1} of ${pages.length} · ${state.print.paper}`;
+  $('preview-caption').textContent = `${side}${side ? 'page' : 'Page'} ${state.print.page + 1} of ${pages.length} · ${state.print.paper}`;
   $('prev-page').hidden = pages.length < 2;
   $('next-page').hidden = pages.length < 2;
   $('prev-page').disabled = state.print.page === 0;
@@ -1118,6 +1135,11 @@ function renderPrint() {
     const copies = printCopies(plan, cards);
     const total = cards * copies;
     $('f-paper').value = state.print.paper;
+    $('lay-pairs').classList.toggle('on', plan.mode === 'pairs');
+    $('lay-duplex').classList.toggle('on', plan.mode === 'duplex');
+    $('lay-pairs').setAttribute('aria-selected', plan.mode === 'pairs');
+    $('lay-duplex').setAttribute('aria-selected', plan.mode === 'duplex');
+    $('flip-opts').hidden = plan.mode !== 'duplex';
     $('f-copies').max = String(per * 20);
     if (document.activeElement !== $('f-copies')) $('f-copies').value = String(copies);
     $('copies-down').disabled = copies <= 1;

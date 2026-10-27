@@ -163,8 +163,8 @@ To put more people on the same sheet, click **+ Add another ID to this
 print**. The finished card is put aside, the preview goes back to showing
 the card being made, and the form returns to step 1 for the next person.
 Everyone already waiting stays listed under the preview, so you can always
-see who is in the print. Repeat for as many as the sheet holds (nine on
-A4). On the last step everyone is listed again, and **Download PDF** gives
+see who is in the print. Repeat for as many as the sheet holds (four on an
+A4 sheet side by side, nine printing both sides). On the last step everyone is listed again, and **Download PDF** gives
 you one sheet with all of them.
 
 Changed your mind? **Cancel — back to printing**, under that list, drops
@@ -188,14 +188,24 @@ sheet that will print**, with the crop marks and every card on it. It is
 redrawn whenever anything changes, and arrows appear when the job runs to
 more than one page. What you see is what comes out.
 
-Cards print on **two pages: all the fronts, then all the backs**. The backs
-page is laid out in reverse, so when the paper goes back through the
-printer each back lands behind the right front. Nine cards fit on an A4
-sheet this way. Two settings:
+Three settings:
 
+- **Layout** — how the two sides of the card are arranged on the paper.
+  - **Side by side** (the usual way): front and back next to each other on
+    one page. Print one side of the paper, cut both out, stick them back to
+    back. Four cards fit an A4 sheet. Nothing can misalign, because nothing
+    is printed on the reverse.
+  - **Both sides**: all the fronts on one page and all the backs on the
+    next, the backs laid out in reverse so each lands behind the right
+    front when the paper goes through again. Nine cards fit an A4 sheet —
+    more than twice as many — but it depends on your printer putting its
+    two sides in the same place, so test it before trusting a batch.
 - **Paper** — A4, Letter, Legal or A3.
 - **Copies of each card** — one each. Raise it if you want spares, but
   remember that spare ID cards for one person are a security problem.
+
+The layout is remembered on that computer, so an office that prefers one
+way sets it once.
 
 The grid is worked out from the paper and the card, trying both the card
 and the page sideways and keeping whichever fits the most. A3 holds the
@@ -207,16 +217,21 @@ Open the PDF and print it:
 
 * **100 % scale / actual size** — never "fit to page", which would make
   the cards the wrong size;
-* **both sides of the paper** — either the printer's own two-sided setting,
-  or print page 1, put the stack back in, and print page 2;
-* **print one sheet first and check the backs landed behind the right
-  people** before running a batch.
+* the card is 54 × 85.6 mm (CR80, the same size as a bank card), 300 DPI.
+
+With **Side by side** that is all: one page, printed on one side, cut along
+the marks, each pair stuck back to back.
+
+With **Both sides**, print on both sides of the paper — either the
+printer's own two-sided setting, or print page 1, put the stack back in,
+and print page 2 — and **print one sheet first to check the backs landed
+behind the right people** before running a batch.
 
 The app assumes the paper is turned **on the long edge**, which is what
 most printers do. If the backs come out behind the wrong people, open
 **Printer setting** at the bottom of the form and change *How your printer
-turns the paper over* to **short edge**, then print again. The browser
-remembers the choice on that computer.
+turns the paper over* to **short edge**, then print again. That setting
+appears only for this layout, and is remembered on that computer.
 
 If instead the right backs land on the right cards but upside down, tick
 **Turn the back 180°** in the same place. The browser remembers
@@ -547,10 +562,13 @@ over the stage on the last step only; `render()` hides it everywhere else,
 and also redraws the queue list, so navigating between steps never leaves a
 stale sheet or a stale "on screen" marker behind.
 
-The step-by-step flow always uses `duplex`. The side-by-side (`pairs`) and
-one-card-per-page arrangements still exist in `planSheet` and are offered
-by the batch panel, so a printer that cannot register its two sides well
-enough has somewhere to go.
+The step-by-step flow offers `pairs` and `duplex` on a segmented control
+and starts on `pairs`, which needs nothing of the printer. The choice is
+kept in `localStorage` under `apg-id-print-layout`. The one-card-per-page
+arrangement still exists in `planSheet` and is offered by the batch panel.
+
+`renderPrint()` hides the paper-turning setting when the layout is not
+`duplex`, since it has nothing to act on.
 
 ### 2.6d Batch (`src/batch.js`)
 

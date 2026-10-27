@@ -3,9 +3,9 @@
 Makes the 54 × 85.6 mm (CR80) employee ID card for Alpha Premier Group of Companies.
 Six short steps — name, job title, employee number, photo, signature, then a
 check — and out comes a 300 DPI print file: a sheet of cards with crop
-marks: one page of fronts, then the backs reversed so they land behind the
-right people when the paper goes through again. Nine cards fit an A4 sheet,
-and several people can go on one.
+marks, front and back side by side, ready to cut out and stick together —
+or, if you would rather print on both sides of the paper, a page of fronts
+and a page of backs laid out to meet. Several people can go on one sheet.
 
 **To use it:** double-click `Alpha Premier ID Maker.html`. It opens in your
 browser, works offline, and nothing leaves the computer — photos, names and
