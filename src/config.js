@@ -66,6 +66,17 @@ const CONFIG = {
     },
   },
 
+  // How the separate name fields are combined for the card.
+  //   cardFormat  placeholders {first} {middle} {last} {suffix};
+  //               runs of spaces collapse, so a missing part leaves no gap.
+  //               Surname-first would be '{last}, {first} {middle} {suffix}'.
+  //   middle      'initial' -> "V."   'full' -> "Villanueva"   'none'
+  name: {
+    cardFormat: '{first} {middle} {last} {suffix}',
+    middle: 'initial',
+    maxLengths: { last: 40, first: 40, middle: 40, suffix: 10 },
+  },
+
   employeeNo: {
     prefix: 'APG',
     digits: 3,                                  // 122 -> "122", 7 -> "007"
@@ -142,7 +153,10 @@ const CONFIG = {
 
 // Example data shown by the "Show an example" link.
 const EXAMPLE = {
-  name: 'Christopher Joseph V. Aureo',
+  last: 'Aureo',
+  first: 'Christopher Joseph',
+  middle: 'Villanueva',
+  suffix: '',
   title: 'IT Associate',
   seq: '122',
   signature: {
@@ -194,3 +208,34 @@ function employeeId(year, seq) {
 }
 
 const collapseSpaces = (s) => s.replace(/\s+/g, ' ').trim();
+
+/* ---- names ------------------------------------------------------- */
+
+// "Villanueva" -> "V."   (first letter of the first word, plus a period)
+function middleInitial(middle) {
+  const word = collapseSpaces(middle).split(' ')[0] ?? '';
+  return word ? `${word[0].toLocaleUpperCase('en-US')}.` : '';
+}
+
+/**
+ * The name as it is printed on the card, from its parts.
+ * parts: { last, first, middle, suffix } — any may be missing.
+ */
+function composeName(parts = {}) {
+  const middle = CONFIG.name.middle === 'none' ? ''
+    : CONFIG.name.middle === 'full' ? collapseSpaces(parts.middle || '')
+    : middleInitial(parts.middle || '');
+  const filled = CONFIG.name.cardFormat
+    .replace('{first}', collapseSpaces(parts.first || ''))
+    .replace('{middle}', middle)
+    .replace('{last}', collapseSpaces(parts.last || ''))
+    .replace('{suffix}', collapseSpaces(parts.suffix || ''));
+  // tidy up what the missing parts left behind: double spaces, a stray
+  // leading comma, a space before a comma
+  return collapseSpaces(filled).replace(/\s+,/g, ',').replace(/^,\s*/, '').replace(/,$/, '');
+}
+
+// For file names: letters only, accents flattened. "Dela Cruz-Santos" -> "DelaCruzSantos"
+function fileSafeName(s) {
+  return collapseSpaces(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z]/g, '');
+}

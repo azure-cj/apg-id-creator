@@ -113,6 +113,13 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .msg-warn { color: var(--gold); }
 .msg-ok { color: var(--muted); }
 
+.name-block { display: grid; gap: 10px; }
+.name-row { display: grid; grid-template-columns: 1fr 96px; gap: 10px; align-items: start; }
+.name-block .msg:empty { display: none; }
+.name-preview { margin: 0; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--gold) 10%, transparent); font-size: 0.9rem; }
+.name-preview .as-printed { font-weight: 600; }
+.name-preview.is-error { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+
 .number-row { display: flex; align-items: center; gap: 8px; }
 .number-prefix { color: var(--muted); font-family: var(--font-mono); font-size: 0.9rem; white-space: nowrap; }
 .number-row input { max-width: 120px; font-family: var(--font-mono); letter-spacing: 0.08em; }
@@ -298,10 +305,30 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
             <span class="example-tag" id="example-tag" hidden>Example details</span>
           </div>
 
-          <div class="field" id="field-name">
-            <label for="f-name">Full name</label>
-            <input id="f-name" type="text" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="80" aria-describedby="f-name-msg" />
-            <p id="f-name-msg" class="msg">Exactly as it should appear; capitals are kept as typed.</p>
+          <div class="name-block">
+            <div class="field" id="field-last">
+              <label for="f-last">Last name</label>
+              <input id="f-last" type="text" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="40" aria-describedby="f-last-msg" />
+              <p id="f-last-msg" class="msg"></p>
+            </div>
+            <div class="field" id="field-first">
+              <label for="f-first">First name</label>
+              <input id="f-first" type="text" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="40" aria-describedby="f-first-msg" />
+              <p id="f-first-msg" class="msg"></p>
+            </div>
+            <div class="name-row">
+              <div class="field" id="field-middle">
+                <label for="f-middle">Middle name</label>
+                <input id="f-middle" type="text" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="40" aria-describedby="f-middle-msg" />
+                <p id="f-middle-msg" class="msg"></p>
+              </div>
+              <div class="field" id="field-suffix">
+                <label for="f-suffix">Suffix</label>
+                <input id="f-suffix" type="text" autocomplete="off" spellcheck="false" maxlength="10" placeholder="Jr." aria-describedby="f-suffix-msg" />
+                <p id="f-suffix-msg" class="msg"></p>
+              </div>
+            </div>
+            <p class="name-preview" id="name-preview"></p>
           </div>
 
           <div class="field" id="field-title">
@@ -2898,6 +2925,17 @@ const CONFIG = {
     },
   },
 
+  // How the separate name fields are combined for the card.
+  //   cardFormat  placeholders {first} {middle} {last} {suffix};
+  //               runs of spaces collapse, so a missing part leaves no gap.
+  //               Surname-first would be '{last}, {first} {middle} {suffix}'.
+  //   middle      'initial' -> "V."   'full' -> "Villanueva"   'none'
+  name: {
+    cardFormat: '{first} {middle} {last} {suffix}',
+    middle: 'initial',
+    maxLengths: { last: 40, first: 40, middle: 40, suffix: 10 },
+  },
+
   employeeNo: {
     prefix: 'APG',
     digits: 3,                                  // 122 -> "122", 7 -> "007"
@@ -2974,7 +3012,10 @@ const CONFIG = {
 
 // Example data shown by the "Show an example" link.
 const EXAMPLE = {
-  name: 'Christopher Joseph V. Aureo',
+  last: 'Aureo',
+  first: 'Christopher Joseph',
+  middle: 'Villanueva',
+  suffix: '',
   title: 'IT Associate',
   seq: '122',
   signature: {
@@ -3026,6 +3067,37 @@ function employeeId(year, seq) {
 }
 
 const collapseSpaces = (s) => s.replace(/\s+/g, ' ').trim();
+
+/* ---- names ------------------------------------------------------- */
+
+// "Villanueva" -> "V."   (first letter of the first word, plus a period)
+function middleInitial(middle) {
+  const word = collapseSpaces(middle).split(' ')[0] ?? '';
+  return word ? `${word[0].toLocaleUpperCase('en-US')}.` : '';
+}
+
+/**
+ * The name as it is printed on the card, from its parts.
+ * parts: { last, first, middle, suffix } — any may be missing.
+ */
+function composeName(parts = {}) {
+  const middle = CONFIG.name.middle === 'none' ? ''
+    : CONFIG.name.middle === 'full' ? collapseSpaces(parts.middle || '')
+    : middleInitial(parts.middle || '');
+  const filled = CONFIG.name.cardFormat
+    .replace('{first}', collapseSpaces(parts.first || ''))
+    .replace('{middle}', middle)
+    .replace('{last}', collapseSpaces(parts.last || ''))
+    .replace('{suffix}', collapseSpaces(parts.suffix || ''));
+  // tidy up what the missing parts left behind: double spaces, a stray
+  // leading comma, a space before a comma
+  return collapseSpaces(filled).replace(/\s+,/g, ',').replace(/^,\s*/, '').replace(/,$/, '');
+}
+
+// For file names: letters only, accents flattened. "Dela Cruz-Santos" -> "DelaCruzSantos"
+function fileSafeName(s) {
+  return collapseSpaces(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z]/g, '');
+}
 
 </script>
   <script>
@@ -3157,8 +3229,11 @@ const Register = {
   /* ---- export ---- */
   csv() {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const rows = [['id', 'year', 'seq', 'name', 'title', 'issuedAt', 'replacement']];
-    for (const e of this.all()) rows.push([e.id, e.year, e.seq, e.name, e.title, e.issuedAt, e.replacement ? 'yes' : 'no']);
+    const rows = [['id', 'year', 'seq', 'last', 'first', 'middle', 'suffix', 'name', 'title', 'issuedAt', 'replacement']];
+    for (const e of this.all()) {
+      rows.push([e.id, e.year, e.seq, e.last ?? '', e.first ?? '', e.middle ?? '', e.suffix ?? '',
+                 e.name, e.title, e.issuedAt, e.replacement ? 'yes' : 'no']);
+    }
     return '﻿' + rows.map((r) => r.map(esc).join(',')).join('\r\n');
   },
 };
@@ -4327,7 +4402,8 @@ async function buildPdf(pages, title, opts = {}) {
 
 const NAME_SUFFIX = /^(jr|sr|ii|iii|iv|v)\.?$/i;
 
-// "Christopher Joseph V. Aureo" -> "Aureo"; "Juan dela Cruz Jr." -> "Cruz"
+// Guess the surname from a whole name, for CSV rows that have no `last`
+// column: "Christopher Joseph V. Aureo" -> "Aureo", "Juan dela Cruz Jr." -> "Cruz"
 function lastNameForFile(fullName) {
   const parts = collapseSpaces(fullName).split(' ').filter(Boolean);
   while (parts.length > 1 && NAME_SUFFIX.test(parts[parts.length - 1])) parts.pop();
@@ -4336,8 +4412,11 @@ function lastNameForFile(fullName) {
 }
 
 // "APG-2026-122_Aureo.pdf"
-function pdfFileName(year, seq, fullName) {
-  const last = lastNameForFile(fullName);
+//   `who` is { last, … } when the name was entered in separate fields, or a
+//   whole name string (a batch CSV that only has a `name` column), in which
+//   case the surname is guessed.
+function pdfFileName(year, seq, who) {
+  const last = typeof who === 'string' ? lastNameForFile(who) : fileSafeName(who?.last || '');
   return `${employeeId(year, seq)}${last ? `_${last}` : ''}.pdf`;
 }
 
@@ -4360,7 +4439,11 @@ function downloadBlob(fileName, blob) {
    nine cards with crop marks — plus a report of what was skipped.
 
    CSV columns (header row required, order free, extra columns ignored):
-     name, title, seq            required
+     last, first, title, seq     required
+     middle, suffix              optional parts of the name
+     name                        accepted instead of last/first for older
+                                 lists: printed as given, surname guessed
+                                 for the file name
      year                        optional, defaults to this year
      photo                       file name of the photo
      signature                   file name of a scanned signature (optional)
@@ -4401,8 +4484,11 @@ function csvToObjects(text) {
   const rows = parseCsv(text);
   if (!rows.length) return { error: 'This CSV is empty.' };
   const headers = rows[0].map((h) => h.trim().toLowerCase());
-  for (const need of ['name', 'title', 'seq']) {
+  for (const need of ['title', 'seq']) {
     if (!headers.includes(need)) return { error: `The CSV needs a “${need}” column. Found: ${headers.join(', ')}.` };
+  }
+  if (!headers.includes('name') && !(headers.includes('last') && headers.includes('first'))) {
+    return { error: `The CSV needs “last” and “first” columns (or a single “name” column). Found: ${headers.join(', ')}.` };
   }
   const out = rows.slice(1).map((r, i) => {
     const o = { _line: i + 2 };
@@ -4414,9 +4500,10 @@ function csvToObjects(text) {
   return { rows: out };
 }
 
-const CSV_TEMPLATE = 'name,title,seq,year,photo,signature,replacement\r\n'
-  + '"Christopher Joseph V. Aureo","IT Associate",122,2026,aureo.png,aureo-sign.jpg,\r\n'
-  + '"Ana Reyes","HR Associate",123,2026,reyes.png,,\r\n';
+const CSV_TEMPLATE = 'last,first,middle,suffix,title,seq,year,photo,signature,replacement\r\n'
+  + 'Aureo,"Christopher Joseph",Villanueva,,"IT Associate",122,2026,aureo.png,aureo-sign.jpg,\r\n'
+  + 'Reyes,Ana,Santos,,"HR Associate",123,2026,reyes.png,,\r\n'
+  + '"dela Cruz",Juan,Santos,Jr.,Driver,124,2026,cruz.png,,\r\n';
 
 /* ---- matching uploaded files ------------------------------------- */
 
@@ -4441,9 +4528,21 @@ function fileIndex(fileList) {
 
 async function prepareBatchRow(row, findPhoto, findSignature, seen) {
   const fail = (problem) => ({ ok: false, problem });
-  const name = collapseSpaces(row.name || '');
   const title = collapseSpaces(row.title || '');
-  if (!name) return fail('No name.');
+
+  // either separate parts, or a whole name from an older list
+  const parts = {
+    last: collapseSpaces(row.last || ''),
+    first: collapseSpaces(row.first || ''),
+    middle: collapseSpaces(row.middle || ''),
+    suffix: collapseSpaces(row.suffix || ''),
+  };
+  const whole = collapseSpaces(row.name || '');
+  const split = !!(parts.last || parts.first);
+  if (split && !parts.last) return fail('No last name.');
+  if (split && !parts.first) return fail('No first name.');
+  if (!split && !whole) return fail('No name.');
+  const name = split ? composeName(parts) : whole;
   if (!/^[\p{L}\p{M} .,'’-]+$/u.test(name)) return fail('The name has characters the card can’t print.');
   if (!title) return fail('No job title.');
 
@@ -4465,7 +4564,7 @@ async function prepareBatchRow(row, findPhoto, findSignature, seen) {
   if (!layout.name.fits) return fail('The name is too long for the card.');
   if (!layout.title.fits) return fail('The job title is too long for the card.');
 
-  const photoFile = findPhoto(row.photo || name);
+  const photoFile = findPhoto(row.photo || name);  // fall back to a file named after the person
   if (!photoFile) return fail(row.photo ? `No photo file named “${row.photo}”.` : 'No photo column and no file matching the name.');
   const photo = await processPhotoFile(photoFile);
   if ('error' in photo) return fail(`${photoFile.name}: ${photo.error}`);
@@ -4483,11 +4582,16 @@ async function prepareBatchRow(row, findPhoto, findSignature, seen) {
   seen.add(id);
   return {
     ok: true,
-    id, year, seq, name, title,
+    id, year, seq, name, title, parts: split ? parts : null,
     warning: photo.check.warning,
     noSignature: !signature,
     data: { name, title, year, seq, photo: { image: photo.image, placement: photo.check.placement }, signature },
-    entry: { id, year, seq, name, title, issuedAt: new Date().toISOString(), replacement: !!already },
+    entry: {
+      id, year, seq, name, title,
+      last: split ? parts.last : lastNameForFile(whole),
+      first: split ? parts.first : '', middle: split ? parts.middle : '', suffix: split ? parts.suffix : '',
+      issuedAt: new Date().toISOString(), replacement: !!already,
+    },
   };
 }
 
@@ -4509,7 +4613,8 @@ async function runBatch({ csvText, photos, signatures, templates, rotateBack, la
   for (const row of parsed.rows) {
     onProgress?.('check', results.length + 1, parsed.rows.length);
     const r = await prepareBatchRow(row, findPhoto, findSignature, seen);
-    results.push({ line: row._line, label: collapseSpaces(row.name || `line ${row._line}`), ...r });
+    const label = collapseSpaces(row.name || [row.last, row.first].filter(Boolean).join(', ')) || `line ${row._line}`;
+    results.push({ line: row._line, label, ...r });
   }
 
   const good = results.filter((r) => r.ok);
@@ -4558,10 +4663,19 @@ function withPageSize(thunk) {
 const $ = (id) => document.getElementById(id);
 const THIS_YEAR = new Date().getFullYear();
 const NAME_RE = /^[\p{L}\p{M} .,'’-]+$/u;
+const SUFFIX_RE = /^[\p{L}\p{M}. \d]+$/u;
+const NAME_PARTS = ['last', 'first', 'middle', 'suffix'];
 const ROTATE_KEY = 'apg-id-rotate-back';
 const DRAFT_KEY = 'apg-id-draft';
-const FIELD_LABEL = { name: 'name', title: 'job title', seq: 'employee number', photo: 'photo', signature: 'signature' };
-const FIELD_INPUT = { name: 'f-name', title: 'f-title', seq: 'f-seq', photo: 'f-photo', signature: 'f-signature' };
+const FIELD_LABEL = {
+  last: 'last name', first: 'first name', middle: 'middle name', suffix: 'suffix',
+  nameFit: 'a shorter name', title: 'job title', seq: 'employee number',
+  photo: 'photo', signature: 'signature',
+};
+const FIELD_INPUT = {
+  last: 'f-last', first: 'f-first', middle: 'f-middle', suffix: 'f-suffix',
+  nameFit: 'f-first', title: 'f-title', seq: 'f-seq', photo: 'f-photo', signature: 'f-signature',
+};
 
 const state = {
   templates: null,
@@ -4569,7 +4683,10 @@ const state = {
   side: 'front',
   rotateBack: readRotate(),
   year: THIS_YEAR,
-  name: '',
+  last: '',
+  first: '',
+  middle: '',
+  suffix: '',
   title: '',
   seq: '',
   photo: null,          // result of processPhotoFile when check.ok
@@ -4577,7 +4694,7 @@ const state = {
   adjust: { dx: 0, dy: 0, zoom: 1 },   // manual nudge on top of the automatic placement
   guides: false,        // maintainer overlay (Ctrl+Shift+G or #guides)
   signature: null,
-  touched: { name: false, title: false, seq: false, photo: false, signature: false },
+  touched: { last: false, first: false, middle: false, suffix: false, title: false, seq: false, photo: false, signature: false },
   example: false,
   checking: false,
   reissue: false,       // "Replacement card" ticked
@@ -4588,8 +4705,8 @@ const state = {
 /* ---- draft: survive an accidental reload (text only, this tab only) ---- */
 function saveDraft() {
   try {
-    const d = { name: state.name, title: state.title, seq: state.seq, year: state.year };
-    if (!d.name && !d.title && !d.seq) sessionStorage.removeItem(DRAFT_KEY);
+    const d = { ...nameParts(), title: state.title, seq: state.seq, year: state.year };
+    if (!d.last && !d.first && !d.title && !d.seq) sessionStorage.removeItem(DRAFT_KEY);
     else sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d));
   } catch { /* storage blocked */ }
 }
@@ -4597,10 +4714,11 @@ function clearDraft() { try { sessionStorage.removeItem(DRAFT_KEY); } catch { /*
 function restoreDraft() {
   try {
     const d = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null');
-    if (!d || (!d.name && !d.title && !d.seq)) return false;
-    state.name = d.name || ''; state.title = d.title || ''; state.seq = d.seq || '';
+    if (!d || (!d.last && !d.first && !d.title && !d.seq)) return false;
+    for (const k of NAME_PARTS) { state[k] = d[k] || ''; $(`f-${k}`).value = state[k]; }
+    state.title = d.title || ''; state.seq = d.seq || '';
     state.year = Number(d.year) || THIS_YEAR;
-    $('f-name').value = state.name; $('f-title').value = state.title; $('f-seq').value = state.seq;
+    $('f-title').value = state.title; $('f-seq').value = state.seq;
     refreshDuplicate();
     return true;
   } catch { return false; }
@@ -4613,9 +4731,12 @@ function writeRotate(on) { try { localStorage.setItem(ROTATE_KEY, on ? '1' : '0'
 
 function seqNumber() { return /^\d{1,4}$/.test(state.seq) && Number(state.seq) > 0 ? Number(state.seq) : null; }
 
+const nameParts = () => ({ last: state.last, first: state.first, middle: state.middle, suffix: state.suffix });
+const printedName = () => composeName(nameParts());
+
 function cardData() {
   return {
-    name: state.name,
+    name: printedName(),
     title: state.title,
     year: state.year,
     seq: seqNumber(),
@@ -4627,12 +4748,17 @@ function cardData() {
 function problems() {
   const data = cardData();
   const layout = state.templates ? layoutText(data) : null;
-  const name = collapseSpaces(state.name), title = collapseSpaces(state.title);
+  const title = collapseSpaces(state.title);
+  const badChars = 'Use letters, spaces, periods, hyphens and apostrophes only.';
+  const last = collapseSpaces(state.last), first = collapseSpaces(state.first);
+  const middle = collapseSpaces(state.middle), suffix = collapseSpaces(state.suffix);
   return {
-    name: !name ? 'Enter the full name as it should appear on the card.'
-        : !NAME_RE.test(name) ? 'Use letters, spaces, periods, commas, hyphens and apostrophes only.'
-        : layout && !layout.name.fits ? 'Too long for the card, even at the smallest size. Try a middle initial or a shorter form.'
-        : '',
+    last: !last ? 'Enter the last name.' : !NAME_RE.test(last) ? badChars : '',
+    first: !first ? 'Enter the first name.' : !NAME_RE.test(first) ? badChars : '',
+    middle: middle && !NAME_RE.test(middle) ? badChars : '',
+    suffix: suffix && !SUFFIX_RE.test(suffix) ? 'Use something like Jr., Sr., II or III.' : '',
+    nameFit: last && first && layout && !layout.name.fits
+      ? 'This name is too long for the card, even at the smallest size. Try a shorter first name.' : '',
     title: !title ? 'Enter the job title.'
          : layout && !layout.title.fits ? 'Too long for the card. Try a shorter form, such as “Sr. HR Business Partner”.'
          : '',
@@ -4680,7 +4806,7 @@ function drawPreview() {
   if (state.side === 'front') drawFront(ctx, state.templates, pxPerMm, cardData(), { showGuides: state.guides });
   else drawBack(ctx, state.templates, pxPerMm, state.rotateBack);
   previewCanvas.setAttribute('aria-label', state.side === 'front'
-    ? `Front of the ID card for ${state.name || 'a new hire'}` : 'Back of the ID card');
+    ? `Front of the ID card for ${printedName() || 'a new hire'}` : 'Back of the ID card');
 }
 
 function setMsg(fieldId, msgId, error, help) {
@@ -4712,8 +4838,25 @@ function render() {
   $('btn-example').hidden = state.example;
   $('example-tag').hidden = !state.example;
 
-  // text fields
-  setMsg('field-name', 'f-name-msg', shown('name'), 'Exactly as it should appear; capitals are kept as typed.');
+  // name fields
+  for (const k of NAME_PARTS) setMsg(`field-${k}`, `f-${k}-msg`, shown(k), '');
+  const preview = $('name-preview');
+  const fitError = state.touched.last && state.touched.first ? p.nameFit : '';
+  preview.classList.toggle('is-error', !!fitError);
+  if (fitError) {
+    preview.textContent = fitError;
+    preview.setAttribute('role', 'alert');
+  } else {
+    preview.removeAttribute('role');
+    const shownName = printedName();
+    preview.innerHTML = '';
+    preview.append('On the card: ');
+    const strong = document.createElement('span');
+    strong.className = 'as-printed';
+    strong.textContent = shownName || '—';
+    preview.append(strong);
+  }
+
   setMsg('field-title', 'f-title-msg', shown('title'), 'Shown in capitals on the card.');
   const dup = duplicate();
   const seqHelp = Register.shared
@@ -4814,7 +4957,11 @@ function renderRegister() {
 
 function touch(field) { state.touched[field] = true; }
 
-$('f-name').addEventListener('input', (e) => { state.example = false; touch('name'); state.name = e.target.value; saveDraft(); render(); });
+for (const k of NAME_PARTS) {
+  $(`f-${k}`).addEventListener('input', (e) => {
+    state.example = false; touch(k); state[k] = e.target.value; saveDraft(); render();
+  });
+}
 $('f-title').addEventListener('input', (e) => { state.example = false; touch('title'); state.title = e.target.value; saveDraft(); render(); });
 $('f-seq').addEventListener('input', (e) => {
   state.example = false; touch('seq');
@@ -4838,7 +4985,7 @@ $('opt-reissue').addEventListener('change', (e) => { state.reissue = e.target.ch
 $('btn-register-csv').addEventListener('click', () => {
   downloadBlob(`apg-id-register-${new Date().toISOString().slice(0, 10)}.csv`, new Blob([Register.csv()], { type: 'text/csv;charset=utf-8' }));
 });
-for (const k of ['name', 'title', 'seq']) $(`f-${k}`).addEventListener('blur', () => { touch(k); render(); });
+for (const k of [...NAME_PARTS, 'title', 'seq']) $(`f-${k}`).addEventListener('blur', () => { touch(k); render(); });
 
 $('side-front').addEventListener('click', () => { state.side = 'front'; render(); });
 $('side-back').addEventListener('click', () => { state.side = 'back'; render(); });
@@ -4957,14 +5104,15 @@ $('f-sig-image').addEventListener('change', async (e) => {
 // example
 $('btn-example').addEventListener('click', async () => {
   const photo = ASSETS.example ? await processPhotoUrl(ASSETS.example).catch(() => null) : null;
-  state.name = EXAMPLE.name; state.title = EXAMPLE.title; state.seq = EXAMPLE.seq; state.year = THIS_YEAR;
-  $('f-name').value = state.name; $('f-title').value = state.title; $('f-seq').value = state.seq;
+  for (const k of NAME_PARTS) { state[k] = EXAMPLE[k] ?? ''; $(`f-${k}`).value = state[k]; }
+  state.title = EXAMPLE.title; state.seq = EXAMPLE.seq; state.year = THIS_YEAR;
+  $('f-title').value = state.title; $('f-seq').value = state.seq;
   state.reissue = false; refreshDuplicate();
   state.photo = photo?.check.ok ? photo : null; state.photoError = '';
   state.adjust = { dx: 0, dy: 0, zoom: 1 };
   state.signature = EXAMPLE.signature;
   pad.setValue(EXAMPLE.signature);
-  state.touched = { name: false, title: false, seq: false, photo: false, signature: false };
+  state.touched = { last: false, first: false, middle: false, suffix: false, title: false, seq: false, photo: false, signature: false };
   state.example = true; state.side = 'front';
   render();
 });
@@ -4993,11 +5141,15 @@ function openReview() {
   review.data = data;
   review.front = renderSideCanvas(state.templates, 'front', data, state.rotateBack);
   review.back = renderSideCanvas(state.templates, 'back', data, state.rotateBack);
-  review.fileName = pdfFileName(state.year, data.seq, data.name);
+  review.fileName = pdfFileName(state.year, data.seq, nameParts());
   review.title = `${employeeId(state.year, data.seq)} ${collapseSpaces(data.name)}`;
+  const parts = nameParts();
   review.entry = {
     id: employeeId(state.year, data.seq), year: state.year, seq: data.seq,
-    name: collapseSpaces(data.name), title: collapseSpaces(data.title),
+    name: collapseSpaces(data.name),
+    last: collapseSpaces(parts.last), first: collapseSpaces(parts.first),
+    middle: collapseSpaces(parts.middle), suffix: collapseSpaces(parts.suffix),
+    title: collapseSpaces(data.title),
     issuedAt: new Date().toISOString(), replacement: !!duplicate(),
   };
 
@@ -5052,13 +5204,14 @@ async function downloadPdf() {
 }
 
 function newId() {
-  state.name = ''; state.title = ''; state.seq = '';
-  $('f-name').value = ''; $('f-title').value = ''; $('f-seq').value = '';
+  for (const k of NAME_PARTS) { state[k] = ''; $(`f-${k}`).value = ''; }
+  state.title = ''; state.seq = '';
+  $('f-title').value = ''; $('f-seq').value = '';
   state.photo = null; state.photoError = ''; state.signature = null;
   state.adjust = { dx: 0, dy: 0, zoom: 1 };
   state.year = THIS_YEAR; state.reissue = false; state.dupLocal = null; state.dupShared = null; dupToken++;
   pad.setValue(null);
-  state.touched = { name: false, title: false, seq: false, photo: false, signature: false };
+  state.touched = { last: false, first: false, middle: false, suffix: false, title: false, seq: false, photo: false, signature: false };
   state.example = false; state.side = 'front';
   clearDraft();
   $('restored-note').hidden = true;

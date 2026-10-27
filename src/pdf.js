@@ -127,7 +127,8 @@ async function buildPdf(pages, title, opts = {}) {
 
 const NAME_SUFFIX = /^(jr|sr|ii|iii|iv|v)\.?$/i;
 
-// "Christopher Joseph V. Aureo" -> "Aureo"; "Juan dela Cruz Jr." -> "Cruz"
+// Guess the surname from a whole name, for CSV rows that have no `last`
+// column: "Christopher Joseph V. Aureo" -> "Aureo", "Juan dela Cruz Jr." -> "Cruz"
 function lastNameForFile(fullName) {
   const parts = collapseSpaces(fullName).split(' ').filter(Boolean);
   while (parts.length > 1 && NAME_SUFFIX.test(parts[parts.length - 1])) parts.pop();
@@ -136,8 +137,11 @@ function lastNameForFile(fullName) {
 }
 
 // "APG-2026-122_Aureo.pdf"
-function pdfFileName(year, seq, fullName) {
-  const last = lastNameForFile(fullName);
+//   `who` is { last, … } when the name was entered in separate fields, or a
+//   whole name string (a batch CSV that only has a `name` column), in which
+//   case the surname is guessed.
+function pdfFileName(year, seq, who) {
+  const last = typeof who === 'string' ? lastNameForFile(who) : fileSafeName(who?.last || '');
   return `${employeeId(year, seq)}${last ? `_${last}` : ''}.pdf`;
 }
 

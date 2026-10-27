@@ -26,6 +26,7 @@ prepared) are in **PROCESS.md**.
 | `assets/fonts/` | Poppins 700 (name), Montserrat 800 (title), Arimo 400 (employee number) as latin + latin-ext WOFF2 subsets. |
 | `src/` | The readable source code. See "How the app is built" below. |
 | `build.mjs` | Rebuilds `Alpha Premier ID Maker.html` from `src/` + `assets/`. |
+| `serve.mjs` | `npm start` — serves the folder on `http://localhost:8000`. No dependencies. |
 | `test/golden.mjs` | Renders the example card at 300 DPI and compares it with `test/golden-front.png`, so a code or config change cannot silently move anything. |
 | `package.json` | `npm run build`, `npm test`, `npm run dev`. |
 
@@ -79,6 +80,7 @@ Common edits:
 | Want to… | Change |
 | --- | --- |
 | Move or resize the name / title / employee number | `CONFIG.text.*.box` (mm) and the `maxSizePt` / `minSizePt` / `maxLines` limits |
+| Print the name surname-first, or show the middle name in full | `CONFIG.name` — `cardFormat` and `middle` |
 | Change where the photo sits or how big the head is | `CONFIG.photo` — `headTop`, `headCenterX`, `headWidth`, `reachY`; manual-adjust limits `nudgeStepMm`, `zoomMin/Max` |
 | Change the QR link | `CONFIG.qr.content` |
 | New template artwork | Replace `assets/front-template.png` / `assets/back.png` (keep 638 × 1004 px). If the band or the photo window moved, re-trace `CONFIG.frontOutline.polygons` and `CONFIG.photoArea.polygon` |
@@ -88,16 +90,28 @@ Common edits:
 | Share the issued-ID register between computers | Nothing in the code: paste the web-app address into the app (Issued IDs → Shared register) — see `register/README.md` |
 | Reword the AI photo prompt | `PHOTO_PROMPT` in `config.js` and `photo-prompt.txt` |
 
-### Working on the source without rebuilding
+### Running it on this computer
 
-Browsers block fonts and canvas images loaded from `file://`, so serve the
-folder over HTTP while developing, then open `http://localhost:8000/src/`:
+Double-clicking `Alpha Premier ID Maker.html` is enough for normal use. To
+serve it over `http://localhost` instead — needed to work on the files in
+`src/`, and handy for testing:
 
 ```
-# from this folder, any one of:
-python -m http.server 8000
-npx serve .
+npm start                 http://localhost:8000/
+npm start -- --port 9000  if 8000 is taken
+npm start -- --lan        also reachable from other computers on the office
+                          network (Windows will ask to allow Node through
+                          the firewall — allow it for private networks)
 ```
+
+`/` serves the built single file; `/src/` serves the development page,
+which loads the stylesheet, scripts and assets separately so you can edit
+and just refresh. `serve.mjs` has no dependencies.
+
+Note that the browser keeps the issued-ID register per address, so cards
+issued from the double-clicked file and from `http://localhost` are kept in
+separate lists. The shared Google Sheet register (see `register/README.md`)
+is not affected.
 
 ## Requirements
 

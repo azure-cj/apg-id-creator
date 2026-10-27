@@ -50,10 +50,30 @@
             <span class="example-tag" id="example-tag" hidden>Example details</span>
           </div>
 
-          <div class="field" id="field-name">
-            <label for="f-name">Full name</label>
-            <input id="f-name" type="text" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="80" aria-describedby="f-name-msg" />
-            <p id="f-name-msg" class="msg">Exactly as it should appear; capitals are kept as typed.</p>
+          <div class="name-block">
+            <div class="field" id="field-last">
+              <label for="f-last">Last name</label>
+              <input id="f-last" type="text" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="40" aria-describedby="f-last-msg" />
+              <p id="f-last-msg" class="msg"></p>
+            </div>
+            <div class="field" id="field-first">
+              <label for="f-first">First name</label>
+              <input id="f-first" type="text" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="40" aria-describedby="f-first-msg" />
+              <p id="f-first-msg" class="msg"></p>
+            </div>
+            <div class="name-row">
+              <div class="field" id="field-middle">
+                <label for="f-middle">Middle name</label>
+                <input id="f-middle" type="text" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="40" aria-describedby="f-middle-msg" />
+                <p id="f-middle-msg" class="msg"></p>
+              </div>
+              <div class="field" id="field-suffix">
+                <label for="f-suffix">Suffix</label>
+                <input id="f-suffix" type="text" autocomplete="off" spellcheck="false" maxlength="10" placeholder="Jr." aria-describedby="f-suffix-msg" />
+                <p id="f-suffix-msg" class="msg"></p>
+              </div>
+            </div>
+            <p class="name-preview" id="name-preview"></p>
           </div>
 
           <div class="field" id="field-title">

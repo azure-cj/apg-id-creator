@@ -5,10 +5,19 @@
 const $ = (id) => document.getElementById(id);
 const THIS_YEAR = new Date().getFullYear();
 const NAME_RE = /^[\p{L}\p{M} .,'’-]+$/u;
+const SUFFIX_RE = /^[\p{L}\p{M}. \d]+$/u;
+const NAME_PARTS = ['last', 'first', 'middle', 'suffix'];
 const ROTATE_KEY = 'apg-id-rotate-back';
 const DRAFT_KEY = 'apg-id-draft';
-const FIELD_LABEL = { name: 'name', title: 'job title', seq: 'employee number', photo: 'photo', signature: 'signature' };
-const FIELD_INPUT = { name: 'f-name', title: 'f-title', seq: 'f-seq', photo: 'f-photo', signature: 'f-signature' };
+const FIELD_LABEL = {
+  last: 'last name', first: 'first name', middle: 'middle name', suffix: 'suffix',
+  nameFit: 'a shorter name', title: 'job title', seq: 'employee number',
+  photo: 'photo', signature: 'signature',
+};
+const FIELD_INPUT = {
+  last: 'f-last', first: 'f-first', middle: 'f-middle', suffix: 'f-suffix',
+  nameFit: 'f-first', title: 'f-title', seq: 'f-seq', photo: 'f-photo', signature: 'f-signature',
+};
 
 const state = {
   templates: null,
@@ -16,7 +25,10 @@ const state = {
   side: 'front',
   rotateBack: readRotate(),
   year: THIS_YEAR,
-  name: '',
+  last: '',
+  first: '',
+  middle: '',
+  suffix: '',
   title: '',
   seq: '',
   photo: null,          // result of processPhotoFile when check.ok
@@ -24,7 +36,7 @@ const state = {
   adjust: { dx: 0, dy: 0, zoom: 1 },   // manual nudge on top of the automatic placement
   guides: false,        // maintainer overlay (Ctrl+Shift+G or #guides)
   signature: null,
-  touched: { name: false, title: false, seq: false, photo: false, signature: false },
+  touched: { last: false, first: false, middle: false, suffix: false, title: false, seq: false, photo: false, signature: false },
   example: false,
   checking: false,
   reissue: false,       // "Replacement card" ticked
@@ -35,8 +47,8 @@ const state = {
 /* ---- draft: survive an accidental reload (text only, this tab only) ---- */
 function saveDraft() {
   try {
-    const d = { name: state.name, title: state.title, seq: state.seq, year: state.year };
-    if (!d.name && !d.title && !d.seq) sessionStorage.removeItem(DRAFT_KEY);
+    const d = { ...nameParts(), title: state.title, seq: state.seq, year: state.year };
+    if (!d.last && !d.first && !d.title && !d.seq) sessionStorage.removeItem(DRAFT_KEY);
     else sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d));
   } catch { /* storage blocked */ }
 }
@@ -44,10 +56,11 @@ function clearDraft() { try { sessionStorage.removeItem(DRAFT_KEY); } catch { /*
 function restoreDraft() {
   try {
     const d = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null');
-    if (!d || (!d.name && !d.title && !d.seq)) return false;
-    state.name = d.name || ''; state.title = d.title || ''; state.seq = d.seq || '';
+    if (!d || (!d.last && !d.first && !d.title && !d.seq)) return false;
+    for (const k of NAME_PARTS) { state[k] = d[k] || ''; $(`f-${k}`).value = state[k]; }
+    state.title = d.title || ''; state.seq = d.seq || '';
     state.year = Number(d.year) || THIS_YEAR;
-    $('f-name').value = state.name; $('f-title').value = state.title; $('f-seq').value = state.seq;
+    $('f-title').value = state.title; $('f-seq').value = state.seq;
     refreshDuplicate();
     return true;
   } catch { return false; }
@@ -60,9 +73,12 @@ function writeRotate(on) { try { localStorage.setItem(ROTATE_KEY, on ? '1' : '0'
 
 function seqNumber() { return /^\d{1,4}$/.test(state.seq) && Number(state.seq) > 0 ? Number(state.seq) : null; }
 
+const nameParts = () => ({ last: state.last, first: state.first, middle: state.middle, suffix: state.suffix });
+const printedName = () => composeName(nameParts());
+
 function cardData() {
   return {
-    name: state.name,
+    name: printedName(),
     title: state.title,
     year: state.year,
     seq: seqNumber(),
@@ -74,12 +90,17 @@ function cardData() {
 function problems() {
   const data = cardData();
   const layout = state.templates ? layoutText(data) : null;
-  const name = collapseSpaces(state.name), title = collapseSpaces(state.title);
+  const title = collapseSpaces(state.title);
+  const badChars = 'Use letters, spaces, periods, hyphens and apostrophes only.';
+  const last = collapseSpaces(state.last), first = collapseSpaces(state.first);
+  const middle = collapseSpaces(state.middle), suffix = collapseSpaces(state.suffix);
   return {
-    name: !name ? 'Enter the full name as it should appear on the card.'
-        : !NAME_RE.test(name) ? 'Use letters, spaces, periods, commas, hyphens and apostrophes only.'
-        : layout && !layout.name.fits ? 'Too long for the card, even at the smallest size. Try a middle initial or a shorter form.'
-        : '',
+    last: !last ? 'Enter the last name.' : !NAME_RE.test(last) ? badChars : '',
+    first: !first ? 'Enter the first name.' : !NAME_RE.test(first) ? badChars : '',
+    middle: middle && !NAME_RE.test(middle) ? badChars : '',
+    suffix: suffix && !SUFFIX_RE.test(suffix) ? 'Use something like Jr., Sr., II or III.' : '',
+    nameFit: last && first && layout && !layout.name.fits
+      ? 'This name is too long for the card, even at the smallest size. Try a shorter first name.' : '',
     title: !title ? 'Enter the job title.'
          : layout && !layout.title.fits ? 'Too long for the card. Try a shorter form, such as “Sr. HR Business Partner”.'
          : '',
@@ -127,7 +148,7 @@ function drawPreview() {
   if (state.side === 'front') drawFront(ctx, state.templates, pxPerMm, cardData(), { showGuides: state.guides });
   else drawBack(ctx, state.templates, pxPerMm, state.rotateBack);
   previewCanvas.setAttribute('aria-label', state.side === 'front'
-    ? `Front of the ID card for ${state.name || 'a new hire'}` : 'Back of the ID card');
+    ? `Front of the ID card for ${printedName() || 'a new hire'}` : 'Back of the ID card');
 }
 
 function setMsg(fieldId, msgId, error, help) {
@@ -159,8 +180,25 @@ function render() {
   $('btn-example').hidden = state.example;
   $('example-tag').hidden = !state.example;
 
-  // text fields
-  setMsg('field-name', 'f-name-msg', shown('name'), 'Exactly as it should appear; capitals are kept as typed.');
+  // name fields
+  for (const k of NAME_PARTS) setMsg(`field-${k}`, `f-${k}-msg`, shown(k), '');
+  const preview = $('name-preview');
+  const fitError = state.touched.last && state.touched.first ? p.nameFit : '';
+  preview.classList.toggle('is-error', !!fitError);
+  if (fitError) {
+    preview.textContent = fitError;
+    preview.setAttribute('role', 'alert');
+  } else {
+    preview.removeAttribute('role');
+    const shownName = printedName();
+    preview.innerHTML = '';
+    preview.append('On the card: ');
+    const strong = document.createElement('span');
+    strong.className = 'as-printed';
+    strong.textContent = shownName || '—';
+    preview.append(strong);
+  }
+
   setMsg('field-title', 'f-title-msg', shown('title'), 'Shown in capitals on the card.');
   const dup = duplicate();
   const seqHelp = Register.shared
@@ -261,7 +299,11 @@ function renderRegister() {
 
 function touch(field) { state.touched[field] = true; }
 
-$('f-name').addEventListener('input', (e) => { state.example = false; touch('name'); state.name = e.target.value; saveDraft(); render(); });
+for (const k of NAME_PARTS) {
+  $(`f-${k}`).addEventListener('input', (e) => {
+    state.example = false; touch(k); state[k] = e.target.value; saveDraft(); render();
+  });
+}
 $('f-title').addEventListener('input', (e) => { state.example = false; touch('title'); state.title = e.target.value; saveDraft(); render(); });
 $('f-seq').addEventListener('input', (e) => {
   state.example = false; touch('seq');
@@ -285,7 +327,7 @@ $('opt-reissue').addEventListener('change', (e) => { state.reissue = e.target.ch
 $('btn-register-csv').addEventListener('click', () => {
   downloadBlob(`apg-id-register-${new Date().toISOString().slice(0, 10)}.csv`, new Blob([Register.csv()], { type: 'text/csv;charset=utf-8' }));
 });
-for (const k of ['name', 'title', 'seq']) $(`f-${k}`).addEventListener('blur', () => { touch(k); render(); });
+for (const k of [...NAME_PARTS, 'title', 'seq']) $(`f-${k}`).addEventListener('blur', () => { touch(k); render(); });
 
 $('side-front').addEventListener('click', () => { state.side = 'front'; render(); });
 $('side-back').addEventListener('click', () => { state.side = 'back'; render(); });
@@ -404,14 +446,15 @@ $('f-sig-image').addEventListener('change', async (e) => {
 // example
 $('btn-example').addEventListener('click', async () => {
   const photo = ASSETS.example ? await processPhotoUrl(ASSETS.example).catch(() => null) : null;
-  state.name = EXAMPLE.name; state.title = EXAMPLE.title; state.seq = EXAMPLE.seq; state.year = THIS_YEAR;
-  $('f-name').value = state.name; $('f-title').value = state.title; $('f-seq').value = state.seq;
+  for (const k of NAME_PARTS) { state[k] = EXAMPLE[k] ?? ''; $(`f-${k}`).value = state[k]; }
+  state.title = EXAMPLE.title; state.seq = EXAMPLE.seq; state.year = THIS_YEAR;
+  $('f-title').value = state.title; $('f-seq').value = state.seq;
   state.reissue = false; refreshDuplicate();
   state.photo = photo?.check.ok ? photo : null; state.photoError = '';
   state.adjust = { dx: 0, dy: 0, zoom: 1 };
   state.signature = EXAMPLE.signature;
   pad.setValue(EXAMPLE.signature);
-  state.touched = { name: false, title: false, seq: false, photo: false, signature: false };
+  state.touched = { last: false, first: false, middle: false, suffix: false, title: false, seq: false, photo: false, signature: false };
   state.example = true; state.side = 'front';
   render();
 });
@@ -440,11 +483,15 @@ function openReview() {
   review.data = data;
   review.front = renderSideCanvas(state.templates, 'front', data, state.rotateBack);
   review.back = renderSideCanvas(state.templates, 'back', data, state.rotateBack);
-  review.fileName = pdfFileName(state.year, data.seq, data.name);
+  review.fileName = pdfFileName(state.year, data.seq, nameParts());
   review.title = `${employeeId(state.year, data.seq)} ${collapseSpaces(data.name)}`;
+  const parts = nameParts();
   review.entry = {
     id: employeeId(state.year, data.seq), year: state.year, seq: data.seq,
-    name: collapseSpaces(data.name), title: collapseSpaces(data.title),
+    name: collapseSpaces(data.name),
+    last: collapseSpaces(parts.last), first: collapseSpaces(parts.first),
+    middle: collapseSpaces(parts.middle), suffix: collapseSpaces(parts.suffix),
+    title: collapseSpaces(data.title),
     issuedAt: new Date().toISOString(), replacement: !!duplicate(),
   };
 
@@ -499,13 +546,14 @@ async function downloadPdf() {
 }
 
 function newId() {
-  state.name = ''; state.title = ''; state.seq = '';
-  $('f-name').value = ''; $('f-title').value = ''; $('f-seq').value = '';
+  for (const k of NAME_PARTS) { state[k] = ''; $(`f-${k}`).value = ''; }
+  state.title = ''; state.seq = '';
+  $('f-title').value = ''; $('f-seq').value = '';
   state.photo = null; state.photoError = ''; state.signature = null;
   state.adjust = { dx: 0, dy: 0, zoom: 1 };
   state.year = THIS_YEAR; state.reissue = false; state.dupLocal = null; state.dupShared = null; dupToken++;
   pad.setValue(null);
-  state.touched = { name: false, title: false, seq: false, photo: false, signature: false };
+  state.touched = { last: false, first: false, middle: false, suffix: false, title: false, seq: false, photo: false, signature: false };
   state.example = false; state.side = 'front';
   clearDraft();
   $('restored-note').hidden = true;

@@ -21,7 +21,15 @@ the card template to appear on the left.
 
 | Field | Rule |
 | --- | --- |
-| Full name | Exactly as it should read on the card. Capitals are kept as typed (`Christopher Joseph V. Aureo`, `Juan dela Cruz`). Letters, spaces, periods, commas, hyphens and apostrophes only. |
+| Last name | Required. The family name as it should read, including particles: `dela Cruz`, `Villanueva-Montelibano`. |
+| First name | Required. Given names, including a second given name: `Christopher Joseph`. |
+| Middle name | Optional. The mother's maiden surname. Only its **initial** is printed (`Villanueva` → `V.`), but the whole name is kept in the register. |
+| Suffix | Optional. `Jr.`, `Sr.`, `II`, `III`. Keep it out of the last name, or the file name and the register will be wrong. |
+
+Capitals are kept as typed. The line under the fields — **On the card** —
+shows exactly what will be printed, so check that rather than the boxes. If
+the whole name is too long for the card even at the smallest size, that line
+turns red and says so.
 | Job title | Printed in capitals. If the card says "too long", shorten it (`Sr. HR Business Partner`, not `Senior Human Resources Business Partner`). |
 | Employee number | Pick the year of issue (defaults to this year), then type the 1–4 digit sequence HR assigned. The card prints `APG - <year> - <number>` with the number padded to 3 digits (`7` → `007`). The app checks the number against the **register** of cards already issued — on this computer, and in the shared Google Sheet if one is set up (see `register/README.md`). A number that is already taken turns the field red and names the holder. If this really is a re-print of the same person's card (lost, damaged, name change), tick **Replacement card**; otherwise get the right number from HR. |
 
@@ -150,7 +158,9 @@ Open **Batch from CSV** under the form.
 
    | column | |
    | --- | --- |
-   | `name`, `title`, `seq` | required |
+   | `last`, `first`, `title`, `seq` | required |
+   | `middle`, `suffix` | optional parts of the name |
+   | `name` | an older list with one whole-name column still works: it is printed as given, and the surname is guessed for the file name |
    | `year` | optional, defaults to this year |
    | `photo` | the photo's file name, e.g. `aureo.png` |
    | `signature` | file name of a scanned signature (optional) |
@@ -330,6 +340,20 @@ word of the name, after dropping Jr./Sr./II/III/IV/V, taking the part after
 the last hyphen, and stripping accents and non-letters:
 `María Dela Cruz-Santos Jr.` → `APG-2026-007_Santos.pdf`.
 
+### 2.4a Names
+
+The four fields are combined by `composeName` (in `src/config.js`) through
+`CONFIG.name.cardFormat`, which defaults to
+`'{first} {middle} {last} {suffix}'` with `CONFIG.name.middle: 'initial'`.
+Runs of spaces collapse and a stray leading comma is removed, so a missing
+middle name or suffix leaves no gap. Switching to a surname-first card is a
+one-line change: set `cardFormat` to `'{last}, {first} {middle} {suffix}'`
+(and run `npm test -- --update`, since the printed name moves).
+
+The register keeps the parts as well as the printed name, so a list of
+staff can be sorted by surname, and the PDF file name takes the surname
+directly instead of guessing it from the end of a whole name.
+
 ### 2.5a Scanned signatures
 
 `signatureFromImage` (in `src/signature.js`) flattens the picture onto white,
@@ -391,7 +415,7 @@ The app makes no network requests (the optional Google Fonts stylesheet
 only affects the form's typography and fails silently offline). Photos,
 names and signatures exist only in the open tab and in the PDF you download.
 Closing the tab or clicking **Start a new ID** discards them. Stored on the computer: the "Turn the back 180°" preference, the in-progress
-text of the card being typed (that browser tab only, cleared when the card is
+text of the card being typed (all four name fields) (that browser tab only, cleared when the card is
 downloaded or "Start a new ID" is clicked — photos and signatures are never
 stored), and the register of issued IDs (number, name, title, date — no photos or
 signatures). With a shared register, those same fields are also written to

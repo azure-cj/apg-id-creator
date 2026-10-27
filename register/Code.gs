@@ -16,7 +16,8 @@
  *   GET  ?action=list                   -> [entry, ...]
  *   POST body {"action":"record","entry":{...}}  -> {"ok":true}
  *
- * entry = { id, year, seq, name, title, issuedAt, replacement }
+ * entry = { id, year, seq, name, title, issuedAt, replacement,
+ *            last, first, middle, suffix }
  */
 
 var SHEET_NAME = 'Register';
@@ -24,7 +25,10 @@ var SHEET_NAME = 'Register';
 // case: Extensions -> Apps Script from the Sheet). Set it to a spreadsheet
 // ID only if you deploy the script standalone.
 var SHEET_ID = '';
-var HEADERS = ['id', 'year', 'seq', 'name', 'title', 'issuedAt', 'replacement', 'recordedBy'];
+// New columns are appended at the end so a Register tab created by an
+// earlier version keeps working; sheet_() tops up the header row.
+var HEADERS = ['id', 'year', 'seq', 'name', 'title', 'issuedAt', 'replacement', 'recordedBy',
+               'last', 'first', 'middle', 'suffix'];
 
 function sheet_() {
   var ss = SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
@@ -33,6 +37,10 @@ function sheet_() {
     sh = ss.insertSheet(SHEET_NAME);
     sh.appendRow(HEADERS);
     sh.setFrozenRows(1);
+    return sh;
+  }
+  if (sh.getLastColumn() < HEADERS.length) {          // sheet from an older version
+    sh.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
   }
   return sh;
 }
@@ -49,6 +57,8 @@ function rows_() {
       issuedAt: r[5] instanceof Date ? r[5].toISOString() : String(r[5]),
       replacement: r[6] === true || String(r[6]).toLowerCase() === 'yes' || String(r[6]) === 'true',
       recordedBy: String(r[7] || ''),
+      last: String(r[8] || ''), first: String(r[9] || ''),
+      middle: String(r[10] || ''), suffix: String(r[11] || ''),
       _row: i + 1,
     });
   }
@@ -85,7 +95,9 @@ function doPost(e) {
     var en = body.entry;
     var sh = sheet_();
     var existing = rows_().filter(function (r) { return r.id === en.id; })[0];
-    var line = [en.id, en.year, en.seq, en.name, en.title, en.issuedAt, en.replacement ? 'yes' : 'no', Session.getActiveUser().getEmail() || ''];
+    var line = [en.id, en.year, en.seq, en.name, en.title, en.issuedAt, en.replacement ? 'yes' : 'no',
+                Session.getActiveUser().getEmail() || '',
+                en.last || '', en.first || '', en.middle || '', en.suffix || ''];
     if (existing) sh.getRange(existing._row, 1, 1, line.length).setValues([line]);
     else sh.appendRow(line);
     return json_({ ok: true });

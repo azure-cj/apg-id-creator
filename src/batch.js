@@ -7,7 +7,11 @@
    nine cards with crop marks — plus a report of what was skipped.
 
    CSV columns (header row required, order free, extra columns ignored):
-     name, title, seq            required
+     last, first, title, seq     required
+     middle, suffix              optional parts of the name
+     name                        accepted instead of last/first for older
+                                 lists: printed as given, surname guessed
+                                 for the file name
      year                        optional, defaults to this year
      photo                       file name of the photo
      signature                   file name of a scanned signature (optional)
@@ -48,8 +52,11 @@ function csvToObjects(text) {
   const rows = parseCsv(text);
   if (!rows.length) return { error: 'This CSV is empty.' };
   const headers = rows[0].map((h) => h.trim().toLowerCase());
-  for (const need of ['name', 'title', 'seq']) {
+  for (const need of ['title', 'seq']) {
     if (!headers.includes(need)) return { error: `The CSV needs a “${need}” column. Found: ${headers.join(', ')}.` };
+  }
+  if (!headers.includes('name') && !(headers.includes('last') && headers.includes('first'))) {
+    return { error: `The CSV needs “last” and “first” columns (or a single “name” column). Found: ${headers.join(', ')}.` };
   }
   const out = rows.slice(1).map((r, i) => {
     const o = { _line: i + 2 };
@@ -61,9 +68,10 @@ function csvToObjects(text) {
   return { rows: out };
 }
 
-const CSV_TEMPLATE = 'name,title,seq,year,photo,signature,replacement\r\n'
-  + '"Christopher Joseph V. Aureo","IT Associate",122,2026,aureo.png,aureo-sign.jpg,\r\n'
-  + '"Ana Reyes","HR Associate",123,2026,reyes.png,,\r\n';
+const CSV_TEMPLATE = 'last,first,middle,suffix,title,seq,year,photo,signature,replacement\r\n'
+  + 'Aureo,"Christopher Joseph",Villanueva,,"IT Associate",122,2026,aureo.png,aureo-sign.jpg,\r\n'
+  + 'Reyes,Ana,Santos,,"HR Associate",123,2026,reyes.png,,\r\n'
+  + '"dela Cruz",Juan,Santos,Jr.,Driver,124,2026,cruz.png,,\r\n';
 
 /* ---- matching uploaded files ------------------------------------- */
 
@@ -88,9 +96,21 @@ function fileIndex(fileList) {
 
 async function prepareBatchRow(row, findPhoto, findSignature, seen) {
   const fail = (problem) => ({ ok: false, problem });
-  const name = collapseSpaces(row.name || '');
   const title = collapseSpaces(row.title || '');
-  if (!name) return fail('No name.');
+
+  // either separate parts, or a whole name from an older list
+  const parts = {
+    last: collapseSpaces(row.last || ''),
+    first: collapseSpaces(row.first || ''),
+    middle: collapseSpaces(row.middle || ''),
+    suffix: collapseSpaces(row.suffix || ''),
+  };
+  const whole = collapseSpaces(row.name || '');
+  const split = !!(parts.last || parts.first);
+  if (split && !parts.last) return fail('No last name.');
+  if (split && !parts.first) return fail('No first name.');
+  if (!split && !whole) return fail('No name.');
+  const name = split ? composeName(parts) : whole;
   if (!/^[\p{L}\p{M} .,'’-]+$/u.test(name)) return fail('The name has characters the card can’t print.');
   if (!title) return fail('No job title.');
 
@@ -112,7 +132,7 @@ async function prepareBatchRow(row, findPhoto, findSignature, seen) {
   if (!layout.name.fits) return fail('The name is too long for the card.');
   if (!layout.title.fits) return fail('The job title is too long for the card.');
 
-  const photoFile = findPhoto(row.photo || name);
+  const photoFile = findPhoto(row.photo || name);  // fall back to a file named after the person
   if (!photoFile) return fail(row.photo ? `No photo file named “${row.photo}”.` : 'No photo column and no file matching the name.');
   const photo = await processPhotoFile(photoFile);
   if ('error' in photo) return fail(`${photoFile.name}: ${photo.error}`);
@@ -130,11 +150,16 @@ async function prepareBatchRow(row, findPhoto, findSignature, seen) {
   seen.add(id);
   return {
     ok: true,
-    id, year, seq, name, title,
+    id, year, seq, name, title, parts: split ? parts : null,
     warning: photo.check.warning,
     noSignature: !signature,
     data: { name, title, year, seq, photo: { image: photo.image, placement: photo.check.placement }, signature },
-    entry: { id, year, seq, name, title, issuedAt: new Date().toISOString(), replacement: !!already },
+    entry: {
+      id, year, seq, name, title,
+      last: split ? parts.last : lastNameForFile(whole),
+      first: split ? parts.first : '', middle: split ? parts.middle : '', suffix: split ? parts.suffix : '',
+      issuedAt: new Date().toISOString(), replacement: !!already,
+    },
   };
 }
 
@@ -156,7 +181,8 @@ async function runBatch({ csvText, photos, signatures, templates, rotateBack, la
   for (const row of parsed.rows) {
     onProgress?.('check', results.length + 1, parsed.rows.length);
     const r = await prepareBatchRow(row, findPhoto, findSignature, seen);
-    results.push({ line: row._line, label: collapseSpaces(row.name || `line ${row._line}`), ...r });
+    const label = collapseSpaces(row.name || [row.last, row.first].filter(Boolean).join(', ')) || `line ${row._line}`;
+    results.push({ line: row._line, label, ...r });
   }
 
   const good = results.filter((r) => r.ok);
