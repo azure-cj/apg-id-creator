@@ -43,6 +43,15 @@ meets *"Windows protected your PC"* and has to click **More info → Run
 anyway**. Warn them, or they will assume it is broken. A signing
 certificate removes it and costs roughly $200–400 a year.
 
+> **Inno Setup licensing.** The compiler prints "Non-commercial use only".
+> Its author does not strictly require a licence, but asks that for-profit
+> organisations buy one, and says so including "organizations that only
+> build installers for in-house use" — which is what this is. Not a
+> blocker, but a decision for the company rather than one to drift into.
+> See <https://jrsoftware.org/isorder.php>. The zip route below uses
+> nothing but Node and Windows' own PowerShell, and raises no such
+> question.
+
 **A zip.** `desktop\dist\Alpha Premier ID Maker - install.zip` from
 `desktop\pack.mjs`. They extract it and run `Setup.cmd`. No SmartScreen
 warning at all, because there is no exe — but "extract first" is a step
