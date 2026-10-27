@@ -23,6 +23,7 @@ prepared) are in **PROCESS.md**.
 | `BACKLOG.md` | Ideas considered and not built yet, and why. |
 | `PHOTO-SPEC.md` | What the photo pipeline actually does, measured — including its known limits. |
 | `photo-prompt.txt` | The prompt to paste into Gemini / ChatGPT to turn any photo into a green-screen portrait. (The app also shows it under the Photo field.) |
+| `desktop/` | Giving HR the app to install: a per-user installer that needs no admin rights and no signing, and a WebView2 shell for when a real `.exe` is wanted. See `desktop/README.md`. |
 | `register/` | Optional shared register: a Google Apps Script (`Code.gs`) and set-up notes, so every HR computer checks duplicates against one Google Sheet. |
 | `assets/front-template.png` | Front of the card, 638 × 1004 px = 54 × 85 mm at 300 DPI. |
 | `assets/back.png` | Back of the card (terms, contacts, CEO signature). Same size. |

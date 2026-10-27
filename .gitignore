@@ -2,3 +2,6 @@ node_modules/
 test/diff-front.png
 .DS_Store
 Thumbs.db
+desktop/dist/
+desktop/shell/bin/
+desktop/shell/obj/
