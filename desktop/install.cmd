@@ -20,26 +20,47 @@ echo   %APP_NAME%  %APP_VERSION%
 echo   ------------------------------------------------
 echo.
 
-rem --- Edge draws the card, so it has to be here ---
-set "APP_EDGE="
-if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" set "APP_EDGE=%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
-if not defined APP_EDGE if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" set "APP_EDGE=%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
-if not defined APP_EDGE (
-  echo   Microsoft Edge was not found, and the app needs it to draw
-  echo   the ID card. Install Edge from https://www.microsoft.com/edge
-  echo   and run this again.
+rem --- the files have to be side by side: running this straight out of
+rem     a zip extracts the .cmd on its own to a temp folder ---
+if not exist "%SRC%Alpha Premier ID Maker.html" (
+  echo   PROBLEM: "Alpha Premier ID Maker.html" is not next to this
+  echo   installer.
+  echo.
+  echo   It is looking in:
+  echo     %SRC%
+  echo.
+  echo   If you double-clicked install.cmd inside the zip, Windows
+  echo   only unpacked that one file. Right-click the zip, choose
+  echo   "Extract All", then run install.cmd from the folder that
+  echo   comes out.
   echo.
   pause
   exit /b 1
 )
 
-if not exist "%SRC%Alpha Premier ID Maker.html" (
-  echo   "Alpha Premier ID Maker.html" is missing from this folder.
-  echo   Keep all the files together and run install.cmd again.
+rem --- Edge draws the card, so it has to be here. Look where it
+rem     normally lives, then ask Windows where it registered it. ---
+set "APP_EDGE="
+if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" set "APP_EDGE=%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
+if not defined APP_EDGE if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" set "APP_EDGE=%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
+if not defined APP_EDGE if exist "%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe" set "APP_EDGE=%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe"
+if not defined APP_EDGE for /f "tokens=2,*" %%a in ('reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe" /ve 2^>nul ^| find "REG_SZ"') do set "APP_EDGE=%%b"
+if not defined APP_EDGE for /f "tokens=2,*" %%a in ('reg query "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe" /ve 2^>nul ^| find "REG_SZ"') do set "APP_EDGE=%%b"
+if defined APP_EDGE if not exist "%APP_EDGE%" set "APP_EDGE="
+
+if not defined APP_EDGE (
+  echo   PROBLEM: Microsoft Edge was not found, and the app needs it
+  echo   to draw the ID card.
+  echo.
+  echo   Looked in Program Files, Program Files ^(x86^), AppData and
+  echo   the registry. If Edge is installed somewhere unusual, open
+  echo   it, go to edge://version, and send the "Executable path"
+  echo   line.
   echo.
   pause
   exit /b 1
 )
+echo   Using Edge at: %APP_EDGE%
 
 if exist "%APP_TARGET%\index.html" (
   echo   Updating the copy already installed here.
