@@ -2,7 +2,12 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- the SDK on the laptop that builds this. A framework-dependent app
+         does not roll forward across a major version on its own, so
+         targeting 8 and running on 10 fails at startup with "you must
+         install .NET 8". Change this to match the SDK on the machine
+         that builds it, as reported by the dotnet version command. -->
+    <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -19,7 +24,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2792.45" />
+    <!-- floating on purpose: an exact version that happens not to exist
+         fails the restore outright, and any 1.0.x has the API used here -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.*" />
   </ItemGroup>
 
   <!-- the whole app is one file; it ships beside the exe, under web/ so
