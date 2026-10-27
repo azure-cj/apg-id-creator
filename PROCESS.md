@@ -144,14 +144,16 @@ issued; **Download register (CSV)** exports it for HR's records.
 
 ### 7. Several people on one sheet
 
-Under **Cards in this print** the last step lists everyone going on this
-print — at first just the card on screen.
+**In this print**, under the preview, lists everyone going on this sheet —
+at first just the card on screen.
 
 To put more people on the same sheet, click **+ Add another ID to this
-print**. The finished card is put aside and the form returns to step 1 for
-the next person. Repeat for as many as the sheet holds (four on A4). When
-you reach the last step again, everyone is listed, and **Download PDF**
-gives you one sheet with all of them.
+print**. The finished card is put aside, the preview goes back to showing
+the card being made, and the form returns to step 1 for the next person.
+Everyone already waiting stays listed under the preview, so you can always
+see who is in the print. Repeat for as many as the sheet holds (four on
+A4). On the last step everyone is listed again, and **Download PDF** gives
+you one sheet with all of them.
 
 - A card waiting in the print is **not issued yet**. Only when you download
   does every card in the list go into the register.
@@ -161,28 +163,24 @@ gives you one sheet with all of them.
 - The list is lost if the page is reloaded, because no photo is ever stored.
   Download before closing the tab.
 
-### 8. Choose how to print it
+### 8. Printing
 
-Still on the last step, under **How to print it**, pick one:
+On the last step the big preview stops showing the card and **shows the
+sheet that will print**, with the crop marks and every card on it. It is
+redrawn whenever anything changes, and arrows appear when the job runs to
+more than one page. What you see is what comes out.
 
-| Choice | What you get | Use it when |
-| --- | --- | --- |
-| **One card per page** | Two pages, each exactly 54 × 85.6 mm | You have a card printer that takes CR80 blanks |
-| **Front & back side by side** | Sheets with each card's front and back next to each other, with crop marks | You print on paper, cut them out and stick them back to back in a laminating pouch — **4 per A4** |
-| **Separate sheets, front and back** | One sheet of fronts, then one of backs with the columns mirrored | You have a duplex printer — **9 per A4** |
+Cards always print **front and back side by side**, to be cut out and stuck
+together — the way the office already does it. Two settings:
 
-For the two sheet choices you also pick the **paper** (A4, Letter, Legal,
-A3) and how many **copies** of each card to print. One card on its own
-fills the sheet — four identical cards on A4 — while two or three people
-get one each. Either way you can set the number yourself.
+- **Paper** — A4, Letter, Legal or A3.
+- **Copies of each card** — one person on their own fills the sheet (four
+  identical cards on A4); two or more people get one each. Change it if you
+  want something else.
 
-Under the controls is a **preview of the actual sheet**, redrawn whenever
-you change anything, with arrows to look through the pages. What you see is
-what prints.
-
-The app works out the grid from the paper and card size, trying the card
-and the page both ways round and keeping whichever fits the most — A3 takes
-21 cards.
+The grid is worked out from the paper and the card, trying both the card
+and the page sideways and keeping whichever fits the most. A3 holds the
+most.
 
 ### 9. Print
 
@@ -508,7 +506,13 @@ The queue is in memory only — it holds photographs, and the app stores none.
 
 `drawPrintPreview()` builds the real sheet through the same `sheetPages()`
 the PDF uses, but at 96 DPI instead of 300, debounced by 120 ms. The page
-bitmap is released as soon as it has been turned into a data URL.
+bitmap is released as soon as it has been turned into a data URL. It takes
+over the stage on the last step only; `render()` hides it everywhere else,
+and also redraws the queue list, so navigating between steps never leaves a
+stale sheet or a stale "on screen" marker behind.
+
+The single-card and duplex arrangements still exist in `planSheet` and are
+offered by the batch panel, but the step-by-step flow always uses `pairs`.
 
 ### 2.6d Batch (`src/batch.js`)
 

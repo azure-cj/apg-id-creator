@@ -38,7 +38,26 @@
           <canvas class="card-canvas" id="card-canvas" role="img" aria-label="Front of the ID card"></canvas>
         </div>
         <div class="card-box card-loading" id="card-loading">Loading the card template…</div>
+
+        <figure class="sheet-box" id="sheet-box" hidden>
+          <img id="preview-img" alt="Preview of the sheet that will print" />
+          <figcaption>
+            <button type="button" id="prev-page" class="ghost" hidden>‹</button>
+            <span id="preview-caption"></span>
+            <button type="button" id="next-page" class="ghost" hidden>›</button>
+          </figcaption>
+        </figure>
+
         <p class="caption" id="caption">Updates as you type. The print file is drawn the same way at 300 DPI.</p>
+
+        <div class="queue-strip" id="queue-strip" hidden>
+          <div class="block-head">
+            <h2 id="job-h">In this print</h2>
+            <span class="job-count" id="job-count"></span>
+          </div>
+          <ol class="job-list" id="job-list" aria-labelledby="job-h"></ol>
+          <p class="msg" id="job-note"></p>
+        </div>
       </section>
 
       <!-- ---------------- form ---------------- -->
@@ -221,11 +240,6 @@
 
             <dl class="summary" id="summary"></dl>
 
-            <div class="sides">
-              <figure><img id="review-front" alt="Front of the card" /><figcaption>Front</figcaption></figure>
-              <figure><img id="review-back" alt="Back of the card" /><figcaption id="review-back-cap">Back</figcaption></figure>
-            </div>
-
             <div id="review-stage">
               <p class="msg msg-warn" id="review-warning" hidden></p>
               <ul class="review-list">
@@ -234,21 +248,9 @@
                 <li>The photo looks like the person and isn’t blurry</li>
                 <li>The signature is visible below the title</li>
               </ul>
-              <div class="print-job">
-                <div class="block-head">
-                  <h2 id="job-h">Cards in this print</h2>
-                  <span class="job-count" id="job-count"></span>
-                </div>
-                <ol class="job-list" id="job-list" aria-labelledby="job-h"></ol>
-                <button type="button" id="btn-add-another" class="ghost">+ Add another ID to this print</button>
-                <p class="msg" id="job-note"></p>
-              </div>
-
               <div class="print-layout">
-                <div class="block-head"><h2 id="print-h">How to print it</h2></div>
-                <div class="chips" id="layout-chips" role="radiogroup" aria-labelledby="print-h"></div>
-
-                <div class="print-opts" id="print-opts" hidden>
+                <div class="block-head"><h2 id="print-h">Printing</h2></div>
+                <div class="print-opts" id="print-opts">
                   <label class="field">
                     <span class="field-label">Paper</span>
                     <select id="f-paper"></select>
@@ -259,15 +261,7 @@
                   </label>
                 </div>
                 <p class="msg" id="print-note"></p>
-
-                <figure class="print-preview" id="print-preview" hidden>
-                  <img id="preview-img" alt="Preview of the printed sheet" />
-                  <figcaption>
-                    <button type="button" id="prev-page" class="ghost" hidden>‹</button>
-                    <span id="preview-caption"></span>
-                    <button type="button" id="next-page" class="ghost" hidden>›</button>
-                  </figcaption>
-                </figure>
+                <button type="button" id="btn-add-another" class="ghost">+ Add another ID to this print</button>
               </div>
 
               <p class="msg msg-error" id="review-error" role="alert" hidden></p>

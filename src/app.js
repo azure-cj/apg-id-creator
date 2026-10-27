@@ -56,6 +56,8 @@ const state = {
   signature: null,
   touched: { last: false, first: false, middle: false, suffix: false, title: false, title2: false, seq: false, photo: false, signature: false },
   step: 0,
+  // Cards always print front-and-back side by side, to be cut out and stuck
+  // together. The batch panel still offers the other arrangements.
   print: { layout: 'pairs', paper: CONFIG.sheet.defaultPaper, copies: null, page: 0 },
   queue: [],            // cards already finished, waiting to print with this one
   example: false,
@@ -291,13 +293,18 @@ function render() {
   $('side-back').classList.toggle('on', state.side === 'back');
   $('side-front').setAttribute('aria-selected', state.side === 'front');
   $('side-back').setAttribute('aria-selected', state.side === 'back');
-  $('caption').textContent = state.side === 'back'
-    ? 'The back is the same on every card.'
-    : 'Updates as you type. The print file is drawn the same way at 300 DPI.';
-
-  // template loading
-  $('card-box').hidden = !state.templates;
+  // the stage shows the card while it is being made, the sheet at the end
+  const onCheckStep = state.step === LAST_STEP;
+  $('caption').textContent = onCheckStep
+    ? 'This is the sheet that will print. Cut along the marks and stick each pair back to back.'
+    : state.side === 'back'
+      ? 'The back is the same on every card.'
+      : 'Updates as you type. The print file is drawn the same way at 300 DPI.';
+  document.querySelector('.segmented').hidden = onCheckStep;
+  $('card-box').hidden = !state.templates || onCheckStep;
   $('card-loading').hidden = !!state.templates;
+  if (!onCheckStep) $('sheet-box').hidden = true;      // the sheet belongs to the last step
+  renderJob();
   $('card-loading').textContent = state.loadError || 'Loading the card template…';
 
   // example tag
@@ -752,7 +759,7 @@ function buildReview() {
   renderPrint();
 
   $('step-check-h').textContent = 'Is everything correct?';
-  $('review-sub').textContent = 'Check the card against the details below, then download the print file.';
+  $('review-sub').textContent = 'Check the details, then print. The sheet on the left is exactly what comes out.';
 
   // a plain summary, each line editable in one click
   const summary = $('summary');
@@ -773,10 +780,6 @@ function buildReview() {
     row.append(dt, dd, edit);
     summary.append(row);
   }
-  $('review-front').src = review.front.toDataURL('image/png');
-  $('review-front').alt = `Front of the card for ${collapseSpaces(data.name)}`;
-  $('review-back').src = review.back.toDataURL('image/png');
-  $('review-back-cap').textContent = `Back${state.rotateBack ? ' (turned 180°)' : ''}`;
   $('review-file').textContent = printFileLine();
   $('review-error').hidden = true;
   const photoWarnings = state.photo?.check?.warnings ?? [];
@@ -881,14 +884,6 @@ $('btn-new-id').addEventListener('click', newId);
 
 /* ---- print layout (step 6) --------------------------------------- */
 
-const PRINT_LAYOUTS = [
-  { id: 'single', label: 'One card per page',
-    note: 'A page the size of the card itself — for a card printer that takes CR80 blanks.' },
-  { id: 'pairs', label: 'Front & back side by side',
-    note: 'Cut each pair out and stick them back to back. This is the usual choice for laminating pouches.' },
-  { id: 'duplex', label: 'Separate sheets, front and back',
-    note: 'One sheet of fronts, one of backs, the backs mirrored so they line up when the paper is turned over. Only for a duplex printer — print one sheet and check both sides before running the rest.' },
-];
 
 /** Everyone in this print: the queued cards, then the one on screen. */
 function jobCards() {
@@ -947,12 +942,6 @@ function printCopies(plan, cards = jobCards().length) {
 }
 
 function buildPrintControls() {
-  buildChips($('layout-chips'), 'printLayout', (value) => {
-    state.print.layout = value;
-    state.print.copies = null;           // fill the sheet again
-    renderPrint();
-  }, PRINT_LAYOUTS.map((l) => ({ value: l.id, label: l.label })));
-
   const paper = $('f-paper');
   for (const [key, p] of Object.entries(CONFIG.sheet.papers)) {
     const o = document.createElement('option');
@@ -991,12 +980,15 @@ function renderJob() {
     list.append(li);
   });
   $('job-count').textContent = `${cards.length} card${cards.length === 1 ? '' : 's'}`;
-  $('btn-add-another').hidden = state.print.layout === 'single';
-  $('job-note').textContent = state.print.layout === 'single'
-    ? 'One card per page prints just the card on screen. Choose a sheet layout to print several people together.'
-    : state.queue.length
-      ? 'Added cards are held until you download. They are lost if the page is reloaded.'
-      : 'Finish this card, then add another to put several people on the same sheet.';
+
+  // the strip is for knowing what is already waiting; it has nothing to say
+  // during the very first card
+  const onCheck = state.step === LAST_STEP;
+  $('queue-strip').hidden = !(state.queue.length || (onCheck && cards.length));
+  $('job-note').textContent = state.queue.length
+    ? (onCheck ? 'All of these print on one sheet, and are issued when you download.'
+               : 'Waiting to print. Finish this card and they all go on the same sheet.')
+    : 'Add another ID to put several people on the same sheet.';
 }
 
 let previewTimer = null;
@@ -1025,15 +1017,16 @@ function printPages(pxPerMm) {
 }
 
 function drawPrintPreview() {
-  const fig = $('print-preview');
+  const fig = $('sheet-box');
   const plan = currentPlan();
-  if (!plan || !state.templates) { fig.hidden = true; return; }
+  if (!(state.step === LAST_STEP && plan && state.templates)) { fig.hidden = true; return; }
   const { pages } = printPages(PREVIEW_DPI / 25.4);
   if (!pages.length) { fig.hidden = true; return; }
   state.print.page = Math.max(0, Math.min(pages.length - 1, state.print.page));
   const canvas = pages[state.print.page]();
   $('preview-img').src = canvas.toDataURL('image/png');
   canvas.width = canvas.height = 0;
+  $('preview-img').alt = `Preview of the ${state.print.paper} sheet that will print`;
   $('preview-caption').textContent = `Page ${state.print.page + 1} of ${pages.length} · ${state.print.paper}`;
   $('prev-page').hidden = pages.length < 2;
   $('next-page').hidden = pages.length < 2;
@@ -1044,14 +1037,11 @@ function drawPrintPreview() {
 
 function renderPrint() {
   renderJob();
-  syncChips($('layout-chips'), state.print.layout, null);
   const plan = currentPlan();
   $('print-opts').hidden = !plan;
-  const note = PRINT_LAYOUTS.find((l) => l.id === state.print.layout)?.note ?? '';
 
   if (!plan) {
-    $('print-note').textContent = note;
-    $('print-preview').hidden = true;
+    $('print-note').textContent = '';
   } else {
     const per = plan.cols * plan.rows;
     const cards = jobCards().length;
@@ -1070,7 +1060,8 @@ function renderPrint() {
     $('print-note').textContent =
       `${per} per ${state.print.paper} sheet (${plan.cols} × ${plan.rows}, ${orient}${turned}). `
       + `${total} card${total === 1 ? '' : 's'} → ${sheets} sheet${sheets === 1 ? '' : 's'}, `
-      + `${sheets * pagesPerSheet} page${sheets * pagesPerSheet === 1 ? '' : 's'}. ${note}`;
+      + `${sheets * pagesPerSheet} page${sheets * pagesPerSheet === 1 ? '' : 's'}. `
+      + 'Cut each pair out and stick them back to back.';
   }
   if (review.fileName) $('review-file').textContent = printFileLine();
   schedulePreview();

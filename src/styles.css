@@ -238,9 +238,21 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 
 .colophon { color: var(--muted); font-size: 0.8rem; font-family: var(--font-mono); text-align: center; }
 
-/* ---- print job (queue) ---- */
-.print-job { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
-.job-count { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+/* ---- the sheet preview, in the stage ---- */
+.sheet-box { display: grid; justify-items: center; gap: 8px; margin: 0; width: 100%; }
+.sheet-box img { max-width: 100%; max-height: 62vh; background: #fff; border-radius: 2px; box-shadow: 0 10px 28px #0009; }
+.sheet-box figcaption { display: flex; align-items: center; gap: 12px; color: var(--tray-ink); font-size: 0.85rem; }
+.sheet-box .ghost { min-height: 30px; padding: 0 12px; color: var(--tray-ink); border-color: #ffffff33; font-size: 1rem; }
+.sheet-box .ghost:disabled { opacity: 0.35; }
+
+/* ---- the print queue, under the preview ---- */
+.queue-strip { display: grid; gap: 8px; width: 100%; padding: 12px; border-radius: 10px; background: #ffffff12; }
+.queue-strip h2 { color: var(--tray-ink); }
+.job-count { font-family: var(--font-mono); font-size: 0.8rem; color: var(--tray-ink); opacity: 0.75; }
+.queue-strip .msg { color: var(--tray-ink); opacity: 0.75; }
+.queue-strip .job-list li { background: #ffffff14; color: var(--tray-ink); }
+.queue-strip .job-list li.is-current { background: color-mix(in srgb, var(--gold-strong) 28%, transparent); }
+.queue-strip .num, .queue-strip .tag { color: var(--tray-ink); opacity: 0.7; }
 .job-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; counter-reset: job; }
 .job-list li { display: flex; align-items: baseline; gap: 8px; padding: 6px 8px; border-radius: 8px; background: color-mix(in srgb, var(--line) 25%, transparent); font-size: 0.9rem; }
 .job-list li.is-current { background: color-mix(in srgb, var(--gold) 14%, transparent); }
@@ -248,13 +260,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .job-list .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .job-list .tag { font-size: 0.75rem; color: var(--muted); }
 .job-list .chip-x { margin: 0; }
-#btn-add-another { justify-self: start; min-height: 40px; }
-
-/* ---- print preview ---- */
-.print-preview { display: grid; justify-items: center; gap: 6px; margin: 0; padding: 10px; border-radius: 10px; background: var(--tray); }
-.print-preview img { max-width: 100%; max-height: 320px; background: #fff; box-shadow: 0 6px 18px #0006; }
-.print-preview figcaption { display: flex; align-items: center; gap: 10px; color: var(--tray-ink); font-size: 0.8rem; }
-.print-preview .ghost { min-height: 28px; padding: 0 10px; color: var(--tray-ink); border-color: #ffffff33; }
+#btn-add-another { min-height: 44px; }
 
 /* ---- print layout ---- */
 .print-layout { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
