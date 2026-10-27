@@ -355,7 +355,7 @@ function render() {
   const photoErr = state.touched.photo || state.photoError ? state.photoError || shown('photo') : '';
   const ph = state.photo;
   const pm = photoErr ? { kind: 'error', text: photoErr }
-    : ph?.check.warning ? { kind: 'warn', text: ph.check.warning }
+    : ph?.check.warnings?.length ? { kind: 'warn', text: ph.check.warnings.join(' ') }
     : ph ? { kind: 'ok', text: `${ph.background === 'green' ? 'Green background removed · ' : ph.background === 'blue' ? 'Blue background removed · ' : ''}Placed automatically` }
     : { kind: 'hint', text: 'A cut-out PNG, or a photo with a solid green background. Chest-up, facing forward.' };
   const photoMsg = $('photo-msg');
@@ -761,6 +761,10 @@ function buildReview() {
   $('review-back-cap').textContent = `Back${state.rotateBack ? ' (turned 180°)' : ''}`;
   $('review-file').textContent = `File: ${review.fileName} · 2 pages, ${CONFIG.card.widthMm} × ${CONFIG.card.heightMm} mm, ${CONFIG.card.printDpi} DPI`;
   $('review-error').hidden = true;
+  const photoWarnings = state.photo?.check?.warnings ?? [];
+  $('review-warning').hidden = !photoWarnings.length;
+  $('review-warning').textContent = photoWarnings.join(' ');
+
   $('review-stage').hidden = false;
   $('saved-stage').hidden = true;
   $('btn-download').disabled = false;
@@ -911,9 +915,9 @@ function renderBatchReport(results) {
     head.textContent = r.ok ? `${r.id} · ${r.label}` : `Line ${r.line} · ${r.label}`;
     const note = document.createElement('span');
     if (!r.ok) { note.className = 'row-bad'; note.textContent = r.problem; }
-    else if (r.warning || r.noSignature) {
+    else if (r.warnings?.length || r.noSignature) {
       note.className = 'row-warn';
-      note.textContent = [r.noSignature ? 'No signature on this card.' : '', r.warning ?? ''].filter(Boolean).join(' ');
+      note.textContent = [r.noSignature ? 'No signature on this card.' : '', ...(r.warnings ?? [])].filter(Boolean).join(' ');
     } else { note.className = 'row-ok'; note.textContent = 'Ready.'; }
     li.append(head, note);
     list.appendChild(li);

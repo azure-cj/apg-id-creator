@@ -11,7 +11,9 @@
                       then a half-pixel alpha erosion to trim the halo
      5. find the head on a copy no taller than 800 px (fast), using the
                       alpha silhouette: top of head, widest row (head
-                      width), narrowest row below it (neck), shoulders
+                      width), narrowest row below it (neck), shoulders.
+                      Reject if the key ate clothing the same colour as the
+                      backdrop; warn if the face is blurred
      6. place         scale so the head is CONFIG.photo.headWidth mm wide,
                       head top at headTop, centred at headCenterX; scale
                       up if the body would not reach the dark band
@@ -26,6 +28,14 @@ const MSG_HAS_BACKGROUND = 'This photo still has its background. Use the photo p
 const MSG_CHECKERBOARD = 'This photo has a grey checkerboard painted in, not a real transparent background. Ask for a solid green background instead (see the photo prompt below).';
 
 const ALPHA_SOLID = 128;        // alpha at/above this counts as "person"
+// Clothing the same colour as the backdrop is keyed out with it. Two signs:
+// holes inside the body outline, or the body collapsing below the shoulders.
+const MAX_HOLE_FRACTION = 0.06;
+const MIN_TORSO_RATIO = 0.6;    // width just below the shoulders, vs the shoulders
+const MIN_ROWS_TO_JUDGE_BODY = 8;
+// Sharpness: variance of the Laplacian over the face, measured on the
+// 800 px analysis copy. Below this the face prints visibly soft.
+const BLUR_VARIANCE = 55;
 const MIN_HEAD_PX = 40;         // narrower than this: the face cannot be seen
 const ANALYSIS_MAX_H = 800;     // head detection works on a copy this tall
 const WORKING_MAX_H = 2400;     // the keyed image kept for the card
@@ -112,7 +122,31 @@ function trimEdgeHalo(img) {
 
 /* ---- 5. find the head, 6. place it ------------------------------- */
 
-function findHeadAndPlace(analysis, fullWidth) {
+/**
+ * Variance of the Laplacian over a box — the standard cheap sharpness
+ * measure. High on a crisp face, near zero on a blurred one.
+ */
+function sharpnessOf(img, x0, y0, x1, y1) {
+  const { width: w, height: h, data } = img;
+  x0 = Math.max(1, Math.round(x0)); y0 = Math.max(1, Math.round(y0));
+  x1 = Math.min(w - 2, Math.round(x1)); y1 = Math.min(h - 2, Math.round(y1));
+  if (x1 - x0 < 8 || y1 - y0 < 8) return Infinity;      // too small to judge
+  const lum = (i) => (data[i * 4] * 299 + data[i * 4 + 1] * 587 + data[i * 4 + 2] * 114) / 1000;
+  let sum = 0, sumSq = 0, n = 0;
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      const i = y * w + x;
+      if (data[i * 4 + 3] < ALPHA_SOLID) continue;      // only the person
+      const l = 4 * lum(i) - lum(i - 1) - lum(i + 1) - lum(i - w) - lum(i + w);
+      sum += l; sumSq += l * l; n++;
+    }
+  }
+  if (n < 64) return Infinity;
+  const mean = sum / n;
+  return sumSq / n - mean * mean;
+}
+
+function findHeadAndPlace(analysis, fullWidth, keyed) {
   const { width: w, height: h, data } = analysis;
   const scale = fullWidth / w;              // analysis px -> full-size px
   const P = CONFIG.photo;
@@ -162,11 +196,42 @@ function findHeadAndPlace(analysis, fullWidth) {
   if (head.width < MIN_HEAD_PX) return { ok: false, head, problem: 'This photo is too small to show the face. Please upload a larger photo.' };
   if (top <= 1) return { ok: false, head, problem: 'The top of the head is cut off. Please upload a photo with space above the head.' };
 
-  let warning;
-  if (head.width < P.minHeadPx) warning = 'This is a small photo, so the face may print slightly soft. A larger photo prints sharper, but this one can be used.';
+  // Did the key eat the clothing? Holes inside the outline below the neck,
+  // or a body that collapses below the shoulders, both mean yes.
+  let span = 0, holes = 0;
+  for (let y = neckY; y < h; y++) {
+    const rw = rowWidth(y);
+    if (!rw) continue;
+    span += rw;
+    holes += rw - count[y];
+  }
+  const holeFraction = span ? holes / span : 0;
+
+  // the band directly under the shoulders: a torso has to be there
+  const shoulderW = Math.max(rowWidth(shoulderY), headW);
+  const bandEnd = Math.min(h - 1, shoulderY + headW);
+  const bandWidths = [];
+  for (let y = shoulderY; y <= bandEnd; y++) bandWidths.push(rowWidth(y));
+  bandWidths.sort((a, b) => a - b);
+  const torsoRatio = bandWidths.length >= MIN_ROWS_TO_JUDGE_BODY
+    ? bandWidths[Math.floor(bandWidths.length / 2)] / shoulderW
+    : 1;
+
+  if (keyed && (holeFraction > MAX_HOLE_FRACTION || torsoRatio < MIN_TORSO_RATIO)) {
+    return {
+      ok: false, head, holeFraction, torsoRatio,
+      problem: 'Clothing is too close to the background colour — redo the photo with a blue background or different top.',
+    };
+  }
+
+  const sharpness = sharpnessOf(analysis, head.centerX / scale - headW / 2, top, head.centerX / scale + headW / 2, neckY);
+
+  const warnings = [];
+  if (head.width < P.minHeadPx) warnings.push('This is a small photo, so the face may print slightly soft. A larger photo prints sharper, but this one can be used.');
+  if (sharpness < BLUR_VARIANCE) warnings.push('This photo looks blurred. Check the face closely before printing — a sharper photo is better.');
   for (let y = top; y <= neckY; y++) {
     if (count[y] >= minCount && (first[y] <= 0 || last[y] >= w - 1)) {
-      warning = 'The head touches the side of the photo. Check that nothing important is cut off.';
+      warnings.push('The head touches the side of the photo. Check that nothing important is cut off.');
       break;
     }
   }
@@ -178,21 +243,22 @@ function findHeadAndPlace(analysis, fullWidth) {
   if (P.headTop + belowHeadTopPx * mmPerPx < P.reachY) {
     // the photo is cropped high: enlarge so the body still disappears behind the band
     const needed = (P.reachY - P.headTop) / belowHeadTopPx;
-    if (needed / mmPerPx > 1.08 && !warning) {
-      warning = 'This photo is cropped close, so the head is shown larger than usual. A photo that shows more of the chest gives a more consistent card.';
+    if (needed / mmPerPx > 1.08) {
+      warnings.push('This photo is cropped close, so the head is shown larger than usual. A photo that shows more of the chest gives a more consistent card.');
     }
     mmPerPx = needed;
   }
   return {
     ok: true,
     head,
+    sharpness, holeFraction, torsoRatio,            // kept for diagnosis
     placement: {
       x: P.headCenterX - head.centerX * mmPerPx,
       y: P.headTop - head.top * mmPerPx,
       w: fullW * mmPerPx,
       h: fullH * mmPerPx,
     },
-    warning,
+    warnings,
   };
 }
 
@@ -235,8 +301,9 @@ function analysePhoto(imgEl, url, fileName) {
   if (background === 'checkerboard') check = { ok: false, problem: MSG_CHECKERBOARD };
   else if (background === 'other') check = { ok: false, problem: MSG_HAS_BACKGROUND };
   else {
-    if (background === 'green' || background === 'blue') { chromaKey(pixels, background); trimEdgeHalo(pixels); }
-    check = findHeadAndPlace(shrinkImageData(pixels, ANALYSIS_MAX_H), pixels.width);
+    const keyed = background === 'green' || background === 'blue';
+    if (keyed) { chromaKey(pixels, background); trimEdgeHalo(pixels); }
+    check = findHeadAndPlace(shrinkImageData(pixels, ANALYSIS_MAX_H), pixels.width, keyed);
   }
 
   if (background === 'green' || background === 'blue') {

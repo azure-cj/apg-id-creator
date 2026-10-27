@@ -476,7 +476,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
                 <p class="msg" id="guide-teaser">For phone photos taken anywhere: get a clean ID photo in one step.</p>
                 <div id="guide-body" class="guide-body" hidden>
                   <ol class="guide-steps">
-                    <li>Open Gemini or ChatGPT and attach the new hire’s photo.</li>
+                    <li>Open Gemini or ChatGPT <strong>signed in to the company’s enterprise account</strong> and attach the new hire’s photo.</li>
                     <li>Paste the prompt below and send it.</li>
                     <li>Download the result and upload it here. The app removes the green background itself.</li>
                   </ol>
@@ -489,7 +489,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
                     <li>Check the face still looks like the person before uploading. If it doesn’t, ask again or use the original photo.</li>
                     <li>If the person wears green, change <code>#00FF00</code> to solid blue <code>#0000FF</code> in the prompt.</li>
                     <li>A transparent PNG works too, if the tool makes a real one.</li>
-                    <li>Employee photos are personal data. Use your company’s approved AI account.</li>
+                    <li><strong>Employee photos are personal data.</strong> Use the company’s approved enterprise AI account — never a personal Gemini or ChatGPT login.</li>
                   </ul>
                 </div>
               </div>
@@ -531,6 +531,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
             </div>
 
             <div id="review-stage">
+              <p class="msg msg-warn" id="review-warning" hidden></p>
               <ul class="review-list">
                 <li>Name spelled correctly, capitals as they should be</li>
                 <li>Title and employee number are right</li>
@@ -2946,7 +2947,7 @@ const ASSETS = {"front":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAn4AAAPsC
    ------------------------------------------------------------------ */
 
 const APP_NAME = 'Alpha Premier ID Maker';
-const APP_VERSION = '1.2.0';          // stamped into every PDF's metadata
+const APP_VERSION = '1.3.0';          // stamped into every PDF's metadata
 
 const CONFIG = {
   card: {
@@ -4196,7 +4197,9 @@ function renderSideCanvas(templates, side, data, rotateBack) {
                       then a half-pixel alpha erosion to trim the halo
      5. find the head on a copy no taller than 800 px (fast), using the
                       alpha silhouette: top of head, widest row (head
-                      width), narrowest row below it (neck), shoulders
+                      width), narrowest row below it (neck), shoulders.
+                      Reject if the key ate clothing the same colour as the
+                      backdrop; warn if the face is blurred
      6. place         scale so the head is CONFIG.photo.headWidth mm wide,
                       head top at headTop, centred at headCenterX; scale
                       up if the body would not reach the dark band
@@ -4211,6 +4214,14 @@ const MSG_HAS_BACKGROUND = 'This photo still has its background. Use the photo p
 const MSG_CHECKERBOARD = 'This photo has a grey checkerboard painted in, not a real transparent background. Ask for a solid green background instead (see the photo prompt below).';
 
 const ALPHA_SOLID = 128;        // alpha at/above this counts as "person"
+// Clothing the same colour as the backdrop is keyed out with it. Two signs:
+// holes inside the body outline, or the body collapsing below the shoulders.
+const MAX_HOLE_FRACTION = 0.06;
+const MIN_TORSO_RATIO = 0.6;    // width just below the shoulders, vs the shoulders
+const MIN_ROWS_TO_JUDGE_BODY = 8;
+// Sharpness: variance of the Laplacian over the face, measured on the
+// 800 px analysis copy. Below this the face prints visibly soft.
+const BLUR_VARIANCE = 55;
 const MIN_HEAD_PX = 40;         // narrower than this: the face cannot be seen
 const ANALYSIS_MAX_H = 800;     // head detection works on a copy this tall
 const WORKING_MAX_H = 2400;     // the keyed image kept for the card
@@ -4297,7 +4308,31 @@ function trimEdgeHalo(img) {
 
 /* ---- 5. find the head, 6. place it ------------------------------- */
 
-function findHeadAndPlace(analysis, fullWidth) {
+/**
+ * Variance of the Laplacian over a box — the standard cheap sharpness
+ * measure. High on a crisp face, near zero on a blurred one.
+ */
+function sharpnessOf(img, x0, y0, x1, y1) {
+  const { width: w, height: h, data } = img;
+  x0 = Math.max(1, Math.round(x0)); y0 = Math.max(1, Math.round(y0));
+  x1 = Math.min(w - 2, Math.round(x1)); y1 = Math.min(h - 2, Math.round(y1));
+  if (x1 - x0 < 8 || y1 - y0 < 8) return Infinity;      // too small to judge
+  const lum = (i) => (data[i * 4] * 299 + data[i * 4 + 1] * 587 + data[i * 4 + 2] * 114) / 1000;
+  let sum = 0, sumSq = 0, n = 0;
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      const i = y * w + x;
+      if (data[i * 4 + 3] < ALPHA_SOLID) continue;      // only the person
+      const l = 4 * lum(i) - lum(i - 1) - lum(i + 1) - lum(i - w) - lum(i + w);
+      sum += l; sumSq += l * l; n++;
+    }
+  }
+  if (n < 64) return Infinity;
+  const mean = sum / n;
+  return sumSq / n - mean * mean;
+}
+
+function findHeadAndPlace(analysis, fullWidth, keyed) {
   const { width: w, height: h, data } = analysis;
   const scale = fullWidth / w;              // analysis px -> full-size px
   const P = CONFIG.photo;
@@ -4347,11 +4382,42 @@ function findHeadAndPlace(analysis, fullWidth) {
   if (head.width < MIN_HEAD_PX) return { ok: false, head, problem: 'This photo is too small to show the face. Please upload a larger photo.' };
   if (top <= 1) return { ok: false, head, problem: 'The top of the head is cut off. Please upload a photo with space above the head.' };
 
-  let warning;
-  if (head.width < P.minHeadPx) warning = 'This is a small photo, so the face may print slightly soft. A larger photo prints sharper, but this one can be used.';
+  // Did the key eat the clothing? Holes inside the outline below the neck,
+  // or a body that collapses below the shoulders, both mean yes.
+  let span = 0, holes = 0;
+  for (let y = neckY; y < h; y++) {
+    const rw = rowWidth(y);
+    if (!rw) continue;
+    span += rw;
+    holes += rw - count[y];
+  }
+  const holeFraction = span ? holes / span : 0;
+
+  // the band directly under the shoulders: a torso has to be there
+  const shoulderW = Math.max(rowWidth(shoulderY), headW);
+  const bandEnd = Math.min(h - 1, shoulderY + headW);
+  const bandWidths = [];
+  for (let y = shoulderY; y <= bandEnd; y++) bandWidths.push(rowWidth(y));
+  bandWidths.sort((a, b) => a - b);
+  const torsoRatio = bandWidths.length >= MIN_ROWS_TO_JUDGE_BODY
+    ? bandWidths[Math.floor(bandWidths.length / 2)] / shoulderW
+    : 1;
+
+  if (keyed && (holeFraction > MAX_HOLE_FRACTION || torsoRatio < MIN_TORSO_RATIO)) {
+    return {
+      ok: false, head, holeFraction, torsoRatio,
+      problem: 'Clothing is too close to the background colour — redo the photo with a blue background or different top.',
+    };
+  }
+
+  const sharpness = sharpnessOf(analysis, head.centerX / scale - headW / 2, top, head.centerX / scale + headW / 2, neckY);
+
+  const warnings = [];
+  if (head.width < P.minHeadPx) warnings.push('This is a small photo, so the face may print slightly soft. A larger photo prints sharper, but this one can be used.');
+  if (sharpness < BLUR_VARIANCE) warnings.push('This photo looks blurred. Check the face closely before printing — a sharper photo is better.');
   for (let y = top; y <= neckY; y++) {
     if (count[y] >= minCount && (first[y] <= 0 || last[y] >= w - 1)) {
-      warning = 'The head touches the side of the photo. Check that nothing important is cut off.';
+      warnings.push('The head touches the side of the photo. Check that nothing important is cut off.');
       break;
     }
   }
@@ -4363,21 +4429,22 @@ function findHeadAndPlace(analysis, fullWidth) {
   if (P.headTop + belowHeadTopPx * mmPerPx < P.reachY) {
     // the photo is cropped high: enlarge so the body still disappears behind the band
     const needed = (P.reachY - P.headTop) / belowHeadTopPx;
-    if (needed / mmPerPx > 1.08 && !warning) {
-      warning = 'This photo is cropped close, so the head is shown larger than usual. A photo that shows more of the chest gives a more consistent card.';
+    if (needed / mmPerPx > 1.08) {
+      warnings.push('This photo is cropped close, so the head is shown larger than usual. A photo that shows more of the chest gives a more consistent card.');
     }
     mmPerPx = needed;
   }
   return {
     ok: true,
     head,
+    sharpness, holeFraction, torsoRatio,            // kept for diagnosis
     placement: {
       x: P.headCenterX - head.centerX * mmPerPx,
       y: P.headTop - head.top * mmPerPx,
       w: fullW * mmPerPx,
       h: fullH * mmPerPx,
     },
-    warning,
+    warnings,
   };
 }
 
@@ -4420,8 +4487,9 @@ function analysePhoto(imgEl, url, fileName) {
   if (background === 'checkerboard') check = { ok: false, problem: MSG_CHECKERBOARD };
   else if (background === 'other') check = { ok: false, problem: MSG_HAS_BACKGROUND };
   else {
-    if (background === 'green' || background === 'blue') { chromaKey(pixels, background); trimEdgeHalo(pixels); }
-    check = findHeadAndPlace(shrinkImageData(pixels, ANALYSIS_MAX_H), pixels.width);
+    const keyed = background === 'green' || background === 'blue';
+    if (keyed) { chromaKey(pixels, background); trimEdgeHalo(pixels); }
+    check = findHeadAndPlace(shrinkImageData(pixels, ANALYSIS_MAX_H), pixels.width, keyed);
   }
 
   if (background === 'green' || background === 'blue') {
@@ -5200,7 +5268,7 @@ function render() {
   const photoErr = state.touched.photo || state.photoError ? state.photoError || shown('photo') : '';
   const ph = state.photo;
   const pm = photoErr ? { kind: 'error', text: photoErr }
-    : ph?.check.warning ? { kind: 'warn', text: ph.check.warning }
+    : ph?.check.warnings?.length ? { kind: 'warn', text: ph.check.warnings.join(' ') }
     : ph ? { kind: 'ok', text: `${ph.background === 'green' ? 'Green background removed · ' : ph.background === 'blue' ? 'Blue background removed · ' : ''}Placed automatically` }
     : { kind: 'hint', text: 'A cut-out PNG, or a photo with a solid green background. Chest-up, facing forward.' };
   const photoMsg = $('photo-msg');
@@ -5606,6 +5674,10 @@ function buildReview() {
   $('review-back-cap').textContent = `Back${state.rotateBack ? ' (turned 180°)' : ''}`;
   $('review-file').textContent = `File: ${review.fileName} · 2 pages, ${CONFIG.card.widthMm} × ${CONFIG.card.heightMm} mm, ${CONFIG.card.printDpi} DPI`;
   $('review-error').hidden = true;
+  const photoWarnings = state.photo?.check?.warnings ?? [];
+  $('review-warning').hidden = !photoWarnings.length;
+  $('review-warning').textContent = photoWarnings.join(' ');
+
   $('review-stage').hidden = false;
   $('saved-stage').hidden = true;
   $('btn-download').disabled = false;
@@ -5756,9 +5828,9 @@ function renderBatchReport(results) {
     head.textContent = r.ok ? `${r.id} · ${r.label}` : `Line ${r.line} · ${r.label}`;
     const note = document.createElement('span');
     if (!r.ok) { note.className = 'row-bad'; note.textContent = r.problem; }
-    else if (r.warning || r.noSignature) {
+    else if (r.warnings?.length || r.noSignature) {
       note.className = 'row-warn';
-      note.textContent = [r.noSignature ? 'No signature on this card.' : '', r.warning ?? ''].filter(Boolean).join(' ');
+      note.textContent = [r.noSignature ? 'No signature on this card.' : '', ...(r.warnings ?? [])].filter(Boolean).join(' ');
     } else { note.className = 'row-ok'; note.textContent = 'Ready.'; }
     li.append(head, note);
     list.appendChild(li);

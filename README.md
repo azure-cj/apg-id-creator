@@ -19,6 +19,7 @@ prepared) are in **PROCESS.md**.
 | `Alpha Premier ID Maker.html` | The app. One self-contained file: templates, fonts and code are all inside it. This is the only file HR needs. |
 | `PROCESS.md` | The ID-making process end to end, including batches, with the photo pipeline explained. |
 | `BACKLOG.md` | Ideas considered and not built yet, and why. |
+| `PHOTO-SPEC.md` | What the photo pipeline actually does, measured — including its known limits. |
 | `photo-prompt.txt` | The prompt to paste into Gemini / ChatGPT to turn any photo into a green-screen portrait. (The app also shows it under the Photo field.) |
 | `register/` | Optional shared register: a Google Apps Script (`Code.gs`) and set-up notes, so every HR computer checks duplicates against one Google Sheet. |
 | `assets/front-template.png` | Front of the card, 638 × 1004 px = 54 × 85 mm at 300 DPI. |
@@ -116,6 +117,26 @@ Note that the browser keeps the issued-ID register per address, so cards
 issued from the double-clicked file and from `http://localhost` are kept in
 separate lists. The shared Google Sheet register (see `register/README.md`)
 is not affected.
+
+## Data protection
+
+- **No photograph ever leaves the computer from this app, and none is
+  stored.** The photo lives in the browser tab until the card is
+  downloaded, then it is gone. Re-issuing a lost card means sourcing the
+  photograph again — that is deliberate, so there is no store of employee
+  images to protect.
+- **The one third-party step is manual.** HR is instructed to put the
+  employee's photo through Gemini or ChatGPT to get a green-screen
+  portrait. This **must** be done on the company's approved **enterprise**
+  AI account, never a personal login. The app states this but cannot
+  enforce it.
+- **The register holds no images** — only the ID number, name, job title
+  and issue date. With the shared Google Sheet it also records which Google
+  account issued each card.
+- The app is for **HR use on a desktop browser**. Employee self-service is
+  not supported.
+
+`PHOTO-SPEC.md` has the full measured behaviour of the photo pipeline.
 
 ## Requirements
 
