@@ -34,7 +34,7 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 await page.goto(app);
 await page.waitForSelector('#card-box:not([hidden])', { timeout: 20000 });
-await page.click('#btn-example');
+await page.evaluate(() => loadExample());      // no button for it: see src/app.js
 await page.waitForFunction(() => state.photo && state.signature);
 await page.waitForTimeout(300);
 

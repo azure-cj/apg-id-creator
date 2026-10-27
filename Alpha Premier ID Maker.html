@@ -98,7 +98,6 @@ h1 { margin: 0; font-family: var(--font-display); font-size: 1.5rem; font-weight
 .block { display: grid; gap: 12px; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
 .block-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.example-tag { padding: 2px 8px; border: 1px dashed var(--muted); border-radius: 999px; color: var(--muted); font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.04em; text-transform: uppercase; }
 .link { border: 0; padding: 4px 0; background: none; color: var(--gold); font: 600 0.9rem var(--font-body); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 
 .field { display: grid; gap: 4px; }
@@ -430,8 +429,6 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
         <section class="block wizard" aria-labelledby="form-heading">
           <div class="block-head">
             <h2 id="form-heading">New ID</h2>
-            <button type="button" id="btn-example" class="link">Show an example</button>
-            <span class="example-tag" id="example-tag" hidden>Example details</span>
           </div>
 
                     <ol class="steps" id="steps" aria-label="Steps"></ol>
@@ -3065,7 +3062,7 @@ const ASSETS = {"front":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAn4AAAPsC
    ------------------------------------------------------------------ */
 
 const APP_NAME = 'Alpha Premier ID Maker';
-const APP_VERSION = '1.9.0';          // stamped into every PDF's metadata
+const APP_VERSION = '1.9.1';          // stamped into every PDF's metadata
 
 const CONFIG = {
   card: {
@@ -5528,8 +5525,6 @@ function render() {
   $('card-loading').textContent = state.loadError || 'Loading the card template…';
 
   // example tag
-  $('btn-example').hidden = state.example;
-  $('example-tag').hidden = !state.example;
 
   // name fields
   for (const k of NAME_PARTS) setMsg(`field-${k}`, `f-${k}-msg`, shown(k), '');
@@ -5928,8 +5923,16 @@ $('f-sig-image').addEventListener('change', async (e) => {
   }
 });
 
-// example
-$('btn-example').addEventListener('click', async () => {
+/**
+ * Fill the form with the sample card and jump to the end.
+ *
+ * It has no button any more — HR has no use for a fake card in a tool that
+ * issues real ones, and it was one more thing to explain. It stays here,
+ * and on #example, because the golden-render test drives it: that test is
+ * the thing that notices when a change moves a pixel of the printed card,
+ * and it needs one card it can reproduce exactly.
+ */
+async function loadExample() {
   const photo = ASSETS.example ? await processPhotoUrl(ASSETS.example).catch(() => null) : null;
   for (const k of NAME_PARTS) { state[k] = EXAMPLE[k] ?? ''; $(`f-${k}`).value = state[k]; }
   state.role1 = { pick: EXAMPLE.title, custom: '' };
@@ -5945,7 +5948,8 @@ $('btn-example').addEventListener('click', async () => {
   state.touched = { last: false, first: false, middle: false, suffix: false, title: false, title2: false, seq: false, photo: false, signature: false };
   state.example = true; state.side = 'front';
   goStep(LAST_STEP, { focus: false });        // the example is complete: show the finished card
-});
+}
+if (location.hash === '#example') addEventListener('load', loadExample);
 
 // step navigation
 $('btn-next').addEventListener('click', nextStep);

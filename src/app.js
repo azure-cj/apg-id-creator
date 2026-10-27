@@ -318,8 +318,6 @@ function render() {
   $('card-loading').textContent = state.loadError || 'Loading the card template…';
 
   // example tag
-  $('btn-example').hidden = state.example;
-  $('example-tag').hidden = !state.example;
 
   // name fields
   for (const k of NAME_PARTS) setMsg(`field-${k}`, `f-${k}-msg`, shown(k), '');
@@ -718,8 +716,16 @@ $('f-sig-image').addEventListener('change', async (e) => {
   }
 });
 
-// example
-$('btn-example').addEventListener('click', async () => {
+/**
+ * Fill the form with the sample card and jump to the end.
+ *
+ * It has no button any more — HR has no use for a fake card in a tool that
+ * issues real ones, and it was one more thing to explain. It stays here,
+ * and on #example, because the golden-render test drives it: that test is
+ * the thing that notices when a change moves a pixel of the printed card,
+ * and it needs one card it can reproduce exactly.
+ */
+async function loadExample() {
   const photo = ASSETS.example ? await processPhotoUrl(ASSETS.example).catch(() => null) : null;
   for (const k of NAME_PARTS) { state[k] = EXAMPLE[k] ?? ''; $(`f-${k}`).value = state[k]; }
   state.role1 = { pick: EXAMPLE.title, custom: '' };
@@ -735,7 +741,8 @@ $('btn-example').addEventListener('click', async () => {
   state.touched = { last: false, first: false, middle: false, suffix: false, title: false, title2: false, seq: false, photo: false, signature: false };
   state.example = true; state.side = 'front';
   goStep(LAST_STEP, { focus: false });        // the example is complete: show the finished card
-});
+}
+if (location.hash === '#example') addEventListener('load', loadExample);
 
 // step navigation
 $('btn-next').addEventListener('click', nextStep);

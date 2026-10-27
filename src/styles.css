@@ -88,7 +88,6 @@ h1 { margin: 0; font-family: var(--font-display); font-size: 1.5rem; font-weight
 .block { display: grid; gap: 12px; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
 .block-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.example-tag { padding: 2px 8px; border: 1px dashed var(--muted); border-radius: 999px; color: var(--muted); font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.04em; text-transform: uppercase; }
 .link { border: 0; padding: 4px 0; background: none; color: var(--gold); font: 600 0.9rem var(--font-body); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 
 .field { display: grid; gap: 4px; }

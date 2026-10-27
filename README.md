@@ -26,7 +26,7 @@ prepared) are in **PROCESS.md**.
 | `register/` | Optional shared register: a Google Apps Script (`Code.gs`) and set-up notes, so every HR computer checks duplicates against one Google Sheet. |
 | `assets/front-template.png` | Front of the card, 638 × 1004 px = 54 × 85 mm at 300 DPI. |
 | `assets/back.png` | Back of the card (terms, contacts, CEO signature). Same size. |
-| `assets/example-cut-out.png` | The cut-out used by "Show an example". |
+| `assets/example-cut-out.png` | The cut-out the sample card is built from. It has no button in the app; it is what `npm test` renders. |
 | `assets/logo.png` | The peacock mark in the app's header — lifted from the card artwork, so the screen and the print agree. |
 | `assets/fonts/` | Poppins 700 (name), Montserrat 800 (title), Arimo 400 (employee number) as latin + latin-ext WOFF2 subsets. |
 | `src/` | The readable source code. See "How the app is built" below. |
@@ -77,9 +77,12 @@ the print file are the same drawing.
    `test/golden-front.png`; any moved pixel fails with a magenta diff image
    in `test/diff-front.png`. If the change was intended, accept it with
    `npm test -- --update` and commit the new golden.
-4. Open the rebuilt `Alpha Premier ID Maker.html` and check the card with
-   "Show an example". Press Ctrl+Shift+G to overlay the photo-area and
-   front-outline guides when re-tracing a new template.
+4. Open the rebuilt `Alpha Premier ID Maker.html` with **`#example`** on
+   the end of the address to fill the form with the sample card and jump
+   to the finished preview. Press Ctrl+Shift+G there to overlay the
+   photo-area and front-outline guides when re-tracing a new template.
+   Neither has a button: HR never needs them, and the fewer things in that
+   panel the better.
 
 Common edits:
 
