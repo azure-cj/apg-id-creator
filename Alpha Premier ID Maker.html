@@ -207,11 +207,18 @@ h1 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; font-weigh
 .tpl-ph {
   position: absolute; box-sizing: border-box;
   border: 1.5px dashed #00b3ff; border-radius: 2px;
-  background: #00b3ff1f; cursor: move; touch-action: none;
+  cursor: move; touch-action: none;
 }
-.tpl-ph[data-key="photo"] { border-color: #ff3ea5; background: #ff3ea51a; }
+/* the fill is its own layer so the photo window can be clipped to the
+   shape that is really cut, while the handle and its grip stay square */
+.tpl-shape { position: absolute; inset: 0; background: #00b3ff1f; pointer-events: none; }
+/* the shape carries its own outline, so the bounding box keeps quiet
+   and the window is not drawn twice */
+.tpl-ph[data-key="photo"] { border-color: transparent; }
+.tpl-ph[data-key="photo"] .tpl-shape { background: #ff3ea51a; box-shadow: inset 0 0 0 1.5px #ff3ea5; }
 .tpl-ph.on { border-style: solid; box-shadow: 0 0 0 2px #ffffff99; }
-.tpl-ph.dragging { background: #00b3ff40; }
+.tpl-ph.dragging .tpl-shape { background: #00b3ff40; }
+.tpl-ph[data-key="photo"].dragging .tpl-shape { background: #ff3ea540; }
 .tpl-ph:focus-visible { outline: 2px solid var(--gold-strong); outline-offset: 2px; }
 /* Six names at once is more clutter than the card can carry, and the
    panel already says which one is selected. So a handle gives its name
@@ -643,25 +650,22 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
           <section class="block tool" id="tool-design" hidden>
           <p class="msg">Now using <strong id="design-name">the built-in design</strong>.</p>
 
-          <div class="field">
-            <label for="f-tpl-front">Front artwork (PNG)</label>
-            <input id="f-tpl-front" type="file" accept="image/png,image/jpeg,image/webp" />
-          </div>
-          <div class="field">
-            <label for="f-tpl-back">Back artwork (PNG)</label>
-            <input id="f-tpl-back" type="file" accept="image/png,image/jpeg,image/webp" />
-            <p class="msg">Both at 638 × 1011 pixels. See TEMPLATE-SPEC.md for the full brief.</p>
-          </div>
-          <details class="sub-block">
-            <summary>Add a map (optional)</summary>
-            <div class="field">
-              <label for="f-tpl-map">Map (PNG)</label>
-              <input id="f-tpl-map" type="file" accept="image/png" />
-              <p class="msg">A third picture with every zone painted a flat colour. It sets the placeholders for you and lets artwork sit in front of the photo. Without one the photo is a plain rectangle on top of the artwork.</p>
-            </div>
-          </details>
+          <button type="button" id="btn-tpl-map" class="primary">Show the map</button>
+          <p class="msg" id="design-map-note">The boxes for the photo, name, job title, number, signature and QR, drawn over the card. Drag them anywhere.</p>
 
-          <button type="button" id="btn-tpl-use" class="primary" disabled>Use this design</button>
+          <details class="sub-block" id="design-art">
+            <summary>Use different artwork</summary>
+            <div class="field">
+              <label for="f-tpl-front">Front artwork (PNG)</label>
+              <input id="f-tpl-front" type="file" accept="image/png,image/jpeg,image/webp" />
+            </div>
+            <div class="field">
+              <label for="f-tpl-back">Back artwork (PNG)</label>
+              <input id="f-tpl-back" type="file" accept="image/png,image/jpeg,image/webp" />
+              <p class="msg">Both at 638 × 1011 pixels. See TEMPLATE-SPEC.md for the full brief. The map stays where it is, so check it afterwards.</p>
+            </div>
+            <button type="button" id="btn-tpl-use" class="primary" disabled>Use this artwork</button>
+          </details>
           <p class="msg" id="design-msg" role="status" aria-live="polite"></p>
           <details class="sub-block" id="design-warn" hidden>
             <summary id="design-warn-head"></summary>
@@ -669,7 +673,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
           </details>
 
           <div id="design-adjust" hidden>
-            <p class="msg">Drag the boxes on the card to move them, the corner to resize. Arrow keys work too.</p>
+            <p class="msg">Drag a box to move it, its corner to resize. Arrow keys nudge the selected one by 0.25&nbsp;mm.</p>
             <p class="msg" id="design-readout"></p>
             <div class="sig-actions">
               <button type="button" id="btn-tpl-done" class="primary">Done</button>
@@ -678,7 +682,6 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
           </div>
 
           <div class="sig-actions" id="design-actions" hidden>
-            <button type="button" id="btn-tpl-adjust" class="ghost">Move the boxes</button>
             <button type="button" id="btn-tpl-reset" class="ghost">Use the built-in design</button>
           </div>
           </section>
@@ -3263,7 +3266,7 @@ const ASSETS = {"front":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAn4AAAPsC
    ------------------------------------------------------------------ */
 
 const APP_NAME = 'Alpha Premier ID Maker';
-const APP_VERSION = '1.15.0';          // stamped into every PDF's metadata
+const APP_VERSION = '1.16.0';          // stamped into every PDF's metadata
 
 const CONFIG = {
   card: {
@@ -5054,20 +5057,19 @@ function renderSideCanvas(templates, side, data, rotateBack, pxPerMm = printPxPe
 /* ------------------------------------------------------------------
    The card design in use
    ------------------------------------------------------------------
-   The app ships with one card design built in. This lets a different one
-   be put in without rebuilding the app: two PNGs the same shape as a
-   card, and then the placeholders — name, job title, number, signature,
-   QR, photo — are dragged into place on the preview.
+   Two things can be changed without rebuilding the app:
 
-   Optionally a third PNG, the map (template-map.js), which says where
-   everything goes in colour. With a map there is nothing to drag: the
-   placeholders land where the designer painted them, and the photo can
-   be any shape, with artwork in front of it. Without one the photo is a
-   plain rectangle sitting on top of the artwork.
+     the artwork   two PNGs the same shape as a card, front and back
+     the map       where the photo, name, job title, number, signature
+                   and QR sit on it
+
+   The map is not a file. It is the boxes drawn over the preview, and it
+   is always there to look at — on the built-in card as much as on
+   uploaded artwork. Drag a box and the card redraws under it.
 
    Only before an ID is started. Half-way through, the photo has already
-   been placed against the old design and the preview is of a card that
-   no longer exists, so the panel is offered on step 1 and nowhere else.
+   been placed against the old map and the preview is of a card that no
+   longer exists, so it is offered on step 1 and nowhere else.
 
    Kept in this browser's storage: it survives closing the app, it does
    not travel to another computer, and the built-in design is never
@@ -5077,7 +5079,7 @@ function renderSideCanvas(templates, side, data, rotateBack, pxPerMm = printPxPe
 const TEMPLATE_KEY = 'apg-id-template';
 const TEMPLATE_W = 638;                 // a design is stored at the printing size:
 const TEMPLATE_H = 1011;                // 54 x 85.6 mm at 300 DPI
-const TEMPLATE_SHAPE_SLACK = 0.02;      // how far off the card's proportions may be
+const TEMPLATE_SHAPE_SLACK = 0.02;      // how far off the card's proportions artwork may be
 
 /** The bounding box, in mm, of a polygon from config. */
 function polygonBounds_(poly) {
@@ -5091,7 +5093,7 @@ function polygonBounds_(poly) {
  *
  * Taken from the built-in design, so a photo window dragged somewhere
  * else frames the face the same way this one does. It is what lets the
- * window be a single rectangle to drag instead of four numbers to type.
+ * window be a single box to drag instead of four numbers to type.
  */
 const HEAD_RATIO = (() => {
   const r = polygonBounds_(CONFIG.photoArea.polygon);
@@ -5104,34 +5106,58 @@ const HEAD_RATIO = (() => {
   };
 })();
 
-/** A white rectangle on a transparent card-sized canvas: a photo window. */
-function rectMask_(rect) {
+const PHOTO_BASE = polygonBounds_(CONFIG.photoArea.polygon);
+
+/** White shapes on a transparent card-sized canvas: what a mask is. */
+function shapeMask_(polygons) {
   const c = document.createElement('canvas');
   c.width = TEMPLATE_W; c.height = TEMPLATE_H;
   const ctx = c.getContext('2d');
+  const sx = TEMPLATE_W / CONFIG.card.widthMm, sy = TEMPLATE_H / CONFIG.card.heightMm;
   ctx.fillStyle = '#fff';
-  ctx.fillRect(
-    Math.round(rect.x / CONFIG.card.widthMm * TEMPLATE_W),
-    Math.round(rect.y / CONFIG.card.heightMm * TEMPLATE_H),
-    Math.max(1, Math.round(rect.w / CONFIG.card.widthMm * TEMPLATE_W)),
-    Math.max(1, Math.round(rect.h / CONFIG.card.heightMm * TEMPLATE_H)),
-  );
+  ctx.beginPath();
+  for (const poly of polygons) {
+    poly.forEach(([x, y], i) => (i ? ctx.lineTo(x * sx, y * sy) : ctx.moveTo(x * sx, y * sy)));
+    ctx.closePath();
+  }
+  ctx.fill();
   return c;
 }
 
+const rectPolygon_ = (r) => [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]];
+
+/**
+ * Move and scale a polygon so its bounding box becomes `to`.
+ *
+ * This is what lets the built-in card's photo window stay the shape it
+ * is — stepped, to clear the gold line — while still being dragged
+ * around as a simple box. Without it, adjusting the built-in design
+ * would mean giving up its cut-out and settling for a rectangle.
+ */
+function fitPolygon_(poly, from, to) {
+  const kx = to.w / from.w, ky = to.h / from.h;
+  return poly.map(([x, y]) => [to.x + (x - from.x) * kx, to.y + (y - from.y) * ky]);
+}
+
 const TemplateStore = {
-  custom: null,       // { name, front, back, mapPng, boxes, photoRect } — all serialisable
-  images: null,       // { front, back } once decoded
-  mapMasks: null,     // the shapes the map PNG drew, if there was one
-  mapBoxes: null,     // and where it put the boxes, before anybody dragged them
-  mapPhotoRect: null,
-  note: '',         // anything the operator should know about the last load
+  custom: null,     // { name, front, back, boxes, photoRect } — all serialisable
+  images: null,     // the uploaded artwork, decoded; null when the built-in is in use
+  builtIn: null,    // the artwork the app ships with
+  note: '',         // anything the operator should know about the last change
 
+  /** Is anything at all different from the card the app was built with? */
   get isCustom() { return !!this.custom; },
-  get name() { return this.custom ? this.custom.name : 'Built-in design'; },
-  get hasMap() { return !!(this.custom && this.custom.mapPng); },
+  /** Has the artwork itself been replaced, as opposed to just the map? */
+  get hasArtwork() { return !!(this.custom && this.custom.front); },
+  get name() {
+    if (!this.custom) return 'the built-in design';
+    return this.custom.front ? this.custom.name : 'the built-in design, with the map moved';
+  },
 
-  /* ---- the placeholders -------------------------------------------- */
+  /** The artwork the card is drawn from. */
+  get templates() { return this.images || this.builtIn; },
+
+  /* ---- the map ----------------------------------------------------- */
 
   /** Where the built-in design puts everything: the starting point. */
   defaults() {
@@ -5143,18 +5169,29 @@ const TemplateStore = {
         signature: { ...CONFIG.signature.box },
         qr: { x: CONFIG.qr.square.x, y: CONFIG.qr.square.y, w: CONFIG.qr.square.size, h: CONFIG.qr.square.size },
       },
-      photoRect: polygonBounds_(CONFIG.photoArea.polygon),
+      photoRect: { ...PHOTO_BASE },
     };
   },
 
-  /** The map object the rest of the app reads its geometry out of. */
+  /**
+   * The map the rest of the app reads its geometry out of.
+   *
+   * null while nothing has been changed, which is deliberate: the
+   * built-in card then renders through config's own clipping path,
+   * exactly as it did before any of this existed.
+   */
   asMap() {
     if (!this.custom) return null;
     const { boxes, photoRect } = this.custom;
     const masks = {};
-    if (this.mapMasks?.photo) masks.photo = this.mapMasks.photo;
-    else masks.photo = rectMask_(photoRect);
-    if (this.mapMasks?.front) masks.front = this.mapMasks.front;
+    if (this.custom.front) {
+      // uploaded artwork: nothing is known about its shapes, so the
+      // photo is a plain window sitting on top of it
+      masks.photo = shapeMask_([rectPolygon_(photoRect)]);
+    } else {
+      masks.photo = shapeMask_([fitPolygon_(CONFIG.photoArea.polygon, PHOTO_BASE, photoRect)]);
+      masks.front = shapeMask_(CONFIG.frontOutline.polygons);   // the band stays with the artwork
+    }
     return {
       masks,
       boxes,
@@ -5167,17 +5204,43 @@ const TemplateStore = {
     };
   },
 
+  /**
+   * The photo window's real outline, in mm — stepped on the built-in
+   * card, a plain rectangle on uploaded artwork. The editor draws the
+   * handle in this shape, so what is dragged looks like what is cut.
+   */
+  photoOutline() {
+    const rect = this.box('photo');
+    if (this.hasArtwork) return rectPolygon_(rect);
+    return fitPolygon_(CONFIG.photoArea.polygon, PHOTO_BASE, rect);
+  },
+
   /** Hand the current design to the renderer. Call after any change. */
-  apply() {
-    return useTemplateMap(this.asMap());
+  apply() { return useTemplateMap(this.asMap()); },
+
+  /**
+   * Nothing has actually been changed: the built-in artwork with the
+   * built-in map. Opening the map to look at it should leave the card
+   * exactly as the app shipped it, mask path and all, so this is what
+   * decides whether there is anything to keep.
+   */
+  get isPristine() {
+    if (!this.custom || this.custom.front) return false;
+    const d = this.defaults();
+    return JSON.stringify([this.custom.boxes, this.custom.photoRect])
+        === JSON.stringify([d.boxes, d.photoRect]);
   },
 
-  /** The two images to draw the card from. */
-  templatesFor(builtIn) {
-    return this.images ? { ...builtIn, front: this.images.front, back: this.images.back } : builtIn;
+  /** Start moving the map about on whatever artwork is in use. */
+  beginEditing() {
+    if (!this.custom) {
+      this.custom = { name: 'Built-in design', front: null, back: null, ...this.defaults() };
+      this.apply();
+    }
+    return this.custom;
   },
 
-  /* ---- taking a new design ----------------------------------------- */
+  /* ---- new artwork -------------------------------------------------- */
 
   /** Draw an image at the stored size, so everything downstream agrees. */
   _normalise(img) {
@@ -5190,11 +5253,10 @@ const TemplateStore = {
   },
 
   /**
-   * Take new artwork. Returns { ok, warnings } or { error }.
-   * `mapImage` is optional; without it the placeholders start where the
-   * built-in design has them, to be dragged.
+   * Take new artwork, keeping wherever the map has been dragged to.
+   * Returns { ok, warnings } or { error }.
    */
-  async adopt({ name, frontImage, backImage, mapImage = null }) {
+  async adopt({ name, frontImage, backImage }) {
     const resized = [];
     for (const [side, img] of [['front', frontImage], ['back', backImage]]) {
       const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
@@ -5206,94 +5268,56 @@ const TemplateStore = {
       if (w !== TEMPLATE_W || h !== TEMPLATE_H) resized.push(`${side} ${w} × ${h}`);
     }
 
-    const front = this._normalise(frontImage);
-    const back = this._normalise(backImage);
-    const next = { name: name || 'Uploaded design', front: front.toDataURL('image/png'), back: back.toDataURL('image/png'), mapPng: null, ...this.defaults() };
-
-    let masks = null;
-    if (mapImage) {
-      const map = readTemplateMap(mapImage);
-      if (!map) {
-        return { error: 'That map has none of the zone colours on it. Check the colours against TEMPLATE-SPEC.md, '
-          + 'or leave the map out and drag the placeholders instead.' };
-      }
-      masks = map.masks;
-      for (const key of ['name', 'title', 'employeeNo', 'signature', 'qr']) {
-        if (map.boxes[key]) next.boxes[key] = map.boxes[key];
-      }
-      if (map.masks.photo) next.photoRect = this._maskBounds(map.masks.photo);
-      next.mapPng = this._normalise(mapImage).toDataURL('image/png');
-      this._remember(next);
-    }
-
-    this.custom = next;
-    this.mapMasks = masks;
+    const map = this.custom ? { boxes: this.custom.boxes, photoRect: this.custom.photoRect } : this.defaults();
+    this.custom = {
+      name: name || 'Uploaded design',
+      front: this._normalise(frontImage).toDataURL('image/png'),
+      back: this._normalise(backImage).toDataURL('image/png'),
+      ...map,
+    };
     await this._decode();
     this.apply();
     this.note = resized.length ? `Resized to ${TEMPLATE_W} × ${TEMPLATE_H} (${resized.join(', ')}).` : '';
     return { ok: true, warnings: this.warnings() };
   },
 
-  /** Keep the map's own answers, so a dragged box can be put back. */
-  _remember(from) {
-    this.mapBoxes = JSON.parse(JSON.stringify(from.boxes));
-    this.mapPhotoRect = { ...from.photoRect };
-  },
-
-  /** Back to where the map — or the built-in design — put the boxes. */
-  resetBoxes() {
-    if (!this.custom) return;
-    const d = this.defaults();
-    this.custom.boxes = this.mapBoxes ? JSON.parse(JSON.stringify(this.mapBoxes)) : d.boxes;
-    this.custom.photoRect = this.mapPhotoRect ? { ...this.mapPhotoRect } : d.photoRect;
-    this.apply();
-  },
-
-  /** The rectangle a mask occupies, in mm. */
-  _maskBounds(mask) {
-    const { width: w, height: h } = mask;
-    const px = mask.getContext('2d').getImageData(0, 0, w, h).data;
-    let x0 = w, y0 = h, x1 = -1, y1 = -1;
-    for (let i = 3, p = 0; i < px.length; i += 4, p++) {
-      if (px[i] < 32) continue;
-      const x = p % w, y = (p / w) | 0;
-      if (x < x0) x0 = x;
-      if (y < y0) y0 = y;
-      if (x > x1) x1 = x;
-      if (y > y1) y1 = y;
-    }
-    if (x1 < 0) return this.defaults().photoRect;
-    const mmX = (v) => +(v / w * CONFIG.card.widthMm).toFixed(3);
-    const mmY = (v) => +(v / h * CONFIG.card.heightMm).toFixed(3);
-    return { x: mmX(x0), y: mmY(y0), w: mmX(x1 - x0 + 1), h: mmY(y1 - y0 + 1) };
-  },
-
   /** Text that would not read against the artwork behind it. */
   warnings() {
-    if (!this.custom || !this.images) return [];
-    return checkTemplateContrast(this.asMap(), this.images.front);
+    const art = this.templates;
+    if (!this.custom || !art) return [];
+    return checkTemplateContrast(this.asMap(), art.front);
   },
 
-  /* ---- editing ----------------------------------------------------- */
+  /* ---- editing ------------------------------------------------------ */
 
-  /** Move or resize one placeholder. `key` is a box name, or 'photo'. */
+  /** Move or resize one box. `key` is a box name, or 'photo'. */
   setBox(key, box) {
-    if (!this.custom) return;
+    this.beginEditing();
     const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
     const W = CONFIG.card.widthMm, H = CONFIG.card.heightMm;
     const w = clamp(box.w, 2, W), h = clamp(box.h, 2, H);
-    const fixed = { x: +clamp(box.x, 0, W - w).toFixed(3), y: +clamp(box.y, 0, H - h).toFixed(3), w: +w.toFixed(3), h: +h.toFixed(3) };
+    const fixed = {
+      x: +clamp(box.x, 0, W - w).toFixed(3), y: +clamp(box.y, 0, H - h).toFixed(3),
+      w: +w.toFixed(3), h: +h.toFixed(3),
+    };
     if (key === 'photo') this.custom.photoRect = fixed;
     else if (this.custom.boxes[key]) this.custom.boxes[key] = fixed;
     this.apply();
   },
 
   box(key) {
-    if (!this.custom) return null;
-    return key === 'photo' ? { ...this.custom.photoRect } : { ...this.custom.boxes[key] };
+    const from = this.custom || this.defaults();
+    return key === 'photo' ? { ...from.photoRect } : { ...from.boxes[key] };
   },
 
-  /* ---- keeping it -------------------------------------------------- */
+  /** Back to where the built-in design puts the boxes. */
+  resetBoxes() {
+    if (!this.custom) return;
+    Object.assign(this.custom, this.defaults());
+    this.apply();
+  },
+
+  /* ---- keeping it --------------------------------------------------- */
 
   save() {
     if (!this.custom) { try { localStorage.removeItem(TEMPLATE_KEY); } catch { /* private mode */ } return true; }
@@ -5301,7 +5325,7 @@ const TemplateStore = {
       localStorage.setItem(TEMPLATE_KEY, JSON.stringify(this.custom));
       return true;
     } catch {
-      this.note = 'This design is too large to keep on this computer, so it will be used until the app is closed. '
+      this.note = 'This artwork is too large to keep on this computer, so it will be used until the app is closed. '
         + 'Keep the files and load them again next time.';
       return false;
     }
@@ -5313,20 +5337,9 @@ const TemplateStore = {
     if (!raw) return false;
     try {
       const saved = JSON.parse(raw);
-      if (!saved?.front || !saved?.back || !saved?.boxes || !saved?.photoRect) throw new Error('incomplete');
+      if (!saved?.boxes || !saved?.photoRect) throw new Error('incomplete');
       this.custom = saved;
       await this._decode();
-      if (saved.mapPng) {
-        const mapImg = await loadImage(saved.mapPng);
-        const map = readTemplateMap(mapImg);
-        this.mapMasks = map ? map.masks : null;
-        if (map) {
-          const fresh = this.defaults();
-          for (const key of Object.keys(fresh.boxes)) if (map.boxes[key]) fresh.boxes[key] = map.boxes[key];
-          if (map.masks.photo) fresh.photoRect = this._maskBounds(map.masks.photo);
-          this._remember(fresh);
-        }
-      }
       this.apply();
       return true;
     } catch {
@@ -5336,18 +5349,15 @@ const TemplateStore = {
   },
 
   async _decode() {
-    this.images = this.custom
+    this.images = this.custom?.front
       ? { front: await loadImage(this.custom.front), back: await loadImage(this.custom.back) }
       : null;
   },
 
-  /** Back to the design the app was built with. */
+  /** Back to the card the app was built with, artwork and map. */
   clear() {
     this.custom = null;
     this.images = null;
-    this.mapMasks = null;
-    this.mapBoxes = null;
-    this.mapPhotoRect = null;
     this.note = '';
     useTemplateMap(null);
     try { localStorage.removeItem(TEMPLATE_KEY); } catch { /* private mode */ }
@@ -5406,7 +5416,8 @@ const TemplateEdit = {
       el.tabIndex = 0;
       el.setAttribute('role', 'button');
       el.setAttribute('aria-label', `${label} placeholder. Arrow keys move it, shift and arrow keys resize it.`);
-      el.innerHTML = `<span class="tpl-tag">${label}</span><i class="tpl-grip" aria-hidden="true"></i>`;
+      el.innerHTML = `<i class="tpl-shape" aria-hidden="true"></i>`
+        + `<span class="tpl-tag">${label}</span><i class="tpl-grip" aria-hidden="true"></i>`;
       el.addEventListener('pointerdown', (e) => this._grab(e, key));
       el.addEventListener('keydown', (e) => this._key(e, key));
       el.addEventListener('focus', () => this._select(key));
@@ -5428,7 +5439,7 @@ const TemplateEdit = {
    * photo window, which is the one thing bare card belongs to.
    */
   refresh() {
-    if (!this.root || !TemplateStore.isCustom) return;
+    if (!this.root) return;
     const W = CONFIG.card.widthMm, H = CONFIG.card.heightMm;
     const boxes = [];
     for (const [key, el] of this.handles) {
@@ -5440,6 +5451,13 @@ const TemplateEdit = {
       el.style.width = `${b.w / W * 100}%`;
       el.style.height = `${b.h / H * 100}%`;
       el.classList.toggle('on', key === this.selected);
+      // the photo window is not a rectangle on the built-in card; show
+      // the shape that will actually be cut, not just its bounding box
+      if (key === 'photo') {
+        const pts = TemplateStore.photoOutline()
+          .map(([x, y]) => `${((x - b.x) / b.w * 100).toFixed(2)}% ${((y - b.y) / b.h * 100).toFixed(2)}%`);
+        el.querySelector('.tpl-shape').style.clipPath = `polygon(${pts.join(', ')})`;
+      }
       boxes.push({ el, area: b.w * b.h });
     }
     boxes.sort((a, b) => b.area - a.area);
@@ -7002,8 +7020,11 @@ async function loadExample() {
 }
 if (location.hash === '#example') addEventListener('load', loadExample);
 
-// #map downloads the current layout as a template map: the starting
-// point for a redesign, and the thing test/map.mjs renders through.
+// #map downloads config.js's own geometry as a colour-coded picture.
+// Nothing in the app reads one any more — the map is dragged on screen
+// now — but it is still how the zones are looked at as a whole, and it
+// is what test/map.mjs feeds back in to prove the mask path reproduces
+// the card. Maintainers only; there is no button for it.
 if (location.hash === '#map') addEventListener('load', () => {
   mapFromConfig().toBlob((blob) => downloadBlob('template-map.png', blob), 'image/png');
 });
@@ -7609,15 +7630,15 @@ addEventListener('keydown', (e) => {
 });
 
 /* ---- the card design ---------------------------------------------
-   Swapping the artwork changes where everything on the card belongs, so
-   it is offered on the first step of a blank card and nowhere else: once
-   a photo has been placed against one design, the placement is already
-   wrong for another.
+   Moving the map, or swapping the artwork, changes where everything on
+   the card belongs, so both are offered on the first step of a blank
+   card and nowhere else: once a photo has been placed against one map,
+   the placement is already wrong for another.
    ------------------------------------------------------------------ */
 
 let builtInTemplates = null;
 
-/** Is there a card in progress that a new design would spoil? */
+/** Is there a card in progress that a change of design would spoil? */
 function designAllowed() {
   return state.step === 0 && !startedCard() && !state.queue.length;
 }
@@ -7625,7 +7646,10 @@ function designAllowed() {
 function renderDesign() {
   const allowed = designAllowed();
   if (!allowed && TemplateEdit.open) stopAdjusting();
-  $('design-name').textContent = TemplateStore.isCustom ? TemplateStore.name : 'the built-in design';
+  $('design-name').textContent = TemplateStore.name;
+  $('btn-tpl-map').hidden = TemplateEdit.open;
+  $('design-map-note').hidden = TemplateEdit.open;
+  $('design-art').hidden = TemplateEdit.open;
   $('design-actions').hidden = !TemplateStore.isCustom || TemplateEdit.open;
   $('design-adjust').hidden = !TemplateEdit.open;
   $('btn-tpl-use').disabled = !($('f-tpl-front').files[0] && $('f-tpl-back').files[0]);
@@ -7652,18 +7676,16 @@ async function useUploadedDesign() {
   msg.textContent = 'Reading the artwork…';
   try {
     const [front, back] = await Promise.all([fileToImage(frontFile), fileToImage(backFile)]);
-    const mapFile = $('f-tpl-map').files[0] || null;
-    const mapImage = mapFile ? await fileToImage(mapFile) : null;
     const name = frontFile.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim() || 'Uploaded design';
-    const result = await TemplateStore.adopt({ name, frontImage: front, backImage: back, mapImage });
+    const result = await TemplateStore.adopt({ name, frontImage: front, backImage: back });
     if (result.error) { msg.textContent = result.error; return; }
 
-    state.templates = TemplateStore.templatesFor(builtInTemplates);
+    state.templates = TemplateStore.templates;
     TemplateStore.save();
-    msg.textContent = TemplateStore.note || 'In use. Check the card on the left.';
+    msg.textContent = TemplateStore.note || 'In use. Check the map against the new artwork.';
     showContrastWarnings(result.warnings);
-    // with a map everything is already placed; without one, there is work to do
-    if (TemplateStore.hasMap) render(); else startAdjusting();
+    // the map is wherever it was, which is unlikely to suit new artwork
+    startAdjusting();
   } catch (err) {
     msg.textContent = err.message;
   }
@@ -7695,7 +7717,7 @@ function showContrastWarnings(warnings) {
 }
 
 function startAdjusting() {
-  if (!TemplateStore.isCustom) return;
+  // nothing is committed yet: the first drag is what creates an override
   state.side = 'front';
   state.tool = 'design';
   TemplateEdit.show();
@@ -7705,7 +7727,8 @@ function startAdjusting() {
 
 function stopAdjusting() {
   TemplateEdit.hide();
-  TemplateStore.save();
+  if (TemplateStore.isPristine) TemplateStore.clear();   // looked, moved nothing
+  else TemplateStore.save();
   $('tpl-overlay').hidden = true;
 }
 
@@ -7714,19 +7737,19 @@ function updateDesignReadout() {
 }
 
 function resetDesign() {
-  if (!confirm('Go back to the design the app was built with?')) return;
+  if (!confirm('Go back to the card the app was built with — artwork and map?')) return;
   stopAdjusting();
   TemplateStore.clear();
   showContrastWarnings([]);
   state.templates = builtInTemplates;
-  for (const id of ['f-tpl-front', 'f-tpl-back', 'f-tpl-map']) $(id).value = '';
+  for (const id of ['f-tpl-front', 'f-tpl-back']) $(id).value = '';
   $('design-msg').textContent = 'Back to the built-in design.';
   render();
 }
 
 TemplateEdit.mount($('tpl-overlay'), () => { drawPreview(); updateDesignReadout(); });
 $('btn-tpl-use').addEventListener('click', useUploadedDesign);
-$('btn-tpl-adjust').addEventListener('click', startAdjusting);
+$('btn-tpl-map').addEventListener('click', startAdjusting);
 $('btn-tpl-done').addEventListener('click', () => {
   stopAdjusting();
   showContrastWarnings(TemplateStore.warnings());     // the boxes may have been moved somewhere darker
@@ -7735,7 +7758,7 @@ $('btn-tpl-done').addEventListener('click', () => {
 });
 $('btn-tpl-defaults').addEventListener('click', () => { TemplateStore.resetBoxes(); TemplateEdit.refresh(); drawPreview(); updateDesignReadout(); });
 $('btn-tpl-reset').addEventListener('click', resetDesign);
-for (const id of ['f-tpl-front', 'f-tpl-back', 'f-tpl-map']) $(id).addEventListener('change', render);
+for (const id of ['f-tpl-front', 'f-tpl-back']) $(id).addEventListener('change', render);
 
 /* ---- boot -------------------------------------------------------- */
 
@@ -7755,9 +7778,10 @@ if (restoreDraft()) {
 Promise.all([loadTemplates(), loadCardFonts()])
   .then(async ([templates]) => {
     builtInTemplates = templates;
+    TemplateStore.builtIn = templates;
     // a design put in earlier is still the one in use
     try { await TemplateStore.restore(); } catch { /* fall back to the built-in */ }
-    state.templates = TemplateStore.templatesFor(templates);
+    state.templates = TemplateStore.templates;
     updateBatchButton();
     if (state.step === LAST_STEP) buildReview();
     render();

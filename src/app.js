@@ -752,8 +752,11 @@ async function loadExample() {
 }
 if (location.hash === '#example') addEventListener('load', loadExample);
 
-// #map downloads the current layout as a template map: the starting
-// point for a redesign, and the thing test/map.mjs renders through.
+// #map downloads config.js's own geometry as a colour-coded picture.
+// Nothing in the app reads one any more — the map is dragged on screen
+// now — but it is still how the zones are looked at as a whole, and it
+// is what test/map.mjs feeds back in to prove the mask path reproduces
+// the card. Maintainers only; there is no button for it.
 if (location.hash === '#map') addEventListener('load', () => {
   mapFromConfig().toBlob((blob) => downloadBlob('template-map.png', blob), 'image/png');
 });
@@ -1359,15 +1362,15 @@ addEventListener('keydown', (e) => {
 });
 
 /* ---- the card design ---------------------------------------------
-   Swapping the artwork changes where everything on the card belongs, so
-   it is offered on the first step of a blank card and nowhere else: once
-   a photo has been placed against one design, the placement is already
-   wrong for another.
+   Moving the map, or swapping the artwork, changes where everything on
+   the card belongs, so both are offered on the first step of a blank
+   card and nowhere else: once a photo has been placed against one map,
+   the placement is already wrong for another.
    ------------------------------------------------------------------ */
 
 let builtInTemplates = null;
 
-/** Is there a card in progress that a new design would spoil? */
+/** Is there a card in progress that a change of design would spoil? */
 function designAllowed() {
   return state.step === 0 && !startedCard() && !state.queue.length;
 }
@@ -1375,7 +1378,10 @@ function designAllowed() {
 function renderDesign() {
   const allowed = designAllowed();
   if (!allowed && TemplateEdit.open) stopAdjusting();
-  $('design-name').textContent = TemplateStore.isCustom ? TemplateStore.name : 'the built-in design';
+  $('design-name').textContent = TemplateStore.name;
+  $('btn-tpl-map').hidden = TemplateEdit.open;
+  $('design-map-note').hidden = TemplateEdit.open;
+  $('design-art').hidden = TemplateEdit.open;
   $('design-actions').hidden = !TemplateStore.isCustom || TemplateEdit.open;
   $('design-adjust').hidden = !TemplateEdit.open;
   $('btn-tpl-use').disabled = !($('f-tpl-front').files[0] && $('f-tpl-back').files[0]);
@@ -1402,18 +1408,16 @@ async function useUploadedDesign() {
   msg.textContent = 'Reading the artwork…';
   try {
     const [front, back] = await Promise.all([fileToImage(frontFile), fileToImage(backFile)]);
-    const mapFile = $('f-tpl-map').files[0] || null;
-    const mapImage = mapFile ? await fileToImage(mapFile) : null;
     const name = frontFile.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim() || 'Uploaded design';
-    const result = await TemplateStore.adopt({ name, frontImage: front, backImage: back, mapImage });
+    const result = await TemplateStore.adopt({ name, frontImage: front, backImage: back });
     if (result.error) { msg.textContent = result.error; return; }
 
-    state.templates = TemplateStore.templatesFor(builtInTemplates);
+    state.templates = TemplateStore.templates;
     TemplateStore.save();
-    msg.textContent = TemplateStore.note || 'In use. Check the card on the left.';
+    msg.textContent = TemplateStore.note || 'In use. Check the map against the new artwork.';
     showContrastWarnings(result.warnings);
-    // with a map everything is already placed; without one, there is work to do
-    if (TemplateStore.hasMap) render(); else startAdjusting();
+    // the map is wherever it was, which is unlikely to suit new artwork
+    startAdjusting();
   } catch (err) {
     msg.textContent = err.message;
   }
@@ -1445,7 +1449,7 @@ function showContrastWarnings(warnings) {
 }
 
 function startAdjusting() {
-  if (!TemplateStore.isCustom) return;
+  // nothing is committed yet: the first drag is what creates an override
   state.side = 'front';
   state.tool = 'design';
   TemplateEdit.show();
@@ -1455,7 +1459,8 @@ function startAdjusting() {
 
 function stopAdjusting() {
   TemplateEdit.hide();
-  TemplateStore.save();
+  if (TemplateStore.isPristine) TemplateStore.clear();   // looked, moved nothing
+  else TemplateStore.save();
   $('tpl-overlay').hidden = true;
 }
 
@@ -1464,19 +1469,19 @@ function updateDesignReadout() {
 }
 
 function resetDesign() {
-  if (!confirm('Go back to the design the app was built with?')) return;
+  if (!confirm('Go back to the card the app was built with — artwork and map?')) return;
   stopAdjusting();
   TemplateStore.clear();
   showContrastWarnings([]);
   state.templates = builtInTemplates;
-  for (const id of ['f-tpl-front', 'f-tpl-back', 'f-tpl-map']) $(id).value = '';
+  for (const id of ['f-tpl-front', 'f-tpl-back']) $(id).value = '';
   $('design-msg').textContent = 'Back to the built-in design.';
   render();
 }
 
 TemplateEdit.mount($('tpl-overlay'), () => { drawPreview(); updateDesignReadout(); });
 $('btn-tpl-use').addEventListener('click', useUploadedDesign);
-$('btn-tpl-adjust').addEventListener('click', startAdjusting);
+$('btn-tpl-map').addEventListener('click', startAdjusting);
 $('btn-tpl-done').addEventListener('click', () => {
   stopAdjusting();
   showContrastWarnings(TemplateStore.warnings());     // the boxes may have been moved somewhere darker
@@ -1485,7 +1490,7 @@ $('btn-tpl-done').addEventListener('click', () => {
 });
 $('btn-tpl-defaults').addEventListener('click', () => { TemplateStore.resetBoxes(); TemplateEdit.refresh(); drawPreview(); updateDesignReadout(); });
 $('btn-tpl-reset').addEventListener('click', resetDesign);
-for (const id of ['f-tpl-front', 'f-tpl-back', 'f-tpl-map']) $(id).addEventListener('change', render);
+for (const id of ['f-tpl-front', 'f-tpl-back']) $(id).addEventListener('change', render);
 
 /* ---- boot -------------------------------------------------------- */
 
@@ -1505,9 +1510,10 @@ if (restoreDraft()) {
 Promise.all([loadTemplates(), loadCardFonts()])
   .then(async ([templates]) => {
     builtInTemplates = templates;
+    TemplateStore.builtIn = templates;
     // a design put in earlier is still the one in use
     try { await TemplateStore.restore(); } catch { /* fall back to the built-in */ }
-    state.templates = TemplateStore.templatesFor(templates);
+    state.templates = TemplateStore.templates;
     updateBatchButton();
     if (state.step === LAST_STEP) buildReview();
     render();

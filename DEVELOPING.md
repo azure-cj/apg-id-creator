@@ -31,7 +31,7 @@ and does not do is in **PHOTO-SPEC.md**.
 | `serve.mjs` | `npm start` — serves the folder on `http://localhost:8000`. No dependencies. |
 | `test/map.mjs` | `npm run test:map` — builds a map from `config.js`, reads it back, and checks the zones land where they started, that the card still renders, and that the contrast check refuses artwork the text would vanish on. |
 | `test/golden.mjs` | Renders the example card at 300 DPI and compares it with `test/golden-front.png`, so a code or config change cannot silently move anything. |
-| `test/design.mjs` | `npm run test:design` — puts a different design in through the file inputs the way HR would, and checks the wrong shape is refused, the new artwork reaches the printed card, dragging a placeholder moves what is drawn, and the design survives a restart. |
+| `test/design.mjs` | `npm run test:design` — moves the map and puts different artwork in the way HR would, and checks that opening the map changes nothing, that the built-in photo cut-out keeps its step when dragged, that the wrong shape is refused, that new artwork reaches the printed card, that a drag moves what is drawn by the amount dragged, and that it all survives a restart. |
 | `package.json` | `npm run build`, `npm test`, `npm run dev`. |
 
 ## How the app is built
@@ -57,9 +57,9 @@ src/
                     head target, so a template's layout can come from the
                     artwork instead of from hand-measured numbers
   card.js           draws the front and back at any resolution
-  template-store.js the design in use: takes uploaded artwork, normalises it,
-                    holds the placeholders, keeps it in localStorage, and
-                    falls back to the built-in card
+  template-store.js the design in use: the map (where every zone sits) and,
+                    optionally, uploaded artwork. Keeps both in localStorage
+                    and falls back to the built-in card
   template-edit.js  the drag-and-resize handles laid over the preview
   photo.js          the photo pipeline: background check, chroma key, head
                     detection, automatic placement
@@ -105,7 +105,8 @@ Common edits:
 | How two roles are merged on the card | `CONFIG.titles.mergeJoiner` / `pairJoiner` |
 | Change where the photo sits or how big the head is | `CONFIG.photo` — `headTop`, `headCenterX`, `headWidth`, `reachY`; manual-adjust limits `nudgeStepMm`, `zoomMin/Max` |
 | Change the QR link | `CONFIG.qr.content` |
-| New card artwork, just for this computer | Nothing here: **Card design** in the tool rail takes the two PNGs and lets the placeholders be dragged. See `TEMPLATE-SPEC.md` |
+| Move a zone, just for this computer | Nothing here: **Card design → Show the map** in the tool rail. It edits the built-in card's zones as readily as uploaded artwork's |
+| New card artwork, just for this computer | Nothing here: **Card design → Use different artwork** takes the two PNGs. See `TEMPLATE-SPEC.md` |
 | New card artwork, built into the app | Replace `assets/front-template.png` / `assets/back.png` (keep 638 × 1004 px). If the band or the photo window moved, re-trace `CONFIG.frontOutline.polygons` and `CONFIG.photoArea.polygon`, or ship a map |
 | Different number format | `CONFIG.employeeNo` (`prefix`, `digits`, `label`, years offered) |
 | Paper sizes, margins, gutters, crop marks | `CONFIG.sheet` |

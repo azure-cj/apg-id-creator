@@ -89,59 +89,37 @@ The back has no zones at all: nothing is drawn on it except the signature
 of whoever signs the cards, which is part of your artwork, not something
 the app adds. Design it freely at the same 638 × 1011 px.
 
-## If a zone has to move: the map
+## If a zone has to move
 
-Everything above assumes the zones stay put. If the design needs the
-photo on the other side, or the name somewhere else, you can say so in a
-picture instead of asking for code: draw a **map**.
+Everything above assumes the zones stay where they are. They do not have
+to. The zones are not a file you draw — they are boxes HR can drag on the
+card itself, in **Card design → Show the map**. So if your design wants
+the photo on the other side, or the name somewhere else, say so in a note
+with the artwork and HR moves the boxes to match; nobody measures
+anything and nothing is rebuilt.
 
-A map is a third PNG, the same 638 × 1011 px, with each zone painted a
-flat colour and nothing else on it. The app reads it and works out the
-geometry itself — including the two regions, which stop being the
-six-sided approximations they are today and become whatever shape you
-paint, so a band can curve, taper or tear.
+What dragging can and cannot do:
 
-| Paint this | In this colour | Hex |
-| --- | --- | --- |
-| The photo window | magenta | `#FF00FF` |
-| Artwork that covers the person | cyan | `#00FFFF` |
-| Name box | yellow | `#FFFF00` |
-| Job-title box | orange | `#FF8000` |
-| Employee-number box | red | `#FF0000` |
-| Signature box | green | `#00FF00` |
-| QR square | blue | `#0000FF` |
-| A line where the top of the head goes | purple | `#8000FF` |
-
-The head marker is a horizontal bar: its **top edge** is where the top of
-the head lands, and its **left and right ends** say how wide the head
-should be.
-
-Use the exact hex codes, with no gradient, shadow, transparency or
-rounded blur on the shapes. Soft edges are tolerated — the app treats a
-half-blended pixel as half-belonging to each side, which is what keeps a
-shoulder smooth against a band — but a gradient across a whole zone is
-not a zone.
-
-**To start from today's layout rather than a blank page**, open the app
-with `#map` on the end of the address. It downloads `template-map.png`:
-the current card's zones, ready to move around.
-
-Submit the map with the artwork and nobody has to measure anything.
+- **It moves and resizes every zone**, including the photo window, and
+  the face is framed inside that window the same way it is framed today.
+- **On the built-in card the photo window keeps its stepped shape** — it
+  is moved and scaled, not flattened into a rectangle.
+- **On your artwork the photo window is a plain rectangle** sitting on
+  top of the design. The app has no way to know which parts of a new
+  picture belong in front of the person, so nothing overlaps the photo.
+  If your design needs a band across the shoulders, it has to be printed
+  on the card *behind* the photo window instead, or the window has to
+  stop above it.
 
 ## Submitting it
 
 Hand over the two PNGs, named clearly, for example `front-2027.png` and
-`back-2027.png`, and the map if you drew one.
+`back-2027.png`, with a note of anything that has moved.
 
 Nothing needs rebuilding. HR clicks **Card design** in the tool rail on a
-blank ID, chooses the two files and presses **Use this design**.
-
-- **With a map**, that is the whole job: every zone lands where you
-  painted it, and artwork can sit in front of the photo.
-- **Without a map**, the app keeps the current zones and HR drags them
-  into place on the preview. The photo is then a plain rectangle sitting
-  on top of the artwork — nothing can overlap it, so a band across the
-  shoulders needs a map.
+blank ID, opens **Use different artwork**, chooses the two files and
+presses **Use this artwork**. The zones stay where they were, so the next
+thing on screen is the map, ready to be dragged onto the new design.
 
 Either way the app checks the text against the artwork before accepting
 it and says so if the name, job title, number or signature would be too

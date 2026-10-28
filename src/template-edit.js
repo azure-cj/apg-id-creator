@@ -48,7 +48,8 @@ const TemplateEdit = {
       el.tabIndex = 0;
       el.setAttribute('role', 'button');
       el.setAttribute('aria-label', `${label} placeholder. Arrow keys move it, shift and arrow keys resize it.`);
-      el.innerHTML = `<span class="tpl-tag">${label}</span><i class="tpl-grip" aria-hidden="true"></i>`;
+      el.innerHTML = `<i class="tpl-shape" aria-hidden="true"></i>`
+        + `<span class="tpl-tag">${label}</span><i class="tpl-grip" aria-hidden="true"></i>`;
       el.addEventListener('pointerdown', (e) => this._grab(e, key));
       el.addEventListener('keydown', (e) => this._key(e, key));
       el.addEventListener('focus', () => this._select(key));
@@ -70,7 +71,7 @@ const TemplateEdit = {
    * photo window, which is the one thing bare card belongs to.
    */
   refresh() {
-    if (!this.root || !TemplateStore.isCustom) return;
+    if (!this.root) return;
     const W = CONFIG.card.widthMm, H = CONFIG.card.heightMm;
     const boxes = [];
     for (const [key, el] of this.handles) {
@@ -82,6 +83,13 @@ const TemplateEdit = {
       el.style.width = `${b.w / W * 100}%`;
       el.style.height = `${b.h / H * 100}%`;
       el.classList.toggle('on', key === this.selected);
+      // the photo window is not a rectangle on the built-in card; show
+      // the shape that will actually be cut, not just its bounding box
+      if (key === 'photo') {
+        const pts = TemplateStore.photoOutline()
+          .map(([x, y]) => `${((x - b.x) / b.w * 100).toFixed(2)}% ${((y - b.y) / b.h * 100).toFixed(2)}%`);
+        el.querySelector('.tpl-shape').style.clipPath = `polygon(${pts.join(', ')})`;
+      }
       boxes.push({ el, area: b.w * b.h });
     }
     boxes.sort((a, b) => b.area - a.area);

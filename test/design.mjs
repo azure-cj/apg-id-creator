@@ -2,16 +2,17 @@
 /* ------------------------------------------------------------------
    Card-design test
    ------------------------------------------------------------------
-   Puts a different design into the built app the way an operator would
-   — two pictures through the file inputs — and checks the four things
-   that would quietly ruin a card if they broke:
+   Changes the card the way an operator would — the map first, then the
+   artwork through the file inputs — and checks the things that would
+   quietly ruin a card if they broke:
 
-     1. artwork of the wrong shape is refused, with a size in the message
-     2. the new artwork actually reaches the printed card
-     3. dragging a placeholder moves what is drawn, by the amount dragged
-     4. the design survives a restart, and "use the built-in" undoes it
-
-   Then the same again with a map, which must place everything itself.
+     1. opening the map changes nothing until a box is moved
+     2. the built-in card keeps its stepped photo cut-out when the map
+        is dragged, rather than falling back to a rectangle
+     3. artwork of the wrong shape is refused, with a size in the message
+     4. the right shape reaches the printed card
+     5. dragging a box moves what is drawn, by the amount dragged
+     6. it survives a restart, and "use the built-in" undoes it
 
      npm run test:design
    ------------------------------------------------------------------ */
@@ -68,7 +69,43 @@ await page.evaluate(() => {
   };
 });
 
-/* ---- 1. the wrong shape is refused ------------------------------- */
+/* ---- 1. looking at the map changes nothing ----------------------- */
+
+const pristine = await page.evaluate(() => cardPixels().join(','));
+await page.evaluate(() => startAdjusting());
+check(await page.isVisible('#tpl-overlay'), 'the map is drawn over the card');
+check(await page.evaluate(() => !TemplateStore.isCustom), 'and opening it does not count as changing it');
+await page.evaluate(() => { stopAdjusting(); render(); });
+check(await page.evaluate(() => cardPixels().join(',')) === pristine, 'closing it again leaves the card byte for byte as it was');
+
+/* ---- 2. the built-in cut-out survives being moved ----------------- */
+
+await page.evaluate(() => startAdjusting());
+const cutOut = await page.evaluate(() => {
+  // the photo window is stepped, to clear the gold line. Move it and the
+  // step must move with it — a rectangle here would be a silent downgrade.
+  TemplateStore.setBox('photo', { ...TemplateStore.box('photo'), x: TemplateStore.box('photo').x + 2 });
+  const m = geo().masks.photo;
+  const px = m.getContext('2d').getImageData(0, 0, m.width, m.height).data;
+  const rowWidth = (y) => {
+    let first = -1, last = -1;
+    for (let x = 0; x < m.width; x++) { if (px[(y * m.width + x) * 4 + 3] > 128) { if (first < 0) first = x; last = x; } }
+    return first < 0 ? 0 : last - first + 1;
+  };
+  // the step is at y = 17.624 mm: above it the window is 2.5 mm narrower
+  const mm = (v) => Math.round(v / CONFIG.card.heightMm * m.height);
+  const above = rowWidth(mm(14));
+  const below = rowWidth(mm(24));
+  return { above, below, step: below - above, want: Math.round(2.5 / CONFIG.card.widthMm * m.width) };
+});
+check(Math.abs(cutOut.step - cutOut.want) <= 2 && cutOut.above > 300,
+  `the cut-out keeps its step after the drag (${cutOut.above}px wide above it, ${cutOut.below}px below — a ${cutOut.step}px step, expected ${cutOut.want})`);
+check(await page.evaluate(() => !!geo().masks.front), 'and the artwork still sits in front of the photo');
+await page.evaluate(() => { TemplateStore.resetBoxes(); stopAdjusting(); render(); });
+check(await page.evaluate(() => !TemplateStore.isCustom), 'putting the boxes back drops the override entirely');
+check(await page.evaluate(() => cardPixels().join(',')) === pristine, 'and the card is the built-in one again');
+
+/* ---- 3. the wrong shape is refused ------------------------------- */
 
 await page.evaluate(async () => {
   const square = await asFile(makeArtwork(600, 600, '#102030', '#c0a000'), 'square.png');
@@ -81,7 +118,7 @@ const refusal = await page.textContent('#design-msg');
 check(/600 × 600/.test(refusal) && /not the shape of an ID card/.test(refusal), `square artwork refused: "${refusal.slice(0, 60)}…"`);
 check(await page.evaluate(() => !TemplateStore.isCustom), 'and the built-in design is still in use');
 
-/* ---- 2. the right shape reaches the card ------------------------- */
+/* ---- 4. the right shape reaches the card ------------------------- */
 
 const beforeColour = await page.evaluate(() => cornerColour());
 await page.evaluate(async () => {
@@ -97,7 +134,7 @@ check(await page.evaluate(() => TemplateStore.name) === 'Spring 2027', 'and is n
 check(beforeColour !== afterColour && afterColour === '11,61,46', `the printed card is the new artwork (${beforeColour} → ${afterColour})`);
 check(await page.isVisible('#tpl-overlay'), 'the placeholders are offered straight away');
 
-/* ---- 3. dragging moves what is drawn ----------------------------- */
+/* ---- 5. dragging moves what is drawn ----------------------------- */
 
 const box = await page.$('.tpl-ph[data-key="name"]');
 const r = await box.boundingBox();
@@ -130,7 +167,7 @@ const back1 = await page.evaluate(() => TemplateStore.box('name'));
 const configX = await page.evaluate(() => CONFIG.text.name.box.x);
 check(back0.x !== back1.x && Math.abs(back1.x - configX) < 0.001, 'putting the boxes back undoes the drag');
 
-/* ---- 4. it survives a restart, and can be undone ------------------ */
+/* ---- 6. it survives a restart, and can be undone ------------------ */
 
 await page.evaluate(() => { TemplateEdit.hide(); TemplateStore.save(); });
 await page.reload();
@@ -150,42 +187,6 @@ check(await page.evaluate(() => cornerColour()) === '11,61,46', 'and still what 
 await page.evaluate(() => { TemplateStore.clear(); state.templates = builtInTemplates; render(); });
 check(await page.evaluate(() => cornerColour()) === beforeColour, 'the built-in design comes back unchanged');
 
-/* ---- 5. a map places everything itself --------------------------- */
-
-await page.evaluate(() => {
-  window.makeArtwork = (w, h, back, stripe) => {
-    const c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    const x = c.getContext('2d');
-    x.fillStyle = back; x.fillRect(0, 0, w, h);
-    x.fillStyle = stripe; x.fillRect(0, Math.round(h * 0.62), w, Math.round(h * 0.38));
-    return c;
-  };
-  window.asFile = (canvas, name) => new Promise((res) => canvas.toBlob(
-    (b) => res(new File([b], name, { type: 'image/png' })), 'image/png'));
-  window.putFiles = async (id, files) => {
-    const dt = new DataTransfer();
-    for (const f of files) dt.items.add(f);
-    const input = document.getElementById(id);
-    input.files = dt.files;
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-  };
-});
-await page.evaluate(async () => {
-  const front = await asFile(makeArtwork(638, 1011, '#1a1a1a', '#333333'), 'mapped.png');
-  const back = await asFile(makeArtwork(638, 1011, '#1a1a1a', '#333333'), 'back.png');
-  const map = await asFile(mapFromConfig(), 'map.png');
-  await putFiles('f-tpl-front', [front]);
-  await putFiles('f-tpl-back', [back]);
-  await putFiles('f-tpl-map', [map]);
-  await useUploadedDesign();
-});
-check(await page.evaluate(() => TemplateStore.hasMap), 'the map is accepted');
-check(await page.evaluate(() => !!geo().masks.front), 'and brings artwork that sits in front of the photo');
-const drift = await page.evaluate(() => Math.abs(TemplateStore.box('name').x - CONFIG.text.name.box.x));
-check(drift < 0.1, `the map put the name where config has it (${drift.toFixed(3)} mm out)`);
-check(await page.isHidden('#tpl-overlay'), 'and nothing needs dragging');
-
 /* ---- done -------------------------------------------------------- */
 
 await browser.close();
@@ -194,4 +195,4 @@ if (fail.length || errors.length) {
   console.error(`\nFAIL — ${fail.length} check(s) failed${errors.length ? `, ${errors.length} page error(s)` : ''}`);
   process.exit(1);
 }
-console.log('\nPASS — a design can be put in, moved, kept and undone');
+console.log('\nPASS — the map and the artwork can both be changed, kept and undone');

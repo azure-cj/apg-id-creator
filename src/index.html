@@ -117,25 +117,22 @@
           <section class="block tool" id="tool-design" hidden>
           <p class="msg">Now using <strong id="design-name">the built-in design</strong>.</p>
 
-          <div class="field">
-            <label for="f-tpl-front">Front artwork (PNG)</label>
-            <input id="f-tpl-front" type="file" accept="image/png,image/jpeg,image/webp" />
-          </div>
-          <div class="field">
-            <label for="f-tpl-back">Back artwork (PNG)</label>
-            <input id="f-tpl-back" type="file" accept="image/png,image/jpeg,image/webp" />
-            <p class="msg">Both at 638 × 1011 pixels. See TEMPLATE-SPEC.md for the full brief.</p>
-          </div>
-          <details class="sub-block">
-            <summary>Add a map (optional)</summary>
-            <div class="field">
-              <label for="f-tpl-map">Map (PNG)</label>
-              <input id="f-tpl-map" type="file" accept="image/png" />
-              <p class="msg">A third picture with every zone painted a flat colour. It sets the placeholders for you and lets artwork sit in front of the photo. Without one the photo is a plain rectangle on top of the artwork.</p>
-            </div>
-          </details>
+          <button type="button" id="btn-tpl-map" class="primary">Show the map</button>
+          <p class="msg" id="design-map-note">The boxes for the photo, name, job title, number, signature and QR, drawn over the card. Drag them anywhere.</p>
 
-          <button type="button" id="btn-tpl-use" class="primary" disabled>Use this design</button>
+          <details class="sub-block" id="design-art">
+            <summary>Use different artwork</summary>
+            <div class="field">
+              <label for="f-tpl-front">Front artwork (PNG)</label>
+              <input id="f-tpl-front" type="file" accept="image/png,image/jpeg,image/webp" />
+            </div>
+            <div class="field">
+              <label for="f-tpl-back">Back artwork (PNG)</label>
+              <input id="f-tpl-back" type="file" accept="image/png,image/jpeg,image/webp" />
+              <p class="msg">Both at 638 × 1011 pixels. See TEMPLATE-SPEC.md for the full brief. The map stays where it is, so check it afterwards.</p>
+            </div>
+            <button type="button" id="btn-tpl-use" class="primary" disabled>Use this artwork</button>
+          </details>
           <p class="msg" id="design-msg" role="status" aria-live="polite"></p>
           <details class="sub-block" id="design-warn" hidden>
             <summary id="design-warn-head"></summary>
@@ -143,7 +140,7 @@
           </details>
 
           <div id="design-adjust" hidden>
-            <p class="msg">Drag the boxes on the card to move them, the corner to resize. Arrow keys work too.</p>
+            <p class="msg">Drag a box to move it, its corner to resize. Arrow keys nudge the selected one by 0.25&nbsp;mm.</p>
             <p class="msg" id="design-readout"></p>
             <div class="sig-actions">
               <button type="button" id="btn-tpl-done" class="primary">Done</button>
@@ -152,7 +149,6 @@
           </div>
 
           <div class="sig-actions" id="design-actions" hidden>
-            <button type="button" id="btn-tpl-adjust" class="ghost">Move the boxes</button>
             <button type="button" id="btn-tpl-reset" class="ghost">Use the built-in design</button>
           </div>
           </section>

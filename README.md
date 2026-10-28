@@ -96,30 +96,35 @@ everyone already added still there.
 
 ## Changing the card design
 
-You can put new artwork in yourself, without waiting for a new version of
-the app.
+Two things can be changed here without waiting for a new version of the
+app, and both only on a **new, blank ID**.
+
+### Moving the boxes
+
+Click **Card design** in the list on the left, then **Show the map**. The
+boxes for the photo, name, job title, number, signature and QR appear on
+the card. Drag one to move it, drag its round corner to resize it, or
+select one and nudge it with the arrow keys. The card redraws as you go.
+
+**Done** keeps it on this computer. **Put the boxes back** undoes
+everything and returns to the original layout.
+
+### New artwork
 
 1. Get the two pictures from the designer: the **front** and the **back**,
    both 638 × 1011 pixels. (`TEMPLATE-SPEC.md` is the brief to give them.)
-2. Start a **new, blank ID** — the design can only be changed before you
-   start filling one in.
-3. Click **Card design** in the list on the left, choose the two files
-   and press **Use this design**.
-4. Boxes appear on the card for the name, job title, number, signature,
-   QR and photo. **Drag them where they belong**, and drag the round
-   corner to resize. Arrow keys nudge the selected one. Press **Done**.
+2. In **Card design**, open **Use different artwork**, choose the two
+   files and press **Use this artwork**.
+3. The boxes stay where they were, which is unlikely to suit a new
+   design, so the map opens straight away. Drag the boxes into place and
+   press **Done**.
 
-The app warns you if any of the text would be too pale to read against the
-new artwork. Move that box somewhere darker, or ask the designer to put a
-darker shape behind it.
+The app warns you if any of the text would be too pale to read against
+the new artwork. Move that box somewhere darker, or ask the designer to
+put a darker shape behind it.
 
-The design stays on this computer until you change it. **Use the built-in
-design** puts the original card back at any time.
-
-> If the designer also sends a **map** — a third picture with the zones
-> painted in flat colours — add it under *Add a map*. Then nothing needs
-> dragging: the app places everything itself, and the artwork can overlap
-> the photo.
+**Use the built-in design** puts the original card and its original
+layout back at any time.
 
 ---
 

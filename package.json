@@ -1,6 +1,6 @@
 {
   "name": "alpha-premier-id-maker",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "private": true,
   "description": "Employee ID card maker for Alpha Premier Group of Companies \u2014 single-file offline web app",
   "type": "module",

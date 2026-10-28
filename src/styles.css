@@ -197,11 +197,18 @@ h1 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; font-weigh
 .tpl-ph {
   position: absolute; box-sizing: border-box;
   border: 1.5px dashed #00b3ff; border-radius: 2px;
-  background: #00b3ff1f; cursor: move; touch-action: none;
+  cursor: move; touch-action: none;
 }
-.tpl-ph[data-key="photo"] { border-color: #ff3ea5; background: #ff3ea51a; }
+/* the fill is its own layer so the photo window can be clipped to the
+   shape that is really cut, while the handle and its grip stay square */
+.tpl-shape { position: absolute; inset: 0; background: #00b3ff1f; pointer-events: none; }
+/* the shape carries its own outline, so the bounding box keeps quiet
+   and the window is not drawn twice */
+.tpl-ph[data-key="photo"] { border-color: transparent; }
+.tpl-ph[data-key="photo"] .tpl-shape { background: #ff3ea51a; box-shadow: inset 0 0 0 1.5px #ff3ea5; }
 .tpl-ph.on { border-style: solid; box-shadow: 0 0 0 2px #ffffff99; }
-.tpl-ph.dragging { background: #00b3ff40; }
+.tpl-ph.dragging .tpl-shape { background: #00b3ff40; }
+.tpl-ph[data-key="photo"].dragging .tpl-shape { background: #ff3ea540; }
 .tpl-ph:focus-visible { outline: 2px solid var(--gold-strong); outline-offset: 2px; }
 /* Six names at once is more clutter than the card can carry, and the
    panel already says which one is selected. So a handle gives its name
