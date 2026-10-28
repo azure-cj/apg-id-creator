@@ -24,8 +24,8 @@
    or { error } when the file could not be read at all.
    ------------------------------------------------------------------ */
 
-const MSG_HAS_BACKGROUND = 'This photo still has its background. Use the photo prompt below to get a version with a solid green background, or upload a cut-out PNG.';
-const MSG_CHECKERBOARD = 'This photo has a grey checkerboard painted in, not a real transparent background. Ask for a solid green background instead (see the photo prompt below).';
+const MSG_HAS_BACKGROUND = 'This photo still has its background. The ID needs the person on a plain green background, or a cut-out PNG.';
+const MSG_CHECKERBOARD = 'This photo has a grey checkerboard painted into it, not a real transparent background. The ID needs a plain green background instead.';
 
 const ALPHA_SOLID = 128;        // alpha at/above this counts as "person"
 // Clothing the same colour as the backdrop is keyed out with it. Two signs:
@@ -156,7 +156,7 @@ function findHeadAndPlace(analysis, fullWidth, keyed) {
   for (let i = 3; i < data.length; i += 4) if (data[i] < 20) transparent++;
   let topClear = 0;
   for (let x = 0; x < w; x++) if (data[x * 4 + 3] < 20) topClear++;
-  if (transparent / (w * h) < 0.08 || topClear / w < 0.5) return { ok: false, problem: MSG_HAS_BACKGROUND };
+  if (transparent / (w * h) < 0.08 || topClear / w < 0.5) return { ok: false, problem: MSG_HAS_BACKGROUND, fix: 'prompt' };
 
   // per-row silhouette: first/last solid column and count of solid pixels
   const first = new Int32Array(h).fill(-1), last = new Int32Array(h).fill(-1), count = new Int32Array(h);
@@ -221,6 +221,7 @@ function findHeadAndPlace(analysis, fullWidth, keyed) {
     return {
       ok: false, head, holeFraction, torsoRatio,
       problem: 'Clothing is too close to the background colour — redo the photo with a blue background or different top.',
+      fix: 'prompt',
     };
   }
 
@@ -298,8 +299,8 @@ function analysePhoto(imgEl, url, fileName) {
 
   const background = classifyBackground(pixels);
   let check;
-  if (background === 'checkerboard') check = { ok: false, problem: MSG_CHECKERBOARD };
-  else if (background === 'other') check = { ok: false, problem: MSG_HAS_BACKGROUND };
+  if (background === 'checkerboard') check = { ok: false, problem: MSG_CHECKERBOARD, fix: 'prompt' };
+  else if (background === 'other') check = { ok: false, problem: MSG_HAS_BACKGROUND, fix: 'prompt' };
   else {
     const keyed = background === 'green' || background === 'blue';
     if (keyed) { chromaKey(pixels, background); trimEdgeHalo(pixels); }

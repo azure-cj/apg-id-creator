@@ -54,6 +54,7 @@ const state = {
   seq: '',
   photo: null,          // result of processPhotoFile when check.ok
   photoError: '',
+  photoFix: '',          // 'prompt' when the AI prompt is the way out of this rejection
   adjust: { dx: 0, dy: 0, zoom: 1 },   // manual nudge on top of the automatic placement
   guides: false,        // maintainer overlay (Ctrl+Shift+G or #guides)
   signature: null,
@@ -379,6 +380,14 @@ function render() {
   photoMsg.textContent = pm.text;
   if (pm.kind === 'error') photoMsg.setAttribute('role', 'alert'); else photoMsg.removeAttribute('role');
   $('photo-btn').textContent = state.checking ? 'Checking photo…' : ph ? 'Change photo' : 'Upload photo';
+
+  // When the photo was turned away for something the prompt actually
+  // fixes, put the fix in front of the operator instead of leaving a
+  // sentence pointing at a collapsed panel they have no reason to open.
+  const wantsPrompt = pm.kind === 'error' && state.photoFix === 'prompt';
+  $('guide').classList.toggle('is-wanted', wantsPrompt);
+  $('guide-label').textContent = wantsPrompt ? 'Get a photo the ID will accept' : 'No green background?';
+  if (wantsPrompt && $('guide-body').hidden) setGuideOpen(true);
   $('photo-name').hidden = !ph;
   $('photo-name').textContent = ph ? ph.fileName : '';
   const adjusted = state.adjust.dx !== 0 || state.adjust.dy !== 0 || state.adjust.zoom !== 1;
@@ -604,9 +613,13 @@ async function acceptPhoto(file) {
   state.example = false;
   touch('photo');
   state.adjust = { dx: 0, dy: 0, zoom: 1 };
-  if ('error' in result) { state.photo = null; state.photoError = result.error; }
-  else if (result.check.ok) { state.photo = result; state.photoError = ''; }
-  else { state.photo = null; state.photoError = result.check.problem ?? 'This photo can’t be used.'; }
+  if ('error' in result) { state.photo = null; state.photoError = result.error; state.photoFix = ''; }
+  else if (result.check.ok) { state.photo = result; state.photoError = ''; state.photoFix = ''; }
+  else {
+    state.photo = null;
+    state.photoError = result.check.problem ?? 'This photo can’t be used.';
+    state.photoFix = result.check.fix ?? '';
+  }
   $('f-photo').value = '';
   state.side = 'front';
   render();
@@ -666,12 +679,14 @@ window.addEventListener('keydown', (e) => {
 
 // photo prompt guide
 $('photo-prompt').value = PHOTO_PROMPT;
-$('btn-guide').addEventListener('click', () => {
-  const open = $('guide-body').hidden;
+function setGuideOpen(open) {
   $('guide-body').hidden = !open;
   $('guide-teaser').hidden = open;
   $('guide-sign').textContent = open ? '−' : '+';
   $('btn-guide').setAttribute('aria-expanded', String(open));
+}
+$('btn-guide').addEventListener('click', () => {
+  setGuideOpen($('guide-body').hidden);
 });
 $('btn-copy-prompt').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(PHOTO_PROMPT); $('copy-status').textContent = 'Copied.'; }
@@ -723,7 +738,7 @@ async function loadExample() {
   state.seq = EXAMPLE.seq; state.year = THIS_YEAR;
   $('f-seq').value = state.seq;
   state.reissue = false; refreshDuplicate();
-  state.photo = photo?.check.ok ? photo : null; state.photoError = '';
+  state.photo = photo?.check.ok ? photo : null; state.photoError = ''; state.photoFix = '';
   state.adjust = { dx: 0, dy: 0, zoom: 1 };
   state.signature = EXAMPLE.signature;
   pad.setValue(EXAMPLE.signature);
@@ -888,7 +903,7 @@ function clearCard({ keepQueue = false } = {}) {
   $('f-title-custom').value = ''; $('f-title2-custom').value = '';
   state.seq = '';
   $('f-seq').value = '';
-  state.photo = null; state.photoError = ''; state.signature = null;
+  state.photo = null; state.photoError = ''; state.photoFix = ''; state.signature = null;
   state.adjust = { dx: 0, dy: 0, zoom: 1 };
   state.year = THIS_YEAR; state.reissue = false; state.dupLocal = null; state.dupShared = null; dupToken++;
   pad.setValue(null);

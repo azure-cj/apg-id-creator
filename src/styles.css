@@ -175,6 +175,17 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .photo-name { overflow: hidden; color: var(--muted); font-family: var(--font-mono); font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; }
 
 .guide { display: grid; gap: 6px; margin-top: 4px; padding-top: 10px; border-top: 1px dashed var(--line); }
+/* when the photo was refused for something this prompt fixes, the panel
+   stops being a footnote and becomes the next thing to do */
+.guide.is-wanted {
+  margin-top: 12px; padding: 4px 14px 14px; border: 1px solid var(--gold-strong); border-radius: 12px;
+  background: color-mix(in srgb, var(--gold) 10%, transparent);
+}
+.guide.is-wanted .guide-label { color: var(--ink); font-size: 1rem; }
+.guide.is-wanted .guide-toggle { min-height: 44px; }
+.guide.is-wanted #btn-copy-prompt {
+  border-color: var(--gold-strong); background: var(--gold-strong); color: var(--on-gold); font-weight: 700;
+}
 .guide-toggle {
   display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0;
   border: 0; background: none; color: var(--gold); font: 600 0.95rem var(--font-body); text-align: left; cursor: pointer;

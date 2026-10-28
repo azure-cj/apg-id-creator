@@ -177,9 +177,9 @@
                 </div>
               </details>
 
-              <div class="guide">
+              <div class="guide" id="guide">
                 <button type="button" id="btn-guide" class="guide-toggle" aria-expanded="false" aria-controls="guide-body">
-                  <span>No green background?</span>
+                  <span class="guide-label" id="guide-label">No green background?</span>
                   <span id="guide-sign" aria-hidden="true">+</span>
                 </button>
                 <p class="msg" id="guide-teaser">Turn any phone photo into one.</p>
@@ -189,9 +189,9 @@
                     <li>Paste the prompt below and send it.</li>
                     <li>Download the result and upload it here. The app removes the green background itself.</li>
                   </ol>
-                  <textarea id="photo-prompt" class="prompt" readonly rows="9"></textarea>
+                  <textarea id="photo-prompt" class="prompt" readonly rows="4" aria-label="The prompt to paste"></textarea>
                   <div class="guide-actions">
-                    <button type="button" id="btn-copy-prompt" class="ghost">Copy prompt</button>
+                    <button type="button" id="btn-copy-prompt" class="ghost">Copy the prompt</button>
                     <span class="msg" id="copy-status" role="status" aria-live="polite"></span>
                   </div>
                   <ul class="guide-notes">

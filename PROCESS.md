@@ -74,8 +74,8 @@ portrait first:
 1. Open Gemini or ChatGPT **using the company's approved account** (employee
    photos are personal data).
 2. Attach the photo.
-3. Paste the prompt from `photo-prompt.txt` (also under "Photo prompt for
-   Gemini or ChatGPT" in the app → *Copy prompt*) and send it.
+3. Paste the prompt from `photo-prompt.txt` (also under "No green
+   background?" in the app → *Copy the prompt*) and send it.
 4. **Look at the result.** The face must still look like the person — same
    features, skin tone, hair, glasses, expression. If it does not, ask again
    or use a different original photo. Never accept a "beautified" face.
@@ -100,7 +100,18 @@ Click **Upload photo** (or drag the file onto the Photo box). The app checks
 it, removes the green, finds the head and places it: head 15 mm wide,
 centred under the gold diagonal, top of the head 15.4 mm from the card top.
 The photo appears on the card, placed automatically. If anything is wrong
-a message says so under the button:
+a message says so under the button.
+
+When the reason is one the AI prompt solves — the background is still
+there, a checkerboard has been painted in, or the top matches the
+background — the panel under the photo **opens itself, outlined in gold,
+reading "Get a photo the ID will accept"**, with the three steps and a
+*Copy the prompt* button. The operator does not have to notice a
+collapsed link and work out that it is the way forward. For reasons the
+prompt cannot fix — too large a file, a HEIC, no person found — it stays
+shut, because opening it would be pointing at the wrong answer.
+
+The messages themselves:
 
 * An amber warning — usable, but read it (small photo, tight crop, head
   touching the edge).
