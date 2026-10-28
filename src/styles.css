@@ -107,7 +107,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .name-block { display: grid; gap: 10px; }
 .name-row { display: grid; grid-template-columns: 1fr 96px; gap: 10px; align-items: start; }
 .name-block .msg:empty { display: none; }
-.on-card { margin: 0; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--gold) 10%, transparent); font-size: 0.9rem; }
+.on-card { margin: 2px 0 0; color: var(--muted); font-size: 0.85rem; }
 .on-card .as-printed { font-weight: 600; }
 .on-card.is-error { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
 
@@ -190,7 +190,13 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .guide-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 
 /* ---- photo adjustment ---- */
-.adjust { display: grid; gap: 8px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; }
+.adjust { margin-top: 10px; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: none; }
+.adjust > summary { padding: 9px 12px; color: var(--gold); font: 600 0.85rem var(--font-body); cursor: pointer; list-style: none; }
+.adjust > summary::-webkit-details-marker { display: none; }
+.adjust > summary::before { content: "\25B8  "; }
+.adjust[open] > summary::before { content: "\25BE  "; }
+.adjust > *:not(summary) { margin-inline: 12px; }
+.adjust-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 10px; }
 .adjust-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.95rem; font-weight: 600; }
 .adjust-head .link:disabled { opacity: 0.5; cursor: default; }
 .adjust-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
@@ -251,7 +257,8 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .queue-strip .msg { color: var(--tray-ink); opacity: 0.75; }
 .queue-strip .job-list li { background: #ffffff14; color: var(--tray-ink); }
 .queue-strip .job-list li.is-current { background: color-mix(in srgb, var(--gold-strong) 28%, transparent); }
-.queue-strip .num, .queue-strip .tag { color: var(--tray-ink); opacity: 0.7; }
+.queue-strip .num { color: var(--tray-ink); opacity: 0.7; }
+.queue-strip .tag { color: var(--tray-ink); opacity: 0.9; }
 .queue-strip #btn-cancel-add { width: 100%; min-height: 40px; margin-top: 10px; color: var(--tray-ink); border-color: #ffffff33; font-size: 0.9rem; }
 .queue-strip #btn-cancel-add:hover { background: #ffffff14; }
 .job-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; counter-reset: job; }
@@ -363,3 +370,9 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* the only readable look at the finished card on the last step, where the
+   stage has given itself over to the whole sheet */
+.summary-card { display: flex; justify-content: center; padding: 14px 0 4px; }
+.summary-card img { border-radius: 4px; box-shadow: 0 1px 6px #0000001f; }
+.extras { display: grid; gap: 14px; }

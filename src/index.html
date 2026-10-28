@@ -64,10 +64,7 @@
       <!-- ---------------- form ---------------- -->
       <aside class="panel">
         <section class="block wizard" aria-labelledby="form-heading">
-          <div class="block-head">
-            <h2 id="form-heading">New ID</h2>
-          </div>
-
+          <h2 id="form-heading" class="visually-hidden">New ID</h2>
                     <ol class="steps" id="steps" aria-label="Steps"></ol>
           <p class="msg msg-warn" id="restored-note" hidden>Your typing came back after the page reloaded. The photo and signature still need to be added.</p>
 
@@ -104,7 +101,7 @@
             <h3 class="step-h" id="step-title-h">What do they do?</h3>
 <div class="role-block">
             <div class="field" id="field-title">
-              <span class="field-label" id="title-label">Job title</span>
+              <span class="field-label visually-hidden" id="title-label">Job title</span>
               <div class="chips" id="title-chips" role="radiogroup" aria-labelledby="title-label"></div>
               <input id="f-title-custom" type="text" autocomplete="off" maxlength="60" placeholder="Type the job title" aria-label="Job title" hidden />
               <p id="f-title-msg" class="msg"></p>
@@ -121,14 +118,14 @@
             </div>
 
             <button type="button" id="btn-role-add" class="ghost role-add">+ Add a second role</button>
-            <p class="on-card" id="title-preview"></p>
+            <p class="msg msg-error" id="title-preview" hidden></p>
           </div>
           </section>
 
           <section class="step" id="step-number" data-step="2" hidden aria-labelledby="step-number-h">
             <h3 class="step-h" id="step-number-h">Which employee number?</h3>
 <div class="field" id="field-seq">
-            <label for="f-seq">Employee number</label>
+            <label for="f-seq" class="visually-hidden">Employee number</label>
             <div class="number-row">
               <span class="number-prefix" id="seq-prefix" aria-hidden="true">APG -</span>
               <select id="f-year" aria-label="Year of issue"></select>
@@ -144,13 +141,11 @@
               </span>
             </label>
           </div>
-            <p class="card-line" id="card-line" aria-label="Number line on the card"></p>
           </section>
 
           <section class="step" id="step-photo" data-step="3" hidden aria-labelledby="step-photo-h">
             <h3 class="step-h" id="step-photo-h">Their photo</h3>
 <div class="field">
-            <label for="f-photo">Photo</label>
             <div class="photo" id="photo">
               <div class="photo-row">
                 <div class="photo-thumb" id="photo-thumb" aria-hidden="true"><span>PNG</span></div>
@@ -160,13 +155,10 @@
                   <span class="photo-name" id="photo-name" hidden></span>
                 </div>
               </div>
-              <p class="msg msg-hint" id="photo-msg">A cut-out PNG, or a photo with a solid green background. Chest-up, facing forward.</p>
+              <p class="msg msg-hint" id="photo-msg">A cut-out PNG, or a photo on a solid green background.</p>
 
-              <div class="adjust" id="adjust" hidden>
-                <div class="adjust-head">
-                  <span>Adjust position</span>
-                  <button type="button" id="btn-adjust-reset" class="link" disabled>Reset to automatic</button>
-                </div>
+              <details class="adjust" id="adjust" hidden>
+                <summary>Move or resize it</summary>
                 <div class="adjust-row">
                   <div class="adjust-pad" role="group" aria-label="Move the photo">
                     <button type="button" class="ghost nudge" data-dx="0" data-dy="-1" aria-label="Move up">↑</button>
@@ -179,15 +171,18 @@
                     <input id="f-zoom" type="range" min="70" max="150" step="5" value="100" />
                   </label>
                 </div>
-                <p class="msg">Or drag the photo on the card and use the mouse wheel to resize. The face normally sits at the gold diagonal.</p>
-              </div>
+                <div class="adjust-foot">
+                  <span class="msg">Or drag it on the card; scroll to resize.</span>
+                  <button type="button" id="btn-adjust-reset" class="link" disabled>Reset</button>
+                </div>
+              </details>
 
               <div class="guide">
                 <button type="button" id="btn-guide" class="guide-toggle" aria-expanded="false" aria-controls="guide-body">
-                  <span>Photo prompt for Gemini or ChatGPT</span>
+                  <span>No green background?</span>
                   <span id="guide-sign" aria-hidden="true">+</span>
                 </button>
-                <p class="msg" id="guide-teaser">For phone photos taken anywhere: get a clean ID photo in one step.</p>
+                <p class="msg" id="guide-teaser">Turn any phone photo into one.</p>
                 <div id="guide-body" class="guide-body" hidden>
                   <ol class="guide-steps">
                     <li>Open Gemini or ChatGPT <strong>signed in to the company’s enterprise account</strong> and attach the new hire’s photo.</li>
@@ -214,7 +209,6 @@
           <section class="step" id="step-sign" data-step="4" hidden aria-labelledby="step-sign-h">
             <h3 class="step-h" id="step-sign-h">Their signature</h3>
 <div class="field">
-            <label for="f-signature">Signature</label>
             <div class="sig" id="sig">
               <div class="sig-pad">
                 <canvas id="f-signature" aria-label="Signature pad. Draw the signature with a finger, pen or mouse."></canvas>
@@ -226,7 +220,7 @@
                 <button type="button" id="btn-clear-sig" class="ghost" disabled>Clear</button>
                 <input id="f-sig-image" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" class="visually-hidden" />
                 <label for="f-sig-image" class="ghost sig-upload" id="sig-upload-btn">Upload a scan</label>
-                <span class="msg" id="sig-help">The new hire signs here; it appears in white on the card.</span>
+                <span class="msg" id="sig-help">It prints in white on the card.</span>
               </div>
             </div>
             <p class="msg msg-error" id="sig-msg" hidden></p>
@@ -235,18 +229,11 @@
 
           <section class="step" id="step-check" data-step="5" hidden aria-labelledby="step-check-h">
             <h3 class="step-h" id="step-check-h">Is everything correct?</h3>
-            <p class="msg" id="review-sub"></p>
-
+            <p class="msg" id="review-sub" hidden></p>
             <dl class="summary" id="summary"></dl>
 
             <div id="review-stage">
               <p class="msg msg-warn" id="review-warning" hidden></p>
-              <ul class="review-list" id="review-list">
-                <li>Name spelled correctly, capitals as they should be</li>
-                <li>Title and employee number are right</li>
-                <li>The photo looks like the person and isn’t blurry</li>
-                <li>The signature is visible below the title</li>
-              </ul>
               <div class="print-layout">
                 <div class="block-head"><h2 id="print-h">Printing</h2></div>
                 <div class="field" id="field-layout">
@@ -277,7 +264,7 @@
               <p class="msg msg-error" id="review-error" role="alert" hidden></p>
               <div class="dialog-actions">
                 <button type="button" id="btn-download" class="primary">Download PDF</button>
-                <button type="button" id="btn-png" class="ghost">Save images (PNG)</button>
+                <button type="button" id="btn-png" class="link">Save as images instead</button>
               </div>
               <p class="msg" id="review-file"></p>
             </div>
@@ -298,6 +285,7 @@
           <p class="msg" id="status" role="status" aria-live="polite"></p>
 </section>
 
+        <div id="extras" class="extras">
         <details class="block printer" id="register-block">
           <summary>Issued IDs (<span id="register-count">0</span>)</summary>
           <p class="msg" id="register-note"></p>
@@ -365,6 +353,8 @@
             </span>
           </label>
         </details>
+        </div>
+
       </aside>
     </main>
 

@@ -117,7 +117,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .name-block { display: grid; gap: 10px; }
 .name-row { display: grid; grid-template-columns: 1fr 96px; gap: 10px; align-items: start; }
 .name-block .msg:empty { display: none; }
-.on-card { margin: 0; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--gold) 10%, transparent); font-size: 0.9rem; }
+.on-card { margin: 2px 0 0; color: var(--muted); font-size: 0.85rem; }
 .on-card .as-printed { font-weight: 600; }
 .on-card.is-error { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
 
@@ -200,7 +200,13 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .guide-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 
 /* ---- photo adjustment ---- */
-.adjust { display: grid; gap: 8px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; }
+.adjust { margin-top: 10px; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: none; }
+.adjust > summary { padding: 9px 12px; color: var(--gold); font: 600 0.85rem var(--font-body); cursor: pointer; list-style: none; }
+.adjust > summary::-webkit-details-marker { display: none; }
+.adjust > summary::before { content: "\25B8  "; }
+.adjust[open] > summary::before { content: "\25BE  "; }
+.adjust > *:not(summary) { margin-inline: 12px; }
+.adjust-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 10px; }
 .adjust-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.95rem; font-weight: 600; }
 .adjust-head .link:disabled { opacity: 0.5; cursor: default; }
 .adjust-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
@@ -261,7 +267,8 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .queue-strip .msg { color: var(--tray-ink); opacity: 0.75; }
 .queue-strip .job-list li { background: #ffffff14; color: var(--tray-ink); }
 .queue-strip .job-list li.is-current { background: color-mix(in srgb, var(--gold-strong) 28%, transparent); }
-.queue-strip .num, .queue-strip .tag { color: var(--tray-ink); opacity: 0.7; }
+.queue-strip .num { color: var(--tray-ink); opacity: 0.7; }
+.queue-strip .tag { color: var(--tray-ink); opacity: 0.9; }
 .queue-strip #btn-cancel-add { width: 100%; min-height: 40px; margin-top: 10px; color: var(--tray-ink); border-color: #ffffff33; font-size: 0.9rem; }
 .queue-strip #btn-cancel-add:hover { background: #ffffff14; }
 .job-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; counter-reset: job; }
@@ -374,6 +381,12 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
+/* the only readable look at the finished card on the last step, where the
+   stage has given itself over to the whole sheet */
+.summary-card { display: flex; justify-content: center; padding: 14px 0 4px; }
+.summary-card img { border-radius: 4px; box-shadow: 0 1px 6px #0000001f; }
+.extras { display: grid; gap: 14px; }
+
 </style>
 </head>
 <body>
@@ -425,10 +438,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
       <!-- ---------------- form ---------------- -->
       <aside class="panel">
         <section class="block wizard" aria-labelledby="form-heading">
-          <div class="block-head">
-            <h2 id="form-heading">New ID</h2>
-          </div>
-
+          <h2 id="form-heading" class="visually-hidden">New ID</h2>
                     <ol class="steps" id="steps" aria-label="Steps"></ol>
           <p class="msg msg-warn" id="restored-note" hidden>Your typing came back after the page reloaded. The photo and signature still need to be added.</p>
 
@@ -465,7 +475,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
             <h3 class="step-h" id="step-title-h">What do they do?</h3>
 <div class="role-block">
             <div class="field" id="field-title">
-              <span class="field-label" id="title-label">Job title</span>
+              <span class="field-label visually-hidden" id="title-label">Job title</span>
               <div class="chips" id="title-chips" role="radiogroup" aria-labelledby="title-label"></div>
               <input id="f-title-custom" type="text" autocomplete="off" maxlength="60" placeholder="Type the job title" aria-label="Job title" hidden />
               <p id="f-title-msg" class="msg"></p>
@@ -482,14 +492,14 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
             </div>
 
             <button type="button" id="btn-role-add" class="ghost role-add">+ Add a second role</button>
-            <p class="on-card" id="title-preview"></p>
+            <p class="msg msg-error" id="title-preview" hidden></p>
           </div>
           </section>
 
           <section class="step" id="step-number" data-step="2" hidden aria-labelledby="step-number-h">
             <h3 class="step-h" id="step-number-h">Which employee number?</h3>
 <div class="field" id="field-seq">
-            <label for="f-seq">Employee number</label>
+            <label for="f-seq" class="visually-hidden">Employee number</label>
             <div class="number-row">
               <span class="number-prefix" id="seq-prefix" aria-hidden="true">APG -</span>
               <select id="f-year" aria-label="Year of issue"></select>
@@ -505,13 +515,11 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
               </span>
             </label>
           </div>
-            <p class="card-line" id="card-line" aria-label="Number line on the card"></p>
           </section>
 
           <section class="step" id="step-photo" data-step="3" hidden aria-labelledby="step-photo-h">
             <h3 class="step-h" id="step-photo-h">Their photo</h3>
 <div class="field">
-            <label for="f-photo">Photo</label>
             <div class="photo" id="photo">
               <div class="photo-row">
                 <div class="photo-thumb" id="photo-thumb" aria-hidden="true"><span>PNG</span></div>
@@ -521,13 +529,10 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
                   <span class="photo-name" id="photo-name" hidden></span>
                 </div>
               </div>
-              <p class="msg msg-hint" id="photo-msg">A cut-out PNG, or a photo with a solid green background. Chest-up, facing forward.</p>
+              <p class="msg msg-hint" id="photo-msg">A cut-out PNG, or a photo on a solid green background.</p>
 
-              <div class="adjust" id="adjust" hidden>
-                <div class="adjust-head">
-                  <span>Adjust position</span>
-                  <button type="button" id="btn-adjust-reset" class="link" disabled>Reset to automatic</button>
-                </div>
+              <details class="adjust" id="adjust" hidden>
+                <summary>Move or resize it</summary>
                 <div class="adjust-row">
                   <div class="adjust-pad" role="group" aria-label="Move the photo">
                     <button type="button" class="ghost nudge" data-dx="0" data-dy="-1" aria-label="Move up">↑</button>
@@ -540,15 +545,18 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
                     <input id="f-zoom" type="range" min="70" max="150" step="5" value="100" />
                   </label>
                 </div>
-                <p class="msg">Or drag the photo on the card and use the mouse wheel to resize. The face normally sits at the gold diagonal.</p>
-              </div>
+                <div class="adjust-foot">
+                  <span class="msg">Or drag it on the card; scroll to resize.</span>
+                  <button type="button" id="btn-adjust-reset" class="link" disabled>Reset</button>
+                </div>
+              </details>
 
               <div class="guide">
                 <button type="button" id="btn-guide" class="guide-toggle" aria-expanded="false" aria-controls="guide-body">
-                  <span>Photo prompt for Gemini or ChatGPT</span>
+                  <span>No green background?</span>
                   <span id="guide-sign" aria-hidden="true">+</span>
                 </button>
-                <p class="msg" id="guide-teaser">For phone photos taken anywhere: get a clean ID photo in one step.</p>
+                <p class="msg" id="guide-teaser">Turn any phone photo into one.</p>
                 <div id="guide-body" class="guide-body" hidden>
                   <ol class="guide-steps">
                     <li>Open Gemini or ChatGPT <strong>signed in to the company’s enterprise account</strong> and attach the new hire’s photo.</li>
@@ -575,7 +583,6 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
           <section class="step" id="step-sign" data-step="4" hidden aria-labelledby="step-sign-h">
             <h3 class="step-h" id="step-sign-h">Their signature</h3>
 <div class="field">
-            <label for="f-signature">Signature</label>
             <div class="sig" id="sig">
               <div class="sig-pad">
                 <canvas id="f-signature" aria-label="Signature pad. Draw the signature with a finger, pen or mouse."></canvas>
@@ -587,7 +594,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
                 <button type="button" id="btn-clear-sig" class="ghost" disabled>Clear</button>
                 <input id="f-sig-image" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" class="visually-hidden" />
                 <label for="f-sig-image" class="ghost sig-upload" id="sig-upload-btn">Upload a scan</label>
-                <span class="msg" id="sig-help">The new hire signs here; it appears in white on the card.</span>
+                <span class="msg" id="sig-help">It prints in white on the card.</span>
               </div>
             </div>
             <p class="msg msg-error" id="sig-msg" hidden></p>
@@ -596,18 +603,11 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 
           <section class="step" id="step-check" data-step="5" hidden aria-labelledby="step-check-h">
             <h3 class="step-h" id="step-check-h">Is everything correct?</h3>
-            <p class="msg" id="review-sub"></p>
-
+            <p class="msg" id="review-sub" hidden></p>
             <dl class="summary" id="summary"></dl>
 
             <div id="review-stage">
               <p class="msg msg-warn" id="review-warning" hidden></p>
-              <ul class="review-list" id="review-list">
-                <li>Name spelled correctly, capitals as they should be</li>
-                <li>Title and employee number are right</li>
-                <li>The photo looks like the person and isn’t blurry</li>
-                <li>The signature is visible below the title</li>
-              </ul>
               <div class="print-layout">
                 <div class="block-head"><h2 id="print-h">Printing</h2></div>
                 <div class="field" id="field-layout">
@@ -638,7 +638,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
               <p class="msg msg-error" id="review-error" role="alert" hidden></p>
               <div class="dialog-actions">
                 <button type="button" id="btn-download" class="primary">Download PDF</button>
-                <button type="button" id="btn-png" class="ghost">Save images (PNG)</button>
+                <button type="button" id="btn-png" class="link">Save as images instead</button>
               </div>
               <p class="msg" id="review-file"></p>
             </div>
@@ -659,6 +659,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
           <p class="msg" id="status" role="status" aria-live="polite"></p>
 </section>
 
+        <div id="extras" class="extras">
         <details class="block printer" id="register-block">
           <summary>Issued IDs (<span id="register-count">0</span>)</summary>
           <p class="msg" id="register-note"></p>
@@ -726,6 +727,8 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
             </span>
           </label>
         </details>
+        </div>
+
       </aside>
     </main>
 
@@ -3046,7 +3049,7 @@ const ASSETS = {"front":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAn4AAAPsC
    ------------------------------------------------------------------ */
 
 const APP_NAME = 'Alpha Premier ID Maker';
-const APP_VERSION = '1.10.0';          // stamped into every PDF's metadata
+const APP_VERSION = '1.11.0';          // stamped into every PDF's metadata
 
 const CONFIG = {
   card: {
@@ -5512,11 +5515,11 @@ function render() {
   const duplex = state.print.layout === 'duplex';
   $('caption').textContent = onCheckStep
     ? (duplex
-      ? 'These are the two pages that will print: the fronts, then the backs reversed to land behind them. Cut along the marks.'
-      : 'This is the sheet that will print. Cut along the marks and stick each pair back to back.')
+      ? 'Print both sides, then cut along the marks.'
+      : 'Cut along the marks and stick each pair back to back.')
     : state.side === 'back'
       ? 'The back is the same on every card.'
-      : 'Updates as you type. The print file is drawn the same way at 300 DPI.';
+      : '';
   document.querySelector('.segmented').hidden = onCheckStep;
   $('card-box').hidden = !state.templates || onCheckStep;
   $('card-loading').hidden = !!state.templates;
@@ -5557,26 +5560,16 @@ function render() {
     syncChips($('title2-chips'), state.role2.pick, roleValue(state.role1));
     $('f-title2-custom').hidden = state.role2.pick !== CUSTOM_TITLE;
   }
-  const titlePreview = $('title-preview');
   const titleFit = state.touched.title ? p.titleFit : '';
-  titlePreview.classList.toggle('is-error', !!titleFit);
-  titlePreview.textContent = '';
-  if (titleFit) {
-    titlePreview.textContent = titleFit;
-    titlePreview.setAttribute('role', 'alert');
-  } else {
-    titlePreview.removeAttribute('role');
-    const shownTitle = CONFIG.text.title.uppercase ? jobTitle().toLocaleUpperCase('en-US') : jobTitle();
-    titlePreview.append('On the card: ');
-    const strong = document.createElement('span');
-    strong.className = 'as-printed';
-    strong.textContent = shownTitle || '—';
-    titlePreview.append(strong);
-  }
+  $('title-preview').hidden = !titleFit;
+  $('title-preview').textContent = titleFit;
   const dup = duplicate();
-  const seqHelp = Register.shared
-    ? `The number HR assigned. Checked against this computer and the shared register.${state.dupShared === undefined ? ' (Shared register not reachable right now — only this computer was checked.)' : ''}`
-    : 'The number HR assigned. Checked against the IDs issued on this computer only.';
+  // nothing to say when the check is working: a number that is already
+  // taken turns the field red and names who has it. The only thing worth
+  // a line here is the check not working.
+  const seqHelp = !Register.shared ? 'Checked against this computer only.'
+    : state.dupShared === undefined ? 'Could not reach the shared register — only this computer was checked.'
+    : '';
   setMsg('field-seq', 'f-seq-msg', shown('seq'), dup && state.reissue
     ? `Replacement for ${dup.id} (${dup.name}, ${formatIssuedAt(dup.issuedAt)}).` : seqHelp);
   $('seq-prefix').textContent = `${CONFIG.employeeNo.prefix} -`;
@@ -5589,7 +5582,7 @@ function render() {
   const ph = state.photo;
   const pm = photoErr ? { kind: 'error', text: photoErr }
     : ph?.check.warnings?.length ? { kind: 'warn', text: ph.check.warnings.join(' ') }
-    : ph ? { kind: 'ok', text: `${ph.background === 'green' ? 'Green background removed · ' : ph.background === 'blue' ? 'Blue background removed · ' : ''}Placed automatically` }
+    : ph ? { kind: 'ok', text: '' }
     : { kind: 'hint', text: 'A cut-out PNG, or a photo with a solid green background. Chest-up, facing forward.' };
   const photoMsg = $('photo-msg');
   photoMsg.className = `msg msg-${pm.kind}`;
@@ -5626,13 +5619,12 @@ function render() {
   }
   $('sig-help').textContent = sigImage
     ? `Scanned: ${state.signature.fileName ?? 'signature'}. Clear to sign on screen instead.`
-    : 'The new hire signs here; it appears in white on the card.';
+    : 'It prints in white on the card.';
   $('btn-clear-sig').disabled = !hasInk(state.signature);
   $('sig-msg').hidden = !shown('signature');
   $('sig-msg').textContent = shown('signature');
 
   // number line + status
-  $('card-line').textContent = employeeNoLine(state.year, seqNumber());
   const missingHere = stepProblems(state.step, p);
   const missingAll = Object.keys(p).filter((k) => p[k]);
   // after cancelling an "Add another ID" the form is empty on purpose and
@@ -5640,8 +5632,8 @@ function render() {
   const queueOnly = state.step === LAST_STEP && !!state.queue.length && !startedCard();
   $('status').textContent = !state.templates ? 'Loading the card template…'
     : state.step === LAST_STEP ? (missingAll.length && !queueOnly ? `Still needed: ${missingAll.map((k) => FIELD_LABEL[k]).join(', ')}.` : '')
-    : missingHere.length ? `Still needed on this step: ${missingHere.map((k) => FIELD_LABEL[k]).join(', ')}.`
-    : `Step ${state.step + 1} of ${STEPS.length} · ready for the next step.`;
+    : missingHere.length ? `Still needed: ${missingHere.map((k) => FIELD_LABEL[k]).join(', ')}.`
+    : '';
 
   $('opt-rotate').checked = state.rotateBack;
   $('opt-flip').value = state.flip;
@@ -5654,6 +5646,7 @@ function render() {
   $('btn-next').textContent = state.step === LAST_STEP - 1 ? 'Check the card' : 'Next';
   $('btn-next').disabled = !state.templates;
 
+  $('extras').hidden = state.step > 0 && state.step < LAST_STEP;
   renderRegister();
   drawPreview();
 }
@@ -6003,15 +5996,26 @@ function buildReview() {
   renderPrint();
 
   $('step-check-h').textContent = hasCurrent ? 'Is everything correct?' : 'Ready to print';
-  $('review-sub').textContent = hasCurrent
-    ? 'Check the details, then print. The sheet on the left is exactly what comes out.'
-    : `Printing the ${jobSize} card${jobSize === 1 ? '' : 's'} already in this job, listed under the sheet. Add another ID to put someone else on the same paper.`;
+  $('review-sub').hidden = hasCurrent;
+  $('review-sub').textContent = hasCurrent ? ''
+    : `Printing the ${jobSize} card${jobSize === 1 ? '' : 's'} already in this job.`;
 
   // a plain summary of the card on screen, each line editable in one click
   const summary = $('summary');
   summary.innerHTML = '';
   summary.hidden = !hasCurrent;
-  $('review-list').hidden = !hasCurrent;
+  if (hasCurrent && review.front.width) {
+    // the last step shows the whole sheet, where a card is too small to
+    // tell one face from another; this is the only readable look at it
+    const fig = document.createElement('div');
+    fig.className = 'summary-card';
+    const img = document.createElement('img');
+    img.width = 132; img.height = Math.round(132 * review.front.height / review.front.width);
+    img.alt = 'The front of the card as it will print';
+    img.src = review.front.toDataURL('image/png');
+    fig.append(img);
+    summary.append(fig);
+  }
   const rows = !hasCurrent ? [] : [
     ['Name', collapseSpaces(data.name), 0],
     ['Job title', CONFIG.text.title.uppercase ? data.title.toLocaleUpperCase('en-US') : data.title, 1],
@@ -6280,9 +6284,9 @@ function renderJob() {
   const onCheck = state.step === LAST_STEP;
   $('queue-strip').hidden = !(state.queue.length || (onCheck && cards.length));
   $('job-note').textContent = state.queue.length
-    ? (onCheck ? 'All of these print on one sheet, and are issued when you download.'
-               : 'Waiting to print. Finish this card and they all go on the same sheet, or cancel to print just these.')
-    : 'Add another ID to put several people on the same sheet.';
+    ? (onCheck ? 'All of these print together, and are issued when you download.'
+               : 'Finish this card and they all go on one sheet.')
+    : '';
   $('btn-cancel-add').hidden = !(state.queue.length && !onCheck);
 }
 
@@ -6364,26 +6368,25 @@ function renderPrint() {
     const orient = plan.landscape ? 'landscape' : 'portrait';
     $('field-copies').querySelector('.field-label').textContent =
       jobCards().length > 1 ? 'Copies of each card' : 'Copies of this card';
-    $('print-note').textContent =
-      `${per} per ${state.print.paper} sheet (${plan.cols} × ${plan.rows}, ${orient}${turned}). `
-      + `${total} card${total === 1 ? '' : 's'} → ${sheets} sheet${sheets === 1 ? '' : 's'}, `
-      + `${sheets * pagesPerSheet} page${sheets * pagesPerSheet === 1 ? '' : 's'}. `
-      + (plan.mode === 'duplex'
-        ? `Print both sides at 100%, turning the paper on the ${state.flip === 'short' ? 'short' : 'long'} edge, then cut.`
-        : 'Cut each pair out and stick them back to back.');
+    // how many fit, and only the sheet count when it is more than one.
+    // How to cut and assemble is said once, under the sheet itself.
+    $('print-note').textContent = `${per} cards per ${state.print.paper} sheet`
+      + (sheets > 1 ? ` · ${total} cards, ${sheets} sheets` : '')
+      + '.';
   }
   if (review.fileName) $('review-file').textContent = printFileLine();
   schedulePreview();
 }
 
+/** Just how much paper this will be. Millimetres and DPI are not a
+ *  decision anybody makes here, and the file name arrives at save time. */
 function printFileLine() {
   const plan = currentPlan();
-  const C = CONFIG.card;
-  if (!plan) return `File: ${review.fileName} · 2 pages, ${C.widthMm} × ${C.heightMm} mm, ${CONFIG.card.printDpi} DPI`;
+  if (!plan) return '2 pages';
   const cards = jobCards().length;
   const sheets = Math.ceil((cards * printCopies(plan, cards)) / (plan.cols * plan.rows));
   const pages = plan.mode === 'pairs' ? sheets : sheets * 2;
-  return `File: ${review.fileName} · ${pages} page${pages === 1 ? '' : 's'} of ${state.print.paper}, cards ${C.widthMm} × ${C.heightMm} mm, ${CONFIG.card.printDpi} DPI`;
+  return `${pages} page${pages === 1 ? '' : 's'} of ${state.print.paper}`;
 }
 
 /* ---- batch from CSV ---------------------------------------------- */

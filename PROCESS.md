@@ -46,16 +46,15 @@ the app capitalises something you did not want capitalised, type one
 capital anywhere in that field and it will never touch it again. Nothing
 is rewritten behind your back.
 
-The line under the fields — **On the card** —
-shows exactly what will be printed, so check that rather than the boxes. If
-the whole name is too long for the card even at the smallest size, that line
-turns red and says so.
+The line under the fields — **On the card** — shows the printed order,
+with the middle name reduced to an initial, so check that rather than the
+boxes. If the whole name is too long for the card even at the smallest
+size, it turns red and says so.
 | Job title | Tap one of the buttons. For a title not shown, tap **Other…** and type it — once that card is downloaded the title joins the buttons on that computer. A title you added can be taken off again with the small **×** on its button; the company's own titles have no × and cannot be removed here. |
 | Second role | For someone who holds two roles, tap **+ Add a second role** and pick the other one. The job title already chosen is **not offered** in that row, so the same role cannot be picked twice. The two are merged for the card: `IT Associate` + `Admin Associate` prints as `IT/ADMIN ASSOCIATE`. Titles with nothing in common print in full, `HR ASSOCIATE / SAFETY OFFICER`. **Remove** takes the second role off again. |
 
-The job title also has an **On the card** line, showing it in the capitals
-the card uses. If it is too long even at the smallest size, that line turns
-red.
+The chosen title appears on the card preview in the capitals the card
+uses. If it is too long even at the smallest size, a red line says so.
 | Employee number | Pick the year of issue (defaults to this year), then type the 1–4 digit sequence HR assigned. The card prints `APG - <year> - <number>` with the number padded to 3 digits (`7` → `007`). The app checks the number against the **register** of cards already issued — on this computer, and in the shared Google Sheet, which is built in (see `register/README.md`). A number that is already taken turns the field red and names the holder. If this really is a re-print of the same person's card (lost, damaged, name change), tick **Replacement card**; otherwise get the right number from HR. |
 
 The preview updates as you type. The name shrinks and wraps onto up to three
@@ -100,9 +99,9 @@ Tips:
 Click **Upload photo** (or drag the file onto the Photo box). The app checks
 it, removes the green, finds the head and places it: head 15 mm wide,
 centred under the gold diagonal, top of the head 15.4 mm from the card top.
-The message under the button says what happened:
+The photo appears on the card, placed automatically. If anything is wrong
+a message says so under the button:
 
-* *Green background removed · Placed automatically* — good.
 * An amber warning — usable, but read it (small photo, tight crop, head
   touching the edge).
 * A red message — the photo was rejected; it says why and what to upload
@@ -110,11 +109,13 @@ The message under the button says what happened:
   as JPEG.)
 
 If the automatic placement is not quite right — tilted head, hat, big hair
-— an **Adjust position** box appears under the photo: arrow buttons move
-it in ½ mm steps, the **Size** slider scales it 70–150 % around the face,
-or simply drag the photo on the card preview and use the mouse wheel.
-**Reset to automatic** undoes everything. The face normally sits on the
-gold diagonal with the top of the head about 15 mm from the card top.
+— open **Move or resize it** under the photo. It is closed by default,
+because the placement is usually right and the controls are only in the
+way until they are wanted. Arrow buttons move the photo in ½ mm steps, the
+**Size** slider scales it 70–150 % around the face, or simply drag the
+photo on the card preview and use the mouse wheel. **Reset** undoes
+everything. The face normally sits on the gold diagonal with the top of
+the head about 15 mm from the card top.
 
 ### 5. Signature
 
@@ -134,16 +135,17 @@ and printed in white. **Clear** starts over.
 ### 6. Check and generate
 
 The last step, **Is everything correct?**, is the one that matters. It
-shows the name, job title and employee number in plain text — each with an
-**Edit** link that jumps straight back to that step — and both sides of the
-card at print resolution. Check them against the list:
+shows the finished card, then the name, job title and employee number in
+plain text — each with an **Edit** link that jumps straight back to that
+step.
 
-* name spelled correctly, capitals right;
-* title and employee number right;
-* the photo looks like the person and is not blurry;
-* the signature is visible below the title.
+Read the three lines, and look at the card above them: it is the only
+place at this step where the card is big enough to recognise a face on,
+since the preview on the left has given itself over to the whole printed
+sheet. The card is what tells you the photo is the right person and that
+the signature came out.
 
-**Save images (PNG)** gives you the two sides as pictures instead, for
+**Save as images instead** gives you the two sides as pictures, for
 printer software that prefers images to PDF.
 
 **Back** returns to the previous step. **Download PDF** saves

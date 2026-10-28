@@ -305,11 +305,11 @@ function render() {
   const duplex = state.print.layout === 'duplex';
   $('caption').textContent = onCheckStep
     ? (duplex
-      ? 'These are the two pages that will print: the fronts, then the backs reversed to land behind them. Cut along the marks.'
-      : 'This is the sheet that will print. Cut along the marks and stick each pair back to back.')
+      ? 'Print both sides, then cut along the marks.'
+      : 'Cut along the marks and stick each pair back to back.')
     : state.side === 'back'
       ? 'The back is the same on every card.'
-      : 'Updates as you type. The print file is drawn the same way at 300 DPI.';
+      : '';
   document.querySelector('.segmented').hidden = onCheckStep;
   $('card-box').hidden = !state.templates || onCheckStep;
   $('card-loading').hidden = !!state.templates;
@@ -350,26 +350,16 @@ function render() {
     syncChips($('title2-chips'), state.role2.pick, roleValue(state.role1));
     $('f-title2-custom').hidden = state.role2.pick !== CUSTOM_TITLE;
   }
-  const titlePreview = $('title-preview');
   const titleFit = state.touched.title ? p.titleFit : '';
-  titlePreview.classList.toggle('is-error', !!titleFit);
-  titlePreview.textContent = '';
-  if (titleFit) {
-    titlePreview.textContent = titleFit;
-    titlePreview.setAttribute('role', 'alert');
-  } else {
-    titlePreview.removeAttribute('role');
-    const shownTitle = CONFIG.text.title.uppercase ? jobTitle().toLocaleUpperCase('en-US') : jobTitle();
-    titlePreview.append('On the card: ');
-    const strong = document.createElement('span');
-    strong.className = 'as-printed';
-    strong.textContent = shownTitle || '—';
-    titlePreview.append(strong);
-  }
+  $('title-preview').hidden = !titleFit;
+  $('title-preview').textContent = titleFit;
   const dup = duplicate();
-  const seqHelp = Register.shared
-    ? `The number HR assigned. Checked against this computer and the shared register.${state.dupShared === undefined ? ' (Shared register not reachable right now — only this computer was checked.)' : ''}`
-    : 'The number HR assigned. Checked against the IDs issued on this computer only.';
+  // nothing to say when the check is working: a number that is already
+  // taken turns the field red and names who has it. The only thing worth
+  // a line here is the check not working.
+  const seqHelp = !Register.shared ? 'Checked against this computer only.'
+    : state.dupShared === undefined ? 'Could not reach the shared register — only this computer was checked.'
+    : '';
   setMsg('field-seq', 'f-seq-msg', shown('seq'), dup && state.reissue
     ? `Replacement for ${dup.id} (${dup.name}, ${formatIssuedAt(dup.issuedAt)}).` : seqHelp);
   $('seq-prefix').textContent = `${CONFIG.employeeNo.prefix} -`;
@@ -382,7 +372,7 @@ function render() {
   const ph = state.photo;
   const pm = photoErr ? { kind: 'error', text: photoErr }
     : ph?.check.warnings?.length ? { kind: 'warn', text: ph.check.warnings.join(' ') }
-    : ph ? { kind: 'ok', text: `${ph.background === 'green' ? 'Green background removed · ' : ph.background === 'blue' ? 'Blue background removed · ' : ''}Placed automatically` }
+    : ph ? { kind: 'ok', text: '' }
     : { kind: 'hint', text: 'A cut-out PNG, or a photo with a solid green background. Chest-up, facing forward.' };
   const photoMsg = $('photo-msg');
   photoMsg.className = `msg msg-${pm.kind}`;
@@ -419,13 +409,12 @@ function render() {
   }
   $('sig-help').textContent = sigImage
     ? `Scanned: ${state.signature.fileName ?? 'signature'}. Clear to sign on screen instead.`
-    : 'The new hire signs here; it appears in white on the card.';
+    : 'It prints in white on the card.';
   $('btn-clear-sig').disabled = !hasInk(state.signature);
   $('sig-msg').hidden = !shown('signature');
   $('sig-msg').textContent = shown('signature');
 
   // number line + status
-  $('card-line').textContent = employeeNoLine(state.year, seqNumber());
   const missingHere = stepProblems(state.step, p);
   const missingAll = Object.keys(p).filter((k) => p[k]);
   // after cancelling an "Add another ID" the form is empty on purpose and
@@ -433,8 +422,8 @@ function render() {
   const queueOnly = state.step === LAST_STEP && !!state.queue.length && !startedCard();
   $('status').textContent = !state.templates ? 'Loading the card template…'
     : state.step === LAST_STEP ? (missingAll.length && !queueOnly ? `Still needed: ${missingAll.map((k) => FIELD_LABEL[k]).join(', ')}.` : '')
-    : missingHere.length ? `Still needed on this step: ${missingHere.map((k) => FIELD_LABEL[k]).join(', ')}.`
-    : `Step ${state.step + 1} of ${STEPS.length} · ready for the next step.`;
+    : missingHere.length ? `Still needed: ${missingHere.map((k) => FIELD_LABEL[k]).join(', ')}.`
+    : '';
 
   $('opt-rotate').checked = state.rotateBack;
   $('opt-flip').value = state.flip;
@@ -447,6 +436,7 @@ function render() {
   $('btn-next').textContent = state.step === LAST_STEP - 1 ? 'Check the card' : 'Next';
   $('btn-next').disabled = !state.templates;
 
+  $('extras').hidden = state.step > 0 && state.step < LAST_STEP;
   renderRegister();
   drawPreview();
 }
@@ -796,15 +786,26 @@ function buildReview() {
   renderPrint();
 
   $('step-check-h').textContent = hasCurrent ? 'Is everything correct?' : 'Ready to print';
-  $('review-sub').textContent = hasCurrent
-    ? 'Check the details, then print. The sheet on the left is exactly what comes out.'
-    : `Printing the ${jobSize} card${jobSize === 1 ? '' : 's'} already in this job, listed under the sheet. Add another ID to put someone else on the same paper.`;
+  $('review-sub').hidden = hasCurrent;
+  $('review-sub').textContent = hasCurrent ? ''
+    : `Printing the ${jobSize} card${jobSize === 1 ? '' : 's'} already in this job.`;
 
   // a plain summary of the card on screen, each line editable in one click
   const summary = $('summary');
   summary.innerHTML = '';
   summary.hidden = !hasCurrent;
-  $('review-list').hidden = !hasCurrent;
+  if (hasCurrent && review.front.width) {
+    // the last step shows the whole sheet, where a card is too small to
+    // tell one face from another; this is the only readable look at it
+    const fig = document.createElement('div');
+    fig.className = 'summary-card';
+    const img = document.createElement('img');
+    img.width = 132; img.height = Math.round(132 * review.front.height / review.front.width);
+    img.alt = 'The front of the card as it will print';
+    img.src = review.front.toDataURL('image/png');
+    fig.append(img);
+    summary.append(fig);
+  }
   const rows = !hasCurrent ? [] : [
     ['Name', collapseSpaces(data.name), 0],
     ['Job title', CONFIG.text.title.uppercase ? data.title.toLocaleUpperCase('en-US') : data.title, 1],
@@ -1073,9 +1074,9 @@ function renderJob() {
   const onCheck = state.step === LAST_STEP;
   $('queue-strip').hidden = !(state.queue.length || (onCheck && cards.length));
   $('job-note').textContent = state.queue.length
-    ? (onCheck ? 'All of these print on one sheet, and are issued when you download.'
-               : 'Waiting to print. Finish this card and they all go on the same sheet, or cancel to print just these.')
-    : 'Add another ID to put several people on the same sheet.';
+    ? (onCheck ? 'All of these print together, and are issued when you download.'
+               : 'Finish this card and they all go on one sheet.')
+    : '';
   $('btn-cancel-add').hidden = !(state.queue.length && !onCheck);
 }
 
@@ -1157,26 +1158,25 @@ function renderPrint() {
     const orient = plan.landscape ? 'landscape' : 'portrait';
     $('field-copies').querySelector('.field-label').textContent =
       jobCards().length > 1 ? 'Copies of each card' : 'Copies of this card';
-    $('print-note').textContent =
-      `${per} per ${state.print.paper} sheet (${plan.cols} × ${plan.rows}, ${orient}${turned}). `
-      + `${total} card${total === 1 ? '' : 's'} → ${sheets} sheet${sheets === 1 ? '' : 's'}, `
-      + `${sheets * pagesPerSheet} page${sheets * pagesPerSheet === 1 ? '' : 's'}. `
-      + (plan.mode === 'duplex'
-        ? `Print both sides at 100%, turning the paper on the ${state.flip === 'short' ? 'short' : 'long'} edge, then cut.`
-        : 'Cut each pair out and stick them back to back.');
+    // how many fit, and only the sheet count when it is more than one.
+    // How to cut and assemble is said once, under the sheet itself.
+    $('print-note').textContent = `${per} cards per ${state.print.paper} sheet`
+      + (sheets > 1 ? ` · ${total} cards, ${sheets} sheets` : '')
+      + '.';
   }
   if (review.fileName) $('review-file').textContent = printFileLine();
   schedulePreview();
 }
 
+/** Just how much paper this will be. Millimetres and DPI are not a
+ *  decision anybody makes here, and the file name arrives at save time. */
 function printFileLine() {
   const plan = currentPlan();
-  const C = CONFIG.card;
-  if (!plan) return `File: ${review.fileName} · 2 pages, ${C.widthMm} × ${C.heightMm} mm, ${CONFIG.card.printDpi} DPI`;
+  if (!plan) return '2 pages';
   const cards = jobCards().length;
   const sheets = Math.ceil((cards * printCopies(plan, cards)) / (plan.cols * plan.rows));
   const pages = plan.mode === 'pairs' ? sheets : sheets * 2;
-  return `File: ${review.fileName} · ${pages} page${pages === 1 ? '' : 's'} of ${state.print.paper}, cards ${C.widthMm} × ${C.heightMm} mm, ${CONFIG.card.printDpi} DPI`;
+  return `${pages} page${pages === 1 ? '' : 's'} of ${state.print.paper}`;
 }
 
 /* ---- batch from CSV ---------------------------------------------- */
