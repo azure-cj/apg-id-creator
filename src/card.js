@@ -88,7 +88,7 @@ function layoutText(data) {
 //   head position so the face stays put while the photo grows or shrinks.
 function adjustedPlacement(placement, adjust) {
   if (!adjust || (adjust.dx === 0 && adjust.dy === 0 && adjust.zoom === 1)) return placement;
-  const ax = CONFIG.photo.headCenterX, ay = CONFIG.photo.headTop;
+  const ax = geo().photo.headCenterX, ay = geo().photo.headTop;
   return {
     x: ax + (placement.x - ax) * adjust.zoom + adjust.dx,
     y: ay + (placement.y - ay) * adjust.zoom + adjust.dy,
@@ -114,8 +114,11 @@ function drawFront(ctx, templates, pxPerMm, data = null, options = {}) {
   if (data?.photo) {
     const p = data.photo.placement;   // mm
     const put = (c) => c.drawImage(data.photo.image, p.x * pxPerMm, p.y * pxPerMm, p.w * pxPerMm, p.h * pxPerMm);
-    if (masks?.photo) {
-      throughMask(ctx, masks.photo, w, h, put);
+    // A design that brought masks describes itself completely: a zone it
+    // left out is a zone it does not have, not a reason to fall back on
+    // the built-in card's shapes, which belong to different artwork.
+    if (masks) {
+      if (masks.photo) throughMask(ctx, masks.photo, w, h, put);
     } else {
       ctx.save();
       tracePolygons(ctx, [CONFIG.photoArea.polygon], pxPerMm);
@@ -126,8 +129,8 @@ function drawFront(ctx, templates, pxPerMm, data = null, options = {}) {
   }
 
   // band + gold line back on top of the photo
-  if (masks?.front) {
-    throughMask(ctx, masks.front, w, h, (c) => c.drawImage(templates.front, 0, 0, w, h));
+  if (masks) {
+    if (masks.front) throughMask(ctx, masks.front, w, h, (c) => c.drawImage(templates.front, 0, 0, w, h));
   } else {
     ctx.save();
     tracePolygons(ctx, CONFIG.frontOutline.polygons, pxPerMm);
@@ -136,7 +139,7 @@ function drawFront(ctx, templates, pxPerMm, data = null, options = {}) {
     ctx.restore();
   }
 
-  if (options.showGuides) {
+  if (options.showGuides && !masks) {
     ctx.save();
     tracePolygons(ctx, [CONFIG.photoArea.polygon], pxPerMm);
     ctx.strokeStyle = '#d0167a'; ctx.lineWidth = Math.max(1, pxPerMm * 0.12); ctx.stroke();

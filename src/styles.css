@@ -78,10 +78,40 @@ h1 { margin: 0; font-family: var(--font-display); font-size: 1.5rem; font-weight
 .segmented { display: inline-flex; padding: 3px; border-radius: 999px; background: #ffffff14; }
 .seg { border: 0; padding: 6px 18px; border-radius: 999px; background: none; color: var(--tray-ink); font: 600 0.9rem var(--font-body); cursor: pointer; }
 .seg.on { background: var(--gold-strong); color: var(--on-gold); }
-.card-box { width: min(360px, 100%); max-width: 100%; aspect-ratio: 54 / 85; }
+.card-box { position: relative; width: min(360px, 100%); max-width: 100%; aspect-ratio: 54 / 85; }
 .card-canvas { display: block; width: 100%; height: 100%; border-radius: 3.2% / 2%; box-shadow: 0 1px #ffffff0f, 0 18px 40px #0000008c; }
 .card-loading { display: grid; place-items: center; padding: 16px; border: 1px dashed #fff3; border-radius: 10px; color: var(--tray-ink); text-align: center; }
 .caption { margin: 0; max-width: 42ch; color: var(--tray-ink); font-size: 0.875rem; text-align: center; }
+
+/* ---- the placeholder handles, laid over the preview ---- */
+.tpl-overlay { position: absolute; inset: 0; }
+.tpl-ph {
+  position: absolute; box-sizing: border-box;
+  border: 1.5px dashed #00b3ff; border-radius: 2px;
+  background: #00b3ff1f; cursor: move; touch-action: none;
+}
+.tpl-ph[data-key="photo"] { border-color: #ff3ea5; background: #ff3ea51a; }
+.tpl-ph.on { border-style: solid; box-shadow: 0 0 0 2px #ffffff99; }
+.tpl-ph.dragging { background: #00b3ff40; }
+.tpl-ph:focus-visible { outline: 2px solid var(--gold-strong); outline-offset: 2px; }
+/* Six names at once is more clutter than the card can carry, and the
+   panel already says which one is selected. So a handle gives its name
+   when it is pointed at, selected or tabbed to, and keeps quiet
+   otherwise — the boxes stay readable against the artwork. */
+.tpl-tag {
+  position: absolute; left: 0; bottom: 100%; margin-bottom: 2px;
+  padding: 1px 5px; border-radius: 3px;
+  background: #000000bf; color: #fff;
+  font: 600 10px/1.4 var(--font-body); white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 90ms ease-out;
+}
+.tpl-ph.on .tpl-tag, .tpl-ph:hover .tpl-tag, .tpl-ph:focus-visible .tpl-tag { opacity: 1; }
+.tpl-grip {
+  position: absolute; right: -6px; bottom: -6px; width: 13px; height: 13px;
+  border: 1.5px solid #fff; border-radius: 50%; background: #00b3ff;
+  cursor: nwse-resize;
+}
+.tpl-ph[data-key="photo"] .tpl-grip { background: #ff3ea5; }
 
 /* ---- form panel ---- */
 .panel { display: grid; gap: 16px; min-width: 0; }
@@ -343,15 +373,20 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 
 /* ---- generate ---- */
 .generate { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
-.generate .primary, .wizard .primary, .dialog .primary {
+.generate .primary, .wizard .primary, .dialog .primary, .printer .primary {
   min-height: 48px; padding: 0 20px; border: 1px solid var(--gold-strong); border-radius: 10px;
   background: var(--gold-strong); color: var(--on-gold); font: 700 1rem var(--font-body); cursor: pointer;
 }
-.generate .primary:hover:not(:disabled), .wizard .primary:hover:not(:disabled), .dialog .primary:hover:not(:disabled) { filter: brightness(1.06); }
+.generate .primary:hover:not(:disabled), .wizard .primary:hover:not(:disabled), .dialog .primary:hover:not(:disabled), .printer .primary:hover:not(:disabled) { filter: brightness(1.06); }
 .primary:disabled { opacity: 0.55; cursor: default; }
 
-.printer summary { cursor: pointer; font-family: var(--font-display); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
-.printer[open] summary { margin-bottom: 4px; }
+.printer > summary { cursor: pointer; font-family: var(--font-display); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+.printer[open] > summary { margin-bottom: 4px; }
+/* a panel inside a panel: quieter, so it does not read as a second heading */
+.sub-block > summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+.sub-block[open] > summary { margin-bottom: 6px; }
+#design-warn > summary { color: var(--gold); }
+#design-warn ul { margin: 0; padding-left: 18px; }
 .toggle { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
 .toggle input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--gold-strong); }
 .toggle span { display: grid; gap: 2px; min-width: 0; }

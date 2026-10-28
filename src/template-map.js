@@ -97,7 +97,6 @@ function readTemplateMap(image, cardWidthMm = CONFIG.card.widthMm, cardHeightMm 
       m.data.data[i] = 255; m.data.data[i + 1] = 255; m.data.data[i + 2] = 255;
       m.data.data[i + 3] = 255;
       m.count++;
-      continue;
     }
     const x = p % w, y = (p / w) | 0;
     const b = bounds[key];
@@ -136,7 +135,7 @@ function readTemplateMap(image, cardWidthMm = CONFIG.card.widthMm, cardHeightMm 
     }
   }
 
-  if (!Object.keys(bounds).length && MASK_KEYS.every((k) => !masks[k].count)) return null;
+  if (!Object.keys(bounds).length) return null;
 
   const mmX = (v) => +(v / w * cardWidthMm).toFixed(3);
   const mmY = (v) => +(v / h * cardHeightMm).toFixed(3);
@@ -156,6 +155,9 @@ function readTemplateMap(image, cardWidthMm = CONFIG.card.widthMm, cardHeightMm 
     const box = boxOf(key);
     if (box) out.boxes[key] = box;
   }
+  const photo = boxOf('photo');
+  // how far down the card the person may reach: the bottom of their window
+  if (photo) out.photoBottom = +(photo.y + photo.h).toFixed(3);
   const head = boxOf('head');
   // the marker is a line: its top is where the head goes, its ends say
   // how wide the head should be and where its centre is
@@ -187,7 +189,13 @@ function templateGeometry(map) {
     g.qr = { ...CONFIG.qr, square: { x: map.boxes.qr.x, y: map.boxes.qr.y, size: Math.min(map.boxes.qr.w, map.boxes.qr.h) } };
   }
   if (map.head) {
-    g.photo = { ...CONFIG.photo, headTop: map.head.top, headCenterX: map.head.centerX, headWidth: map.head.width };
+    g.photo = {
+      ...CONFIG.photo,
+      headTop: map.head.top,
+      headCenterX: map.head.centerX,
+      headWidth: map.head.width,
+      reachY: map.head.reachY ?? map.photoBottom ?? CONFIG.photo.reachY,
+    };
   }
   return g;
 }
@@ -290,7 +298,9 @@ function contrast_(a, b) {
  * looks fine on screen in Canva, because Canva is not drawing the text.
  *
  * Averages the artwork under each box and compares it with the ink.
- * Returns a list of complaints; empty means it will read.
+ * Returns one entry per unreadable box — { key, label, ink, ratio, need }
+ * — so the caller can say it in one sentence instead of four. Empty
+ * means the card will read.
  */
 function checkTemplateContrast(map, frontImage, minRatio = 3) {
   if (!map) return [];
@@ -324,10 +334,7 @@ function checkTemplateContrast(map, frontImage, minRatio = 3) {
     const back = luminance_(r / n, g / n, b / n);
     const fore = luminance_(...hex(ink[key]));
     const ratio = contrast_(fore, back);
-    if (ratio < minRatio) {
-      out.push(`The ${label[key]} prints in ${ink[key]} and the artwork behind it is too close to that `
-        + `(contrast ${ratio.toFixed(1)}:1, needs ${minRatio}:1). Put a darker shape behind that box.`);
-    }
+    if (ratio < minRatio) out.push({ key, label: label[key], ink: ink[key], ratio: +ratio.toFixed(1), need: minRatio });
   }
   return out;
 }

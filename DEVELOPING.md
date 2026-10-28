@@ -31,6 +31,7 @@ and does not do is in **PHOTO-SPEC.md**.
 | `serve.mjs` | `npm start` — serves the folder on `http://localhost:8000`. No dependencies. |
 | `test/map.mjs` | `npm run test:map` — builds a map from `config.js`, reads it back, and checks the zones land where they started, that the card still renders, and that the contrast check refuses artwork the text would vanish on. |
 | `test/golden.mjs` | Renders the example card at 300 DPI and compares it with `test/golden-front.png`, so a code or config change cannot silently move anything. |
+| `test/design.mjs` | `npm run test:design` — puts a different design in through the file inputs the way HR would, and checks the wrong shape is refused, the new artwork reaches the printed card, dragging a placeholder moves what is drawn, and the design survives a restart. |
 | `package.json` | `npm run build`, `npm test`, `npm run dev`. |
 
 ## How the app is built
@@ -56,6 +57,10 @@ src/
                     head target, so a template's layout can come from the
                     artwork instead of from hand-measured numbers
   card.js           draws the front and back at any resolution
+  template-store.js the design in use: takes uploaded artwork, normalises it,
+                    holds the placeholders, keeps it in localStorage, and
+                    falls back to the built-in card
+  template-edit.js  the drag-and-resize handles laid over the preview
   photo.js          the photo pipeline: background check, chroma key, head
                     detection, automatic placement
   pdf.js            writes the PDF by hand (no library), any number of pages, and names the file
@@ -77,7 +82,11 @@ the print file are the same drawing.
    a headless Chromium). It renders the example card and diffs it against
    `test/golden-front.png`; any moved pixel fails with a magenta diff image
    in `test/diff-front.png`. If the change was intended, accept it with
-   `npm test -- --update` and commit the new golden.
+   `npm test -- --update` and commit the new golden. `npm run test:map` and
+   `npm run test:design` cover the other two ways a card's layout can
+   arrive; run all three before a release. On a machine where Playwright is
+   installed somewhere else, point the tests at it with
+   `PLAYWRIGHT_MODULE=/path/to/playwright/index.js`.
 4. Open the rebuilt `Alpha Premier ID Maker.html` with **`#example`** on
    the end of the address to fill the form with the sample card and jump
    to the finished preview. Press Ctrl+Shift+G there to overlay the
@@ -96,7 +105,8 @@ Common edits:
 | How two roles are merged on the card | `CONFIG.titles.mergeJoiner` / `pairJoiner` |
 | Change where the photo sits or how big the head is | `CONFIG.photo` — `headTop`, `headCenterX`, `headWidth`, `reachY`; manual-adjust limits `nudgeStepMm`, `zoomMin/Max` |
 | Change the QR link | `CONFIG.qr.content` |
-| New template artwork | Replace `assets/front-template.png` / `assets/back.png` (keep 638 × 1004 px). If the band or the photo window moved, re-trace `CONFIG.frontOutline.polygons` and `CONFIG.photoArea.polygon` |
+| New card artwork, just for this computer | Nothing here: **Card design** at the bottom of the form takes the two PNGs and lets the placeholders be dragged. See `TEMPLATE-SPEC.md` |
+| New card artwork, built into the app | Replace `assets/front-template.png` / `assets/back.png` (keep 638 × 1004 px). If the band or the photo window moved, re-trace `CONFIG.frontOutline.polygons` and `CONFIG.photoArea.polygon`, or ship a map |
 | Different number format | `CONFIG.employeeNo` (`prefix`, `digits`, `label`, years offered) |
 | Paper sizes, margins, gutters, crop marks | `CONFIG.sheet` |
 | The card's physical size | `CONFIG.card` — currently CR80, 54 × 85.6 mm |

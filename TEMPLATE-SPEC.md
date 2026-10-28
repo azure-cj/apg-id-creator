@@ -130,12 +130,26 @@ Submit the map with the artwork and nobody has to measure anything.
 
 ## Submitting it
 
-Hand over the two PNGs, named clearly, for example
-`front-2027.png` and `back-2027.png`. Whoever maintains the app drops them
-in and rebuilds. The app has a test that renders a known card and compares
-it pixel for pixel with the previous one, so any shift shows up
-immediately rather than on printed stock.
+Hand over the two PNGs, named clearly, for example `front-2027.png` and
+`back-2027.png`, and the map if you drew one.
 
-If a zone really does have to move — a different shape of card, the photo
-on the other side — say so when you submit. It is a half-hour of
-re-measuring, not a redesign, but it has to be done deliberately.
+Nothing needs rebuilding. HR opens **Card design** at the bottom of the
+form on a blank ID, chooses the two files and presses **Use this design**.
+
+- **With a map**, that is the whole job: every zone lands where you
+  painted it, and artwork can sit in front of the photo.
+- **Without a map**, the app keeps the current zones and HR drags them
+  into place on the preview. The photo is then a plain rectangle sitting
+  on top of the artwork — nothing can overlap it, so a band across the
+  shoulders needs a map.
+
+Either way the app checks the text against the artwork before accepting
+it and says so if the name, job title, number or signature would be too
+pale to read. That check is the one thing that cannot be dragged away:
+fix it in the artwork.
+
+A design put in this way lives on that computer. To make it the design the
+app ships with, hand the files to whoever maintains the app: the built-in
+card is covered by a test that renders a known ID and compares it pixel
+for pixel with the last one, so a shift shows up there rather than on
+printed stock.

@@ -88,10 +88,40 @@ h1 { margin: 0; font-family: var(--font-display); font-size: 1.5rem; font-weight
 .segmented { display: inline-flex; padding: 3px; border-radius: 999px; background: #ffffff14; }
 .seg { border: 0; padding: 6px 18px; border-radius: 999px; background: none; color: var(--tray-ink); font: 600 0.9rem var(--font-body); cursor: pointer; }
 .seg.on { background: var(--gold-strong); color: var(--on-gold); }
-.card-box { width: min(360px, 100%); max-width: 100%; aspect-ratio: 54 / 85; }
+.card-box { position: relative; width: min(360px, 100%); max-width: 100%; aspect-ratio: 54 / 85; }
 .card-canvas { display: block; width: 100%; height: 100%; border-radius: 3.2% / 2%; box-shadow: 0 1px #ffffff0f, 0 18px 40px #0000008c; }
 .card-loading { display: grid; place-items: center; padding: 16px; border: 1px dashed #fff3; border-radius: 10px; color: var(--tray-ink); text-align: center; }
 .caption { margin: 0; max-width: 42ch; color: var(--tray-ink); font-size: 0.875rem; text-align: center; }
+
+/* ---- the placeholder handles, laid over the preview ---- */
+.tpl-overlay { position: absolute; inset: 0; }
+.tpl-ph {
+  position: absolute; box-sizing: border-box;
+  border: 1.5px dashed #00b3ff; border-radius: 2px;
+  background: #00b3ff1f; cursor: move; touch-action: none;
+}
+.tpl-ph[data-key="photo"] { border-color: #ff3ea5; background: #ff3ea51a; }
+.tpl-ph.on { border-style: solid; box-shadow: 0 0 0 2px #ffffff99; }
+.tpl-ph.dragging { background: #00b3ff40; }
+.tpl-ph:focus-visible { outline: 2px solid var(--gold-strong); outline-offset: 2px; }
+/* Six names at once is more clutter than the card can carry, and the
+   panel already says which one is selected. So a handle gives its name
+   when it is pointed at, selected or tabbed to, and keeps quiet
+   otherwise — the boxes stay readable against the artwork. */
+.tpl-tag {
+  position: absolute; left: 0; bottom: 100%; margin-bottom: 2px;
+  padding: 1px 5px; border-radius: 3px;
+  background: #000000bf; color: #fff;
+  font: 600 10px/1.4 var(--font-body); white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 90ms ease-out;
+}
+.tpl-ph.on .tpl-tag, .tpl-ph:hover .tpl-tag, .tpl-ph:focus-visible .tpl-tag { opacity: 1; }
+.tpl-grip {
+  position: absolute; right: -6px; bottom: -6px; width: 13px; height: 13px;
+  border: 1.5px solid #fff; border-radius: 50%; background: #00b3ff;
+  cursor: nwse-resize;
+}
+.tpl-ph[data-key="photo"] .tpl-grip { background: #ff3ea5; }
 
 /* ---- form panel ---- */
 .panel { display: grid; gap: 16px; min-width: 0; }
@@ -353,15 +383,20 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 
 /* ---- generate ---- */
 .generate { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
-.generate .primary, .wizard .primary, .dialog .primary {
+.generate .primary, .wizard .primary, .dialog .primary, .printer .primary {
   min-height: 48px; padding: 0 20px; border: 1px solid var(--gold-strong); border-radius: 10px;
   background: var(--gold-strong); color: var(--on-gold); font: 700 1rem var(--font-body); cursor: pointer;
 }
-.generate .primary:hover:not(:disabled), .wizard .primary:hover:not(:disabled), .dialog .primary:hover:not(:disabled) { filter: brightness(1.06); }
+.generate .primary:hover:not(:disabled), .wizard .primary:hover:not(:disabled), .dialog .primary:hover:not(:disabled), .printer .primary:hover:not(:disabled) { filter: brightness(1.06); }
 .primary:disabled { opacity: 0.55; cursor: default; }
 
-.printer summary { cursor: pointer; font-family: var(--font-display); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
-.printer[open] summary { margin-bottom: 4px; }
+.printer > summary { cursor: pointer; font-family: var(--font-display); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+.printer[open] > summary { margin-bottom: 4px; }
+/* a panel inside a panel: quieter, so it does not read as a second heading */
+.sub-block > summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+.sub-block[open] > summary { margin-bottom: 6px; }
+#design-warn > summary { color: var(--gold); }
+#design-warn ul { margin: 0; padding-left: 18px; }
 .toggle { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
 .toggle input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--gold-strong); }
 .toggle span { display: grid; gap: 2px; min-width: 0; }
@@ -421,6 +456,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
         </div>
         <div class="card-box" id="card-box" hidden>
           <canvas class="card-canvas" id="card-canvas" role="img" aria-label="Front of the ID card"></canvas>
+          <div class="tpl-overlay" id="tpl-overlay" hidden></div>
         </div>
         <div class="card-box card-loading" id="card-loading">Loading the card template…</div>
 
@@ -737,6 +773,50 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
               <small>Only if printed cards come out with the back upside down. Remembered on this device.</small>
             </span>
           </label>
+        </details>
+
+        <details class="block printer" id="design-block">
+          <summary>Card design</summary>
+          <p class="msg">Now using <strong id="design-name">the built-in design</strong>.</p>
+
+          <div class="field">
+            <label for="f-tpl-front">Front artwork (PNG)</label>
+            <input id="f-tpl-front" type="file" accept="image/png,image/jpeg,image/webp" />
+          </div>
+          <div class="field">
+            <label for="f-tpl-back">Back artwork (PNG)</label>
+            <input id="f-tpl-back" type="file" accept="image/png,image/jpeg,image/webp" />
+            <p class="msg">Both at 638 × 1011 pixels. See TEMPLATE-SPEC.md for the full brief.</p>
+          </div>
+          <details class="sub-block">
+            <summary>Add a map (optional)</summary>
+            <div class="field">
+              <label for="f-tpl-map">Map (PNG)</label>
+              <input id="f-tpl-map" type="file" accept="image/png" />
+              <p class="msg">A third picture with every zone painted a flat colour. It sets the placeholders for you and lets artwork sit in front of the photo. Without one the photo is a plain rectangle on top of the artwork.</p>
+            </div>
+          </details>
+
+          <button type="button" id="btn-tpl-use" class="primary" disabled>Use this design</button>
+          <p class="msg" id="design-msg" role="status" aria-live="polite"></p>
+          <details class="sub-block" id="design-warn" hidden>
+            <summary id="design-warn-head"></summary>
+            <ul class="msg" id="design-warn-list"></ul>
+          </details>
+
+          <div id="design-adjust" hidden>
+            <p class="msg">Drag the boxes on the card to move them, the corner to resize. Arrow keys work too.</p>
+            <p class="msg" id="design-readout"></p>
+            <div class="sig-actions">
+              <button type="button" id="btn-tpl-done" class="primary">Done</button>
+              <button type="button" id="btn-tpl-defaults" class="ghost">Put the boxes back</button>
+            </div>
+          </div>
+
+          <div class="sig-actions" id="design-actions" hidden>
+            <button type="button" id="btn-tpl-adjust" class="ghost">Move the boxes</button>
+            <button type="button" id="btn-tpl-reset" class="ghost">Use the built-in design</button>
+          </div>
         </details>
         </div>
 
@@ -3060,7 +3140,7 @@ const ASSETS = {"front":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAn4AAAPsC
    ------------------------------------------------------------------ */
 
 const APP_NAME = 'Alpha Premier ID Maker';
-const APP_VERSION = '1.13.0';          // stamped into every PDF's metadata
+const APP_VERSION = '1.14.0';          // stamped into every PDF's metadata
 
 const CONFIG = {
   card: {
@@ -4247,7 +4327,6 @@ function readTemplateMap(image, cardWidthMm = CONFIG.card.widthMm, cardHeightMm 
       m.data.data[i] = 255; m.data.data[i + 1] = 255; m.data.data[i + 2] = 255;
       m.data.data[i + 3] = 255;
       m.count++;
-      continue;
     }
     const x = p % w, y = (p / w) | 0;
     const b = bounds[key];
@@ -4286,7 +4365,7 @@ function readTemplateMap(image, cardWidthMm = CONFIG.card.widthMm, cardHeightMm 
     }
   }
 
-  if (!Object.keys(bounds).length && MASK_KEYS.every((k) => !masks[k].count)) return null;
+  if (!Object.keys(bounds).length) return null;
 
   const mmX = (v) => +(v / w * cardWidthMm).toFixed(3);
   const mmY = (v) => +(v / h * cardHeightMm).toFixed(3);
@@ -4306,6 +4385,9 @@ function readTemplateMap(image, cardWidthMm = CONFIG.card.widthMm, cardHeightMm 
     const box = boxOf(key);
     if (box) out.boxes[key] = box;
   }
+  const photo = boxOf('photo');
+  // how far down the card the person may reach: the bottom of their window
+  if (photo) out.photoBottom = +(photo.y + photo.h).toFixed(3);
   const head = boxOf('head');
   // the marker is a line: its top is where the head goes, its ends say
   // how wide the head should be and where its centre is
@@ -4337,7 +4419,13 @@ function templateGeometry(map) {
     g.qr = { ...CONFIG.qr, square: { x: map.boxes.qr.x, y: map.boxes.qr.y, size: Math.min(map.boxes.qr.w, map.boxes.qr.h) } };
   }
   if (map.head) {
-    g.photo = { ...CONFIG.photo, headTop: map.head.top, headCenterX: map.head.centerX, headWidth: map.head.width };
+    g.photo = {
+      ...CONFIG.photo,
+      headTop: map.head.top,
+      headCenterX: map.head.centerX,
+      headWidth: map.head.width,
+      reachY: map.head.reachY ?? map.photoBottom ?? CONFIG.photo.reachY,
+    };
   }
   return g;
 }
@@ -4440,7 +4528,9 @@ function contrast_(a, b) {
  * looks fine on screen in Canva, because Canva is not drawing the text.
  *
  * Averages the artwork under each box and compares it with the ink.
- * Returns a list of complaints; empty means it will read.
+ * Returns one entry per unreadable box — { key, label, ink, ratio, need }
+ * — so the caller can say it in one sentence instead of four. Empty
+ * means the card will read.
  */
 function checkTemplateContrast(map, frontImage, minRatio = 3) {
   if (!map) return [];
@@ -4474,10 +4564,7 @@ function checkTemplateContrast(map, frontImage, minRatio = 3) {
     const back = luminance_(r / n, g / n, b / n);
     const fore = luminance_(...hex(ink[key]));
     const ratio = contrast_(fore, back);
-    if (ratio < minRatio) {
-      out.push(`The ${label[key]} prints in ${ink[key]} and the artwork behind it is too close to that `
-        + `(contrast ${ratio.toFixed(1)}:1, needs ${minRatio}:1). Put a darker shape behind that box.`);
-    }
+    if (ratio < minRatio) out.push({ key, label: label[key], ink: ink[key], ratio: +ratio.toFixed(1), need: minRatio });
   }
   return out;
 }
@@ -4574,7 +4661,7 @@ function layoutText(data) {
 //   head position so the face stays put while the photo grows or shrinks.
 function adjustedPlacement(placement, adjust) {
   if (!adjust || (adjust.dx === 0 && adjust.dy === 0 && adjust.zoom === 1)) return placement;
-  const ax = CONFIG.photo.headCenterX, ay = CONFIG.photo.headTop;
+  const ax = geo().photo.headCenterX, ay = geo().photo.headTop;
   return {
     x: ax + (placement.x - ax) * adjust.zoom + adjust.dx,
     y: ay + (placement.y - ay) * adjust.zoom + adjust.dy,
@@ -4600,8 +4687,11 @@ function drawFront(ctx, templates, pxPerMm, data = null, options = {}) {
   if (data?.photo) {
     const p = data.photo.placement;   // mm
     const put = (c) => c.drawImage(data.photo.image, p.x * pxPerMm, p.y * pxPerMm, p.w * pxPerMm, p.h * pxPerMm);
-    if (masks?.photo) {
-      throughMask(ctx, masks.photo, w, h, put);
+    // A design that brought masks describes itself completely: a zone it
+    // left out is a zone it does not have, not a reason to fall back on
+    // the built-in card's shapes, which belong to different artwork.
+    if (masks) {
+      if (masks.photo) throughMask(ctx, masks.photo, w, h, put);
     } else {
       ctx.save();
       tracePolygons(ctx, [CONFIG.photoArea.polygon], pxPerMm);
@@ -4612,8 +4702,8 @@ function drawFront(ctx, templates, pxPerMm, data = null, options = {}) {
   }
 
   // band + gold line back on top of the photo
-  if (masks?.front) {
-    throughMask(ctx, masks.front, w, h, (c) => c.drawImage(templates.front, 0, 0, w, h));
+  if (masks) {
+    if (masks.front) throughMask(ctx, masks.front, w, h, (c) => c.drawImage(templates.front, 0, 0, w, h));
   } else {
     ctx.save();
     tracePolygons(ctx, CONFIG.frontOutline.polygons, pxPerMm);
@@ -4622,7 +4712,7 @@ function drawFront(ctx, templates, pxPerMm, data = null, options = {}) {
     ctx.restore();
   }
 
-  if (options.showGuides) {
+  if (options.showGuides && !masks) {
     ctx.save();
     tracePolygons(ctx, [CONFIG.photoArea.polygon], pxPerMm);
     ctx.strokeStyle = '#d0167a'; ctx.lineWidth = Math.max(1, pxPerMm * 0.12); ctx.stroke();
@@ -4835,6 +4925,474 @@ function renderSideCanvas(templates, side, data, rotateBack, pxPerMm = printPxPe
   else drawBack(ctx, templates, pxPerMm, rotateBack);
   return canvas;
 }
+
+</script>
+  <script>
+/* ------------------------------------------------------------------
+   The card design in use
+   ------------------------------------------------------------------
+   The app ships with one card design built in. This lets a different one
+   be put in without rebuilding the app: two PNGs the same shape as a
+   card, and then the placeholders — name, job title, number, signature,
+   QR, photo — are dragged into place on the preview.
+
+   Optionally a third PNG, the map (template-map.js), which says where
+   everything goes in colour. With a map there is nothing to drag: the
+   placeholders land where the designer painted them, and the photo can
+   be any shape, with artwork in front of it. Without one the photo is a
+   plain rectangle sitting on top of the artwork.
+
+   Only before an ID is started. Half-way through, the photo has already
+   been placed against the old design and the preview is of a card that
+   no longer exists, so the panel is offered on step 1 and nowhere else.
+
+   Kept in this browser's storage: it survives closing the app, it does
+   not travel to another computer, and the built-in design is never
+   overwritten — "Use the built-in design" always works.
+   ------------------------------------------------------------------ */
+
+const TEMPLATE_KEY = 'apg-id-template';
+const TEMPLATE_W = 638;                 // a design is stored at the printing size:
+const TEMPLATE_H = 1011;                // 54 x 85.6 mm at 300 DPI
+const TEMPLATE_SHAPE_SLACK = 0.02;      // how far off the card's proportions may be
+
+/** The bounding box, in mm, of a polygon from config. */
+function polygonBounds_(poly) {
+  const xs = poly.map((p) => p[0]), ys = poly.map((p) => p[1]);
+  const x = Math.min(...xs), y = Math.min(...ys);
+  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+}
+
+/**
+ * Where the head sits inside the photo window, as fractions of it.
+ *
+ * Taken from the built-in design, so a photo window dragged somewhere
+ * else frames the face the same way this one does. It is what lets the
+ * window be a single rectangle to drag instead of four numbers to type.
+ */
+const HEAD_RATIO = (() => {
+  const r = polygonBounds_(CONFIG.photoArea.polygon);
+  const P = CONFIG.photo;
+  return {
+    centerX: (P.headCenterX - r.x) / r.w,
+    top: (P.headTop - r.y) / r.h,
+    width: P.headWidth / r.w,
+    reach: (P.reachY - r.y) / r.h,
+  };
+})();
+
+/** A white rectangle on a transparent card-sized canvas: a photo window. */
+function rectMask_(rect) {
+  const c = document.createElement('canvas');
+  c.width = TEMPLATE_W; c.height = TEMPLATE_H;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(
+    Math.round(rect.x / CONFIG.card.widthMm * TEMPLATE_W),
+    Math.round(rect.y / CONFIG.card.heightMm * TEMPLATE_H),
+    Math.max(1, Math.round(rect.w / CONFIG.card.widthMm * TEMPLATE_W)),
+    Math.max(1, Math.round(rect.h / CONFIG.card.heightMm * TEMPLATE_H)),
+  );
+  return c;
+}
+
+const TemplateStore = {
+  custom: null,       // { name, front, back, mapPng, boxes, photoRect } — all serialisable
+  images: null,       // { front, back } once decoded
+  mapMasks: null,     // the shapes the map PNG drew, if there was one
+  mapBoxes: null,     // and where it put the boxes, before anybody dragged them
+  mapPhotoRect: null,
+  note: '',         // anything the operator should know about the last load
+
+  get isCustom() { return !!this.custom; },
+  get name() { return this.custom ? this.custom.name : 'Built-in design'; },
+  get hasMap() { return !!(this.custom && this.custom.mapPng); },
+
+  /* ---- the placeholders -------------------------------------------- */
+
+  /** Where the built-in design puts everything: the starting point. */
+  defaults() {
+    return {
+      boxes: {
+        name: { ...CONFIG.text.name.box },
+        title: { ...CONFIG.text.title.box },
+        employeeNo: { ...CONFIG.text.employeeNo.box },
+        signature: { ...CONFIG.signature.box },
+        qr: { x: CONFIG.qr.square.x, y: CONFIG.qr.square.y, w: CONFIG.qr.square.size, h: CONFIG.qr.square.size },
+      },
+      photoRect: polygonBounds_(CONFIG.photoArea.polygon),
+    };
+  },
+
+  /** The map object the rest of the app reads its geometry out of. */
+  asMap() {
+    if (!this.custom) return null;
+    const { boxes, photoRect } = this.custom;
+    const masks = {};
+    if (this.mapMasks?.photo) masks.photo = this.mapMasks.photo;
+    else masks.photo = rectMask_(photoRect);
+    if (this.mapMasks?.front) masks.front = this.mapMasks.front;
+    return {
+      masks,
+      boxes,
+      head: {
+        top: photoRect.y + HEAD_RATIO.top * photoRect.h,
+        centerX: photoRect.x + HEAD_RATIO.centerX * photoRect.w,
+        width: HEAD_RATIO.width * photoRect.w,
+        reachY: photoRect.y + HEAD_RATIO.reach * photoRect.h,
+      },
+    };
+  },
+
+  /** Hand the current design to the renderer. Call after any change. */
+  apply() {
+    return useTemplateMap(this.asMap());
+  },
+
+  /** The two images to draw the card from. */
+  templatesFor(builtIn) {
+    return this.images ? { ...builtIn, front: this.images.front, back: this.images.back } : builtIn;
+  },
+
+  /* ---- taking a new design ----------------------------------------- */
+
+  /** Draw an image at the stored size, so everything downstream agrees. */
+  _normalise(img) {
+    const c = document.createElement('canvas');
+    c.width = TEMPLATE_W; c.height = TEMPLATE_H;
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, TEMPLATE_W, TEMPLATE_H);
+    return c;
+  },
+
+  /**
+   * Take new artwork. Returns { ok, warnings } or { error }.
+   * `mapImage` is optional; without it the placeholders start where the
+   * built-in design has them, to be dragged.
+   */
+  async adopt({ name, frontImage, backImage, mapImage = null }) {
+    const resized = [];
+    for (const [side, img] of [['front', frontImage], ['back', backImage]]) {
+      const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+      const want = CONFIG.card.widthMm / CONFIG.card.heightMm;
+      if (Math.abs(w / h - want) > TEMPLATE_SHAPE_SLACK) {
+        return { error: `The ${side} is ${w} × ${h} pixels, which is not the shape of an ID card. `
+          + `Export it at ${TEMPLATE_W} × ${TEMPLATE_H} pixels (or anything with the same proportions).` };
+      }
+      if (w !== TEMPLATE_W || h !== TEMPLATE_H) resized.push(`${side} ${w} × ${h}`);
+    }
+
+    const front = this._normalise(frontImage);
+    const back = this._normalise(backImage);
+    const next = { name: name || 'Uploaded design', front: front.toDataURL('image/png'), back: back.toDataURL('image/png'), mapPng: null, ...this.defaults() };
+
+    let masks = null;
+    if (mapImage) {
+      const map = readTemplateMap(mapImage);
+      if (!map) {
+        return { error: 'That map has none of the zone colours on it. Check the colours against TEMPLATE-SPEC.md, '
+          + 'or leave the map out and drag the placeholders instead.' };
+      }
+      masks = map.masks;
+      for (const key of ['name', 'title', 'employeeNo', 'signature', 'qr']) {
+        if (map.boxes[key]) next.boxes[key] = map.boxes[key];
+      }
+      if (map.masks.photo) next.photoRect = this._maskBounds(map.masks.photo);
+      next.mapPng = this._normalise(mapImage).toDataURL('image/png');
+      this._remember(next);
+    }
+
+    this.custom = next;
+    this.mapMasks = masks;
+    await this._decode();
+    this.apply();
+    this.note = resized.length ? `Resized to ${TEMPLATE_W} × ${TEMPLATE_H} (${resized.join(', ')}).` : '';
+    return { ok: true, warnings: this.warnings() };
+  },
+
+  /** Keep the map's own answers, so a dragged box can be put back. */
+  _remember(from) {
+    this.mapBoxes = JSON.parse(JSON.stringify(from.boxes));
+    this.mapPhotoRect = { ...from.photoRect };
+  },
+
+  /** Back to where the map — or the built-in design — put the boxes. */
+  resetBoxes() {
+    if (!this.custom) return;
+    const d = this.defaults();
+    this.custom.boxes = this.mapBoxes ? JSON.parse(JSON.stringify(this.mapBoxes)) : d.boxes;
+    this.custom.photoRect = this.mapPhotoRect ? { ...this.mapPhotoRect } : d.photoRect;
+    this.apply();
+  },
+
+  /** The rectangle a mask occupies, in mm. */
+  _maskBounds(mask) {
+    const { width: w, height: h } = mask;
+    const px = mask.getContext('2d').getImageData(0, 0, w, h).data;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let i = 3, p = 0; i < px.length; i += 4, p++) {
+      if (px[i] < 32) continue;
+      const x = p % w, y = (p / w) | 0;
+      if (x < x0) x0 = x;
+      if (y < y0) y0 = y;
+      if (x > x1) x1 = x;
+      if (y > y1) y1 = y;
+    }
+    if (x1 < 0) return this.defaults().photoRect;
+    const mmX = (v) => +(v / w * CONFIG.card.widthMm).toFixed(3);
+    const mmY = (v) => +(v / h * CONFIG.card.heightMm).toFixed(3);
+    return { x: mmX(x0), y: mmY(y0), w: mmX(x1 - x0 + 1), h: mmY(y1 - y0 + 1) };
+  },
+
+  /** Text that would not read against the artwork behind it. */
+  warnings() {
+    if (!this.custom || !this.images) return [];
+    return checkTemplateContrast(this.asMap(), this.images.front);
+  },
+
+  /* ---- editing ----------------------------------------------------- */
+
+  /** Move or resize one placeholder. `key` is a box name, or 'photo'. */
+  setBox(key, box) {
+    if (!this.custom) return;
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+    const W = CONFIG.card.widthMm, H = CONFIG.card.heightMm;
+    const w = clamp(box.w, 2, W), h = clamp(box.h, 2, H);
+    const fixed = { x: +clamp(box.x, 0, W - w).toFixed(3), y: +clamp(box.y, 0, H - h).toFixed(3), w: +w.toFixed(3), h: +h.toFixed(3) };
+    if (key === 'photo') this.custom.photoRect = fixed;
+    else if (this.custom.boxes[key]) this.custom.boxes[key] = fixed;
+    this.apply();
+  },
+
+  box(key) {
+    if (!this.custom) return null;
+    return key === 'photo' ? { ...this.custom.photoRect } : { ...this.custom.boxes[key] };
+  },
+
+  /* ---- keeping it -------------------------------------------------- */
+
+  save() {
+    if (!this.custom) { try { localStorage.removeItem(TEMPLATE_KEY); } catch { /* private mode */ } return true; }
+    try {
+      localStorage.setItem(TEMPLATE_KEY, JSON.stringify(this.custom));
+      return true;
+    } catch {
+      this.note = 'This design is too large to keep on this computer, so it will be used until the app is closed. '
+        + 'Keep the files and load them again next time.';
+      return false;
+    }
+  },
+
+  async restore() {
+    let raw = null;
+    try { raw = localStorage.getItem(TEMPLATE_KEY); } catch { return false; }
+    if (!raw) return false;
+    try {
+      const saved = JSON.parse(raw);
+      if (!saved?.front || !saved?.back || !saved?.boxes || !saved?.photoRect) throw new Error('incomplete');
+      this.custom = saved;
+      await this._decode();
+      if (saved.mapPng) {
+        const mapImg = await loadImage(saved.mapPng);
+        const map = readTemplateMap(mapImg);
+        this.mapMasks = map ? map.masks : null;
+        if (map) {
+          const fresh = this.defaults();
+          for (const key of Object.keys(fresh.boxes)) if (map.boxes[key]) fresh.boxes[key] = map.boxes[key];
+          if (map.masks.photo) fresh.photoRect = this._maskBounds(map.masks.photo);
+          this._remember(fresh);
+        }
+      }
+      this.apply();
+      return true;
+    } catch {
+      this.clear();
+      return false;
+    }
+  },
+
+  async _decode() {
+    this.images = this.custom
+      ? { front: await loadImage(this.custom.front), back: await loadImage(this.custom.back) }
+      : null;
+  },
+
+  /** Back to the design the app was built with. */
+  clear() {
+    this.custom = null;
+    this.images = null;
+    this.mapMasks = null;
+    this.mapBoxes = null;
+    this.mapPhotoRect = null;
+    this.note = '';
+    useTemplateMap(null);
+    try { localStorage.removeItem(TEMPLATE_KEY); } catch { /* private mode */ }
+  },
+};
+
+</script>
+  <script>
+/* ------------------------------------------------------------------
+   Dragging the placeholders
+   ------------------------------------------------------------------
+   An overlay that sits exactly on top of the card preview, with one
+   handle per placeholder. Drag the middle to move it, the corner to
+   resize it; the card underneath redraws as it goes, so the design is
+   checked against the real thing rather than against a wireframe.
+
+   Everything is held in millimetres — the unit the card is printed in —
+   and converted to percentages of the preview only to position the
+   handles. That way the editor does not care how large the preview is,
+   and a layout dragged on a laptop prints the same as one dragged on a
+   monitor.
+
+   Keyboard works too: tab to a handle, arrow keys move it, shift and
+   arrow keys resize it. Some of this is done by people who cannot use
+   a mouse well, and nudging by 0.1 mm is easier typed than dragged.
+   ------------------------------------------------------------------ */
+
+const PLACEHOLDERS = [
+  { key: 'photo',      label: 'Photo' },
+  { key: 'name',       label: 'Name' },
+  { key: 'title',      label: 'Job title' },
+  { key: 'employeeNo', label: 'Number' },
+  { key: 'signature',  label: 'Signature' },
+  { key: 'qr',         label: 'QR' },
+];
+const NUDGE_MM = 0.25;        // one arrow key
+const MIN_MM = 2;             // a handle smaller than this cannot be grabbed
+
+const TemplateEdit = {
+  root: null,
+  onChange: null,
+  selected: 'photo',
+  open: false,
+  handles: new Map(),
+
+  /** Build the overlay inside `root` (which must sit over the preview). */
+  mount(root, onChange) {
+    this.root = root;
+    this.onChange = onChange;
+    root.textContent = '';
+    this.handles.clear();
+    for (const { key, label } of PLACEHOLDERS) {
+      const el = document.createElement('div');
+      el.className = 'tpl-ph';
+      el.dataset.key = key;
+      el.tabIndex = 0;
+      el.setAttribute('role', 'button');
+      el.setAttribute('aria-label', `${label} placeholder. Arrow keys move it, shift and arrow keys resize it.`);
+      el.innerHTML = `<span class="tpl-tag">${label}</span><i class="tpl-grip" aria-hidden="true"></i>`;
+      el.addEventListener('pointerdown', (e) => this._grab(e, key));
+      el.addEventListener('keydown', (e) => this._key(e, key));
+      el.addEventListener('focus', () => this._select(key));
+      root.append(el);
+      this.handles.set(key, el);
+    }
+  },
+
+  show() { this.open = true; this.root.hidden = false; this.refresh(); },
+  hide() { this.open = false; if (this.root) this.root.hidden = true; },
+
+  /**
+   * Put every handle back where the design says it is.
+   *
+   * The photo window covers most of the card and the text boxes sit
+   * inside it, so the order they stack in is not cosmetic: whichever is
+   * on top is the only one that can be grabbed. Smallest on top means
+   * every handle stays reachable, and a drag on bare card moves the
+   * photo window, which is the one thing bare card belongs to.
+   */
+  refresh() {
+    if (!this.root || !TemplateStore.isCustom) return;
+    const W = CONFIG.card.widthMm, H = CONFIG.card.heightMm;
+    const boxes = [];
+    for (const [key, el] of this.handles) {
+      const b = TemplateStore.box(key);
+      if (!b) { el.hidden = true; continue; }
+      el.hidden = false;
+      el.style.left = `${b.x / W * 100}%`;
+      el.style.top = `${b.y / H * 100}%`;
+      el.style.width = `${b.w / W * 100}%`;
+      el.style.height = `${b.h / H * 100}%`;
+      el.classList.toggle('on', key === this.selected);
+      boxes.push({ el, area: b.w * b.h });
+    }
+    boxes.sort((a, b) => b.area - a.area);
+    boxes.forEach(({ el }, i) => { el.style.zIndex = String(i + 1); });
+  },
+
+  /** What the selected placeholder is, and where: the panel's readout. */
+  readout(key = this.selected) {
+    const b = TemplateStore.box(key);
+    if (!b) return '';
+    const label = PLACEHOLDERS.find((h) => h.key === key)?.label ?? key;
+    const n = (v) => v.toFixed(1);
+    return `${label}: ${n(b.w)} × ${n(b.h)} mm, ${n(b.x)} mm from the left and ${n(b.y)} mm from the top.`;
+  },
+
+  _select(key) {
+    this.selected = key;
+    for (const [k, el] of this.handles) el.classList.toggle('on', k === key);
+    this.onChange?.({ selected: key, moved: false });
+  },
+
+  _set(key, box) {
+    TemplateStore.setBox(key, box);
+    this.refresh();
+    this.onChange?.({ selected: key, moved: true });
+  },
+
+  /* ---- pointer ---------------------------------------------------- */
+
+  _grab(e, key) {
+    if (e.button !== 0) return;
+    const el = this.handles.get(key);
+    const rect = this.root.getBoundingClientRect();
+    if (!rect.width) return;
+    const mmPerPxX = CONFIG.card.widthMm / rect.width;
+    const mmPerPxY = CONFIG.card.heightMm / rect.height;
+    const start = TemplateStore.box(key);
+    const sizing = e.target.classList.contains('tpl-grip');
+    const x0 = e.clientX, y0 = e.clientY;
+
+    this._select(key);
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('dragging');
+    e.preventDefault();
+
+    const move = (ev) => {
+      const dx = (ev.clientX - x0) * mmPerPxX;
+      const dy = (ev.clientY - y0) * mmPerPxY;
+      this._set(key, sizing
+        ? { ...start, w: Math.max(MIN_MM, start.w + dx), h: Math.max(MIN_MM, start.h + dy) }
+        : { ...start, x: start.x + dx, y: start.y + dy });
+    };
+    const drop = () => {
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', drop);
+      el.removeEventListener('pointercancel', drop);
+      el.classList.remove('dragging');
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', drop);
+    el.addEventListener('pointercancel', drop);
+  },
+
+  /* ---- keyboard --------------------------------------------------- */
+
+  _key(e, key) {
+    const step = e.shiftKey ? NUDGE_MM : NUDGE_MM;
+    const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+    if (!d) return;
+    e.preventDefault();
+    const b = TemplateStore.box(key);
+    this._set(key, e.shiftKey
+      ? { ...b, w: Math.max(MIN_MM, b.w + d[0]), h: Math.max(MIN_MM, b.h + d[1]) }
+      : { ...b, x: b.x + d[0], y: b.y + d[1] });
+  },
+};
 
 </script>
   <script>
@@ -6016,6 +6574,7 @@ function render() {
 
   $('extras').hidden = state.step > 0 && state.step < LAST_STEP;
   renderRegister();
+  renderDesign();
   drawPreview();
 }
 
@@ -6874,6 +7433,136 @@ $('f-layout').addEventListener('change', renderBatchLayout);
 $('f-batch-paper').addEventListener('change', renderBatchLayout);
 renderBatchLayout();
 
+/* ---- the card design ---------------------------------------------
+   Swapping the artwork changes where everything on the card belongs, so
+   it is offered on the first step of a blank card and nowhere else: once
+   a photo has been placed against one design, the placement is already
+   wrong for another.
+   ------------------------------------------------------------------ */
+
+let builtInTemplates = null;
+
+/** Is there a card in progress that a new design would spoil? */
+function designAllowed() {
+  return state.step === 0 && !startedCard() && !state.queue.length;
+}
+
+function renderDesign() {
+  const allowed = designAllowed();
+  $('design-block').hidden = !allowed;
+  if (!allowed && TemplateEdit.open) stopAdjusting();
+  $('design-name').textContent = TemplateStore.isCustom ? TemplateStore.name : 'the built-in design';
+  $('design-actions').hidden = !TemplateStore.isCustom || TemplateEdit.open;
+  $('design-adjust').hidden = !TemplateEdit.open;
+  $('btn-tpl-use').disabled = !($('f-tpl-front').files[0] && $('f-tpl-back').files[0]);
+  $('tpl-overlay').hidden = !(TemplateEdit.open && allowed && state.side === 'front');
+}
+
+function fileToImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
+    reader.onload = () => loadImage(reader.result).then(
+      resolve,
+      () => reject(new Error(`${file.name} is not a picture the app can open.`)),
+    );
+    reader.readAsDataURL(file);
+  });
+}
+
+async function useUploadedDesign() {
+  const msg = $('design-msg');
+  const frontFile = $('f-tpl-front').files[0];
+  const backFile = $('f-tpl-back').files[0];
+  if (!frontFile || !backFile) return;
+  msg.textContent = 'Reading the artwork…';
+  try {
+    const [front, back] = await Promise.all([fileToImage(frontFile), fileToImage(backFile)]);
+    const mapFile = $('f-tpl-map').files[0] || null;
+    const mapImage = mapFile ? await fileToImage(mapFile) : null;
+    const name = frontFile.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim() || 'Uploaded design';
+    const result = await TemplateStore.adopt({ name, frontImage: front, backImage: back, mapImage });
+    if (result.error) { msg.textContent = result.error; return; }
+
+    state.templates = TemplateStore.templatesFor(builtInTemplates);
+    TemplateStore.save();
+    msg.textContent = TemplateStore.note || 'In use. Check the card on the left.';
+    showContrastWarnings(result.warnings);
+    // with a map everything is already placed; without one, there is work to do
+    if (TemplateStore.hasMap) render(); else startAdjusting();
+  } catch (err) {
+    msg.textContent = err.message;
+  }
+}
+
+/**
+ * Text that will not read against the new artwork.
+ *
+ * Four near-identical paragraphs is how this used to be said, and it read
+ * as a wall of failure for what is usually one mistake. One sentence
+ * names the fields and the fix; the ratios are there for whoever wants
+ * to take them back to the designer.
+ */
+function showContrastWarnings(warnings) {
+  const box = $('design-warn');
+  box.hidden = !warnings.length;
+  if (!warnings.length) return;
+  const names = warnings.map((w) => w.label);
+  const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
+  $('design-warn-head').textContent =
+    `The ${list} would be hard to read on this artwork — put a darker shape behind ${warnings.length > 1 ? 'those boxes' : 'that box'}.`;
+  $('design-warn-list').textContent = '';
+  for (const w of warnings) {
+    const li = document.createElement('li');
+    li.textContent = `${w.label}: prints in ${w.ink}, contrast ${w.ratio}:1 against the artwork (needs ${w.need}:1).`;
+    $('design-warn-list').append(li);
+  }
+  box.open = false;
+}
+
+function startAdjusting() {
+  if (!TemplateStore.isCustom) return;
+  state.side = 'front';
+  $('design-block').open = true;
+  TemplateEdit.show();
+  updateDesignReadout();
+  render();
+}
+
+function stopAdjusting() {
+  TemplateEdit.hide();
+  TemplateStore.save();
+  $('tpl-overlay').hidden = true;
+}
+
+function updateDesignReadout() {
+  $('design-readout').textContent = TemplateEdit.open ? TemplateEdit.readout() : '';
+}
+
+function resetDesign() {
+  if (!confirm('Go back to the design the app was built with?')) return;
+  stopAdjusting();
+  TemplateStore.clear();
+  showContrastWarnings([]);
+  state.templates = builtInTemplates;
+  for (const id of ['f-tpl-front', 'f-tpl-back', 'f-tpl-map']) $(id).value = '';
+  $('design-msg').textContent = 'Back to the built-in design.';
+  render();
+}
+
+TemplateEdit.mount($('tpl-overlay'), () => { drawPreview(); updateDesignReadout(); });
+$('btn-tpl-use').addEventListener('click', useUploadedDesign);
+$('btn-tpl-adjust').addEventListener('click', startAdjusting);
+$('btn-tpl-done').addEventListener('click', () => {
+  stopAdjusting();
+  showContrastWarnings(TemplateStore.warnings());     // the boxes may have been moved somewhere darker
+  $('design-msg').textContent = 'Saved on this computer.';
+  render();
+});
+$('btn-tpl-defaults').addEventListener('click', () => { TemplateStore.resetBoxes(); TemplateEdit.refresh(); drawPreview(); updateDesignReadout(); });
+$('btn-tpl-reset').addEventListener('click', resetDesign);
+for (const id of ['f-tpl-front', 'f-tpl-back', 'f-tpl-map']) $(id).addEventListener('change', render);
+
 /* ---- boot -------------------------------------------------------- */
 
 new ResizeObserver(drawPreview).observe(previewBox);
@@ -6890,8 +7579,11 @@ if (restoreDraft()) {
 }
 
 Promise.all([loadTemplates(), loadCardFonts()])
-  .then(([templates]) => {
-    state.templates = templates;
+  .then(async ([templates]) => {
+    builtInTemplates = templates;
+    // a design put in earlier is still the one in use
+    try { await TemplateStore.restore(); } catch { /* fall back to the built-in */ }
+    state.templates = TemplateStore.templatesFor(templates);
     updateBatchButton();
     if (state.step === LAST_STEP) buildReview();
     render();

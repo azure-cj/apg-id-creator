@@ -19,7 +19,7 @@
    ------------------------------------------------------------------ */
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import pw from 'playwright';
+const pw = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 
 const here = dirname(fileURLToPath(import.meta.url));
 const app = pathToFileURL(join(here, '..', 'Alpha Premier ID Maker.html')).href;

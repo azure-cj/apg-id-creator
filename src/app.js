@@ -447,6 +447,7 @@ function render() {
 
   $('extras').hidden = state.step > 0 && state.step < LAST_STEP;
   renderRegister();
+  renderDesign();
   drawPreview();
 }
 
@@ -1305,6 +1306,136 @@ $('f-layout').addEventListener('change', renderBatchLayout);
 $('f-batch-paper').addEventListener('change', renderBatchLayout);
 renderBatchLayout();
 
+/* ---- the card design ---------------------------------------------
+   Swapping the artwork changes where everything on the card belongs, so
+   it is offered on the first step of a blank card and nowhere else: once
+   a photo has been placed against one design, the placement is already
+   wrong for another.
+   ------------------------------------------------------------------ */
+
+let builtInTemplates = null;
+
+/** Is there a card in progress that a new design would spoil? */
+function designAllowed() {
+  return state.step === 0 && !startedCard() && !state.queue.length;
+}
+
+function renderDesign() {
+  const allowed = designAllowed();
+  $('design-block').hidden = !allowed;
+  if (!allowed && TemplateEdit.open) stopAdjusting();
+  $('design-name').textContent = TemplateStore.isCustom ? TemplateStore.name : 'the built-in design';
+  $('design-actions').hidden = !TemplateStore.isCustom || TemplateEdit.open;
+  $('design-adjust').hidden = !TemplateEdit.open;
+  $('btn-tpl-use').disabled = !($('f-tpl-front').files[0] && $('f-tpl-back').files[0]);
+  $('tpl-overlay').hidden = !(TemplateEdit.open && allowed && state.side === 'front');
+}
+
+function fileToImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
+    reader.onload = () => loadImage(reader.result).then(
+      resolve,
+      () => reject(new Error(`${file.name} is not a picture the app can open.`)),
+    );
+    reader.readAsDataURL(file);
+  });
+}
+
+async function useUploadedDesign() {
+  const msg = $('design-msg');
+  const frontFile = $('f-tpl-front').files[0];
+  const backFile = $('f-tpl-back').files[0];
+  if (!frontFile || !backFile) return;
+  msg.textContent = 'Reading the artwork…';
+  try {
+    const [front, back] = await Promise.all([fileToImage(frontFile), fileToImage(backFile)]);
+    const mapFile = $('f-tpl-map').files[0] || null;
+    const mapImage = mapFile ? await fileToImage(mapFile) : null;
+    const name = frontFile.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim() || 'Uploaded design';
+    const result = await TemplateStore.adopt({ name, frontImage: front, backImage: back, mapImage });
+    if (result.error) { msg.textContent = result.error; return; }
+
+    state.templates = TemplateStore.templatesFor(builtInTemplates);
+    TemplateStore.save();
+    msg.textContent = TemplateStore.note || 'In use. Check the card on the left.';
+    showContrastWarnings(result.warnings);
+    // with a map everything is already placed; without one, there is work to do
+    if (TemplateStore.hasMap) render(); else startAdjusting();
+  } catch (err) {
+    msg.textContent = err.message;
+  }
+}
+
+/**
+ * Text that will not read against the new artwork.
+ *
+ * Four near-identical paragraphs is how this used to be said, and it read
+ * as a wall of failure for what is usually one mistake. One sentence
+ * names the fields and the fix; the ratios are there for whoever wants
+ * to take them back to the designer.
+ */
+function showContrastWarnings(warnings) {
+  const box = $('design-warn');
+  box.hidden = !warnings.length;
+  if (!warnings.length) return;
+  const names = warnings.map((w) => w.label);
+  const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
+  $('design-warn-head').textContent =
+    `The ${list} would be hard to read on this artwork — put a darker shape behind ${warnings.length > 1 ? 'those boxes' : 'that box'}.`;
+  $('design-warn-list').textContent = '';
+  for (const w of warnings) {
+    const li = document.createElement('li');
+    li.textContent = `${w.label}: prints in ${w.ink}, contrast ${w.ratio}:1 against the artwork (needs ${w.need}:1).`;
+    $('design-warn-list').append(li);
+  }
+  box.open = false;
+}
+
+function startAdjusting() {
+  if (!TemplateStore.isCustom) return;
+  state.side = 'front';
+  $('design-block').open = true;
+  TemplateEdit.show();
+  updateDesignReadout();
+  render();
+}
+
+function stopAdjusting() {
+  TemplateEdit.hide();
+  TemplateStore.save();
+  $('tpl-overlay').hidden = true;
+}
+
+function updateDesignReadout() {
+  $('design-readout').textContent = TemplateEdit.open ? TemplateEdit.readout() : '';
+}
+
+function resetDesign() {
+  if (!confirm('Go back to the design the app was built with?')) return;
+  stopAdjusting();
+  TemplateStore.clear();
+  showContrastWarnings([]);
+  state.templates = builtInTemplates;
+  for (const id of ['f-tpl-front', 'f-tpl-back', 'f-tpl-map']) $(id).value = '';
+  $('design-msg').textContent = 'Back to the built-in design.';
+  render();
+}
+
+TemplateEdit.mount($('tpl-overlay'), () => { drawPreview(); updateDesignReadout(); });
+$('btn-tpl-use').addEventListener('click', useUploadedDesign);
+$('btn-tpl-adjust').addEventListener('click', startAdjusting);
+$('btn-tpl-done').addEventListener('click', () => {
+  stopAdjusting();
+  showContrastWarnings(TemplateStore.warnings());     // the boxes may have been moved somewhere darker
+  $('design-msg').textContent = 'Saved on this computer.';
+  render();
+});
+$('btn-tpl-defaults').addEventListener('click', () => { TemplateStore.resetBoxes(); TemplateEdit.refresh(); drawPreview(); updateDesignReadout(); });
+$('btn-tpl-reset').addEventListener('click', resetDesign);
+for (const id of ['f-tpl-front', 'f-tpl-back', 'f-tpl-map']) $(id).addEventListener('change', render);
+
 /* ---- boot -------------------------------------------------------- */
 
 new ResizeObserver(drawPreview).observe(previewBox);
@@ -1321,8 +1452,11 @@ if (restoreDraft()) {
 }
 
 Promise.all([loadTemplates(), loadCardFonts()])
-  .then(([templates]) => {
-    state.templates = templates;
+  .then(async ([templates]) => {
+    builtInTemplates = templates;
+    // a design put in earlier is still the one in use
+    try { await TemplateStore.restore(); } catch { /* fall back to the built-in */ }
+    state.templates = TemplateStore.templatesFor(templates);
     updateBatchButton();
     if (state.step === LAST_STEP) buildReview();
     render();
