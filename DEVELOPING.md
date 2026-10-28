@@ -32,6 +32,7 @@ and does not do is in **PHOTO-SPEC.md**.
 | `test/map.mjs` | `npm run test:map` — builds a map from `config.js`, reads it back, and checks the zones land where they started, that the card still renders, and that the contrast check refuses artwork the text would vanish on. |
 | `test/golden.mjs` | Renders the example card at 300 DPI and compares it with `test/golden-front.png`, so a code or config change cannot silently move anything. |
 | `test/design.mjs` | `npm run test:design` — moves the map and puts different artwork in the way HR would, and checks that opening the map changes nothing, that the built-in photo cut-out keeps its step when dragged, that the wrong shape is refused, that new artwork reaches the printed card, that a drag moves what is drawn by the amount dragged, and that it all survives a restart. |
+| `test/layout.mjs` | `npm run test:layout` — opens the app at four window sizes in six states and checks that nothing inside the preview tray reaches past it and that the page never scrolls sideways. A column that will not shrink draws the preview across the form; it looks like a z-index problem and it never is. |
 | `package.json` | `npm run build`, `npm test`, `npm run dev`. |
 
 ## How the app is built
@@ -84,7 +85,8 @@ the print file are the same drawing.
    in `test/diff-front.png`. If the change was intended, accept it with
    `npm test -- --update` and commit the new golden. `npm run test:map` and
    `npm run test:design` cover the other two ways a card's layout can
-   arrive; run all three before a release. On a machine where Playwright is
+   arrive, and `npm run test:layout` checks the window itself; run all
+   four before a release. On a machine where Playwright is
    installed somewhere else, point the tests at it with
    `PLAYWRIGHT_MODULE=/path/to/playwright/index.js`.
 4. Open the rebuilt `Alpha Premier ID Maker.html` with **`#example`** on
@@ -148,13 +150,20 @@ grows on a larger monitor. The four tools used to be collapsed panels
 stacked under the form, which put them off the bottom of the screen and
 made them read as steps of the card being made.
 
-Two things about that grid are load-bearing. Every column is placed by
-name (`.rail`, `.drawer`, `.stage`, `.panel` each set `grid-column`),
-because a closed drawer is `display: none` and auto-placement would slide
-the form into the card's column and leave an empty track on the right. And
-`.card-box` is width-led with a height cap, never the reverse: an explicit
-height plus an `aspect-ratio` makes a box that cannot shrink, so in a
-narrow column it overflowed across the form.
+Three things about that grid are load-bearing, and all three failed the
+same way — a box that would not shrink, drawn across the form.
+
+- Every column is placed by name (`.rail`, `.drawer`, `.stage`, `.panel`
+  each set `grid-column`). A closed drawer is `display: none`, and
+  auto-placement would slide the form into the card's column and leave an
+  empty track on the right.
+- `.card-box` is width-led with a height cap, never the reverse. An
+  explicit height plus an `aspect-ratio` makes a box that cannot shrink.
+- Every grid inside the tray uses `minmax(0, 1fr)`, not the implicit
+  `auto` track — `.stage`, `.queue-strip`, `.job-list`. An `auto` track
+  never goes below its content's min-content, so the sheet preview's
+  natural 1123px and a row of nowrap text each carried the tray out over
+  the form. `test/layout.mjs` exists because this happened twice.
 
 The screen takes its colours from **alphapremiergroup.com**: brand gold
 `#D4AF37`, black panels, and Plus Jakarta Sans (the fonts come from Google

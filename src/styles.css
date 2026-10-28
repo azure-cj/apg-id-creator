@@ -86,8 +86,11 @@ h1 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; font-weigh
    the form. */
 .layout {
   --card-w: min(420px, calc((100svh - 250px) * 54 / 85.6));
+  /* the tray is sized for the card, except on the last step where it
+     holds a sheet of them and the extra width is worth having */
+  --stage-w: calc(var(--card-w) + 40px);
   display: grid;
-  grid-template-columns: auto auto minmax(0, calc(var(--card-w) + 40px)) minmax(280px, 380px);
+  grid-template-columns: auto auto minmax(0, var(--stage-w)) minmax(280px, 380px);
   justify-content: center; align-items: start; gap: 16px;
 }
 /* Named, not auto-placed. A closed drawer is display:none, and without
@@ -123,6 +126,7 @@ h1 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; font-weigh
      card is as big as the window's height allows either way, so giving
      the stage the form's width would only widen the tray around it */
   .adjusting .layout { grid-template-columns: auto auto auto; }
+  .checking .layout { --stage-w: 640px; }
 }
 
 /* ---- the tool rail ----
@@ -167,7 +171,12 @@ h1 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; font-weigh
 
 /* ---- preview stage ---- */
 .stage {
-  display: grid; justify-items: center; gap: 16px; min-width: 0;
+  /* One column that cannot be wider than the tray. Without the explicit
+     track, the sheet preview's natural width (1123px) sized the implicit
+     column, `width: 100%` on the figure resolved against that, and the
+     page spilled out of the tray and across the form. */
+  display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center;
+  gap: 16px; min-width: 0;
   padding: 20px 20px 18px; border-radius: 14px; background: var(--tray);
 }
 @media (width >= 821px) { .stage { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); } }
@@ -282,8 +291,8 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .number-row input { max-width: 120px; font-family: var(--font-mono); letter-spacing: 0.08em; }
 .number-row select { width: auto; font-family: var(--font-mono); padding-right: 28px; }
 .reissue { margin-top: 6px; padding: 10px 12px; border: 1px solid var(--gold); border-radius: 10px; }
-.register-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 0.9rem; }
-.register-list li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding-bottom: 6px; border-bottom: 1px dashed var(--line); }
+.register-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 0.9rem; }
+.register-list li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; min-width: 0; padding-bottom: 6px; border-bottom: 1px dashed var(--line); overflow-wrap: anywhere; }
 .register-list li:last-child { border-bottom: 0; }
 .register-list .id { font-family: var(--font-mono); font-size: 0.85rem; }
 .register-list .when { color: var(--muted); font-size: 0.85rem; }
@@ -408,7 +417,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .sheet-box .ghost:disabled { opacity: 0.35; }
 
 /* ---- the print queue, under the preview ---- */
-.queue-strip { display: grid; gap: 8px; width: 100%; padding: 12px; border-radius: 10px; background: #ffffff12; }
+.queue-strip { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; width: 100%; min-width: 0; padding: 12px; border-radius: 10px; background: #ffffff12; }
 .queue-strip h2 { color: var(--tray-ink); }
 .job-count { font-family: var(--font-mono); font-size: 0.8rem; color: var(--tray-ink); opacity: 0.75; }
 .queue-strip .msg { color: var(--tray-ink); opacity: 0.75; }
@@ -418,8 +427,13 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .queue-strip .tag { color: var(--tray-ink); opacity: 0.9; }
 .queue-strip #btn-cancel-add { width: 100%; min-height: 40px; margin-top: 10px; color: var(--tray-ink); border-color: #ffffff33; font-size: 0.9rem; }
 .queue-strip #btn-cancel-add:hover { background: #ffffff14; }
-.job-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; counter-reset: job; }
-.job-list li { display: flex; align-items: baseline; gap: 8px; padding: 6px 8px; border-radius: 8px; background: color-mix(in srgb, var(--line) 25%, transparent); font-size: 0.9rem; }
+/* minmax(0, 1fr), not the implicit auto track. An auto track never goes
+   below its items' min-content, and a row of nowrap text has a wide one,
+   so the list kept its full width in a narrow tray and carried the whole
+   strip out over the form. The ellipsis on .who only works once the
+   chain above it is allowed to shrink. */
+.job-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 0; padding: 0; list-style: none; counter-reset: job; }
+.job-list li { display: flex; align-items: baseline; gap: 8px; min-width: 0; padding: 6px 8px; border-radius: 8px; background: color-mix(in srgb, var(--line) 25%, transparent); font-size: 0.9rem; }
 .job-list li.is-current { background: color-mix(in srgb, var(--gold) 14%, transparent); }
 .job-list .num { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
 .job-list .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

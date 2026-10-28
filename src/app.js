@@ -446,6 +446,7 @@ function render() {
   $('btn-next').textContent = state.step === LAST_STEP - 1 ? 'Check the card' : 'Next';
   $('btn-next').disabled = !state.templates;
 
+  document.body.classList.toggle('checking', state.step === LAST_STEP);
   renderTools();
   renderRegister();
   renderDesign();
