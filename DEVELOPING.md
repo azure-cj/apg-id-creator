@@ -21,6 +21,9 @@ and does not do is in **PHOTO-SPEC.md**.
 | `assets/front-template.png` | Front of the card, 638 × 1004 px = 54 × 85 mm at 300 DPI. |
 | `assets/back.png` | Back of the card (terms, contacts, CEO signature). Same size. |
 | `assets/example-cut-out.png` | The cut-out the sample card is built from. It has no button in the app; it is what `npm test` renders. |
+| `TEMPLATE-SPEC.md` | The brief for whoever designs a new card: canvas size, the zones the app draws into, and the rules that break it. Hand this to the designer. |
+| `assets/template-guide.png` | 638 × 1011 transparent overlay of those zones, to lock as a layer in Canva and design underneath. |
+| `assets/template-guide-annotated.png` | The same zones over the current card, labelled, at 2×. |
 | `assets/logo.png` | The peacock mark in the app's header — lifted from the card artwork, so the screen and the print agree. |
 | `assets/fonts/` | Poppins 700 (name), Montserrat 800 (title), Arimo 400 (employee number) as latin + latin-ext WOFF2 subsets. |
 | `src/` | The readable source code. See "How the app is built" below. |

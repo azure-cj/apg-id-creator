@@ -32,6 +32,10 @@ $C = @{
   good   = [System.Drawing.Color]::FromArgb( 60, 122, 75)
   bad    = [System.Drawing.Color]::FromArgb(179,  38, 30)
 }
+# Call this parenthesised -- (Font 9) -- wherever the result is assigned:
+# the right-hand side of an assignment is parsed as an expression, where a
+# bare command name is a parse error, and a parse error stops the whole
+# file running rather than the one line.
 function Font([single]$size, [string]$style = 'Regular') {
   New-Object System.Drawing.Font('Segoe UI', $size, [System.Drawing.FontStyle]$style)
 }
@@ -83,7 +87,7 @@ $form.FormBorderStyle = 'FixedSingle'
 $form.MaximizeBox     = $false
 $form.StartPosition   = 'CenterScreen'
 $form.BackColor       = $C.paper
-$form.Font            = Font 9
+$form.Font            = (Font 9)
 $icoPath = Join-Path $here 'app.ico'
 if (Test-Path $icoPath) { try { $form.Icon = New-Object System.Drawing.Icon($icoPath) } catch { } }
 
@@ -164,14 +168,14 @@ function New-Button($text, $x, $y, $w, $h, $primary) {
   $b.Cursor                     = [System.Windows.Forms.Cursors]::Hand
   $b.UseVisualStyleBackColor    = $false
   if ($primary) {
-    $b.Font      = Font 11 'Bold'
+    $b.Font      = (Font 11 'Bold')
     $b.BackColor = $C.gold
     $b.ForeColor = $C.ink
     $b.FlatAppearance.BorderSize = 0
     $b.FlatAppearance.MouseOverBackColor = [System.Drawing.Color]::FromArgb(224, 190, 78)
     $b.FlatAppearance.MouseDownBackColor = [System.Drawing.Color]::FromArgb(190, 154, 42)
   } else {
-    $b.Font      = Font 9
+    $b.Font      = (Font 9)
     $b.BackColor = $C.card
     $b.ForeColor = $C.ink
     $b.FlatAppearance.BorderColor = $C.line

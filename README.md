@@ -139,3 +139,7 @@ The full procedure, including making many cards at once from a
 spreadsheet, is in **[PROCESS.md](PROCESS.md)**.
 
 If you look after the app itself, see **[DEVELOPING.md](DEVELOPING.md)**.
+
+If someone is redesigning the card, give them
+**[TEMPLATE-SPEC.md](TEMPLATE-SPEC.md)** — it says what size to work at and
+which parts of the card the app draws itself.
