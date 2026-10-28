@@ -17,8 +17,11 @@ const root = join(here, '..');
 const app = join(root, 'Alpha Premier ID Maker.html');
 if (!existsSync(app)) { console.error('Run `node build.mjs` first.'); process.exit(1); }
 
+// clear only what this script makes. dist/ also holds the Inno Setup
+// installer, which takes a compiler and a couple of minutes to produce;
+// wiping the whole folder to rebuild a zip quietly threw it away.
 const stage = join(here, 'dist', 'Alpha Premier ID Maker');
-rmSync(join(here, 'dist'), { recursive: true, force: true });
+rmSync(stage, { recursive: true, force: true });
 mkdirSync(stage, { recursive: true });
 
 for (const f of ['Setup.cmd', 'setup-window.ps1', 'install.cmd', 'uninstall.cmd', 'shortcuts.ps1', 'app.ico']) {
