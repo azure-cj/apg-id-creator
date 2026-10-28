@@ -133,8 +133,8 @@ Submit the map with the artwork and nobody has to measure anything.
 Hand over the two PNGs, named clearly, for example `front-2027.png` and
 `back-2027.png`, and the map if you drew one.
 
-Nothing needs rebuilding. HR opens **Card design** at the bottom of the
-form on a blank ID, chooses the two files and presses **Use this design**.
+Nothing needs rebuilding. HR clicks **Card design** in the tool rail on a
+blank ID, chooses the two files and presses **Use this design**.
 
 - **With a map**, that is the whole job: every zone lands where you
   painted it, and artwork can sit in front of the photo.

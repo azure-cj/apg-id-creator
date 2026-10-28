@@ -18,16 +18,146 @@
 <body>
   <div class="page">
     <header class="masthead">
-      <div class="brand">
-        <img class="brand-mark" id="brand-logo" alt="" width="44" height="44" />
-        <div>
-          <h1>Alpha Premier ID Maker</h1>
-          <p class="sub">Six short steps: the details, the photo, the signature, then check and print.</p>
-        </div>
-      </div>
+      <img class="brand-mark" id="brand-logo" alt="" width="40" height="40" />
+      <h1>Alpha Premier ID Maker</h1>
+      <p class="sub">Six short steps: the details, the photo, the signature, then check and print.</p>
     </header>
 
     <main class="layout">
+      <!-- ---------------- tools ---------------- -->
+      <nav class="rail" aria-label="Tools">
+        <button type="button" class="rail-btn" id="rail-register" data-tool="register" aria-expanded="false" title="Issued IDs">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></g></svg>
+          <span class="rail-text">Issued IDs</span><span class="rail-count" id="rail-register-count">0</span>
+        </button>
+        <button type="button" class="rail-btn" id="rail-batch" data-tool="batch" aria-expanded="false" title="Batch from CSV">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11"/></g></svg>
+          <span class="rail-text">Batch from CSV</span>
+        </button>
+        <button type="button" class="rail-btn" id="rail-printer" data-tool="printer" aria-expanded="false" title="Printer setting">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8V3h10v5"/><path d="M5 8h14a2 2 0 0 1 2 2v6h-4v4H7v-4H3v-6a2 2 0 0 1 2-2z"/></g></svg>
+          <span class="rail-text">Printer setting</span>
+        </button>
+        <button type="button" class="rail-btn" id="rail-design" data-tool="design" aria-expanded="false" title="Card design">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="8.5" cy="10" r="2"/><path d="M14 9h4M14 13h4M6 16h6"/></g></svg>
+          <span class="rail-text">Card design</span>
+        </button>
+      </nav>
+
+      <aside class="drawer" id="drawer" hidden aria-label="Tool">
+        <div class="drawer-head">
+          <h2 id="drawer-title"></h2>
+          <button type="button" id="drawer-close" class="icon-btn" aria-label="Close">&#10005;</button>
+        </div>
+          <section class="block tool" id="tool-register" hidden>
+          <p class="msg" id="register-note"></p>
+          <ul class="register-list" id="register-list"></ul>
+          <div class="sig-actions">
+            <button type="button" id="btn-register-csv" class="ghost" disabled>Download register (CSV)</button>
+          </div>
+          </section>
+
+          <section class="block tool" id="tool-batch" hidden>
+          <p class="msg">Make many cards in one go. <button type="button" id="btn-csv-template" class="link">Download the CSV template</button></p>
+
+          <div class="field">
+            <label for="f-csv">1. The list (CSV)</label>
+            <input id="f-csv" type="file" accept=".csv,text/csv" />
+            <p class="msg" id="csv-msg">Columns: name, title, seq, and optionally year, photo, signature, replacement.</p>
+          </div>
+          <div class="field">
+            <label for="f-photos">2. The photos</label>
+            <input id="f-photos" type="file" accept="image/png,image/jpeg,image/webp" multiple />
+            <p class="msg" id="photos-msg">Select every photo file. They are matched to the CSV by file name.</p>
+          </div>
+          <div class="field">
+            <label for="f-sigs">3. Scanned signatures (optional)</label>
+            <input id="f-sigs" type="file" accept="image/png,image/jpeg,image/webp" multiple />
+            <p class="msg" id="sigs-msg">Photos or scans of signatures on white paper. Rows without one get a card with no signature.</p>
+          </div>
+          <div class="field">
+            <label for="f-layout">Print layout</label>
+            <select id="f-layout">
+              <option value="duplex">Sheets, fronts then backs — print both sides</option>
+              <option value="pairs">Sheets, front &amp; back side by side — cut and laminate</option>
+              <option value="cards">One card per page — card printer</option>
+            </select>
+            <p class="msg" id="layout-msg"></p>
+          </div>
+          <div class="field">
+            <label for="f-batch-paper">Paper</label>
+            <select id="f-batch-paper"></select>
+          </div>
+
+          <button type="button" id="btn-batch" class="primary" disabled>Generate batch</button>
+          <p class="msg" id="batch-status" role="status" aria-live="polite"></p>
+          <ul class="batch-report" id="batch-report"></ul>
+          </section>
+
+          <section class="block tool" id="tool-printer" hidden>
+          <div class="print-opts" id="flip-opts">
+            <label class="field" for="opt-flip">
+              <span class="field-label">How your printer turns the paper over</span>
+              <select id="opt-flip">
+                <option value="long">On the long edge (usual)</option>
+                <option value="short">On the short edge</option>
+              </select>
+            </label>
+          </div>
+          <p class="msg" id="flip-msg">Set this once. It decides how the backs sheet is reversed, so each back lands behind the right front. If the backs come out behind the wrong people, change it and print again. It only applies to the <strong>Both sides</strong> layout.</p>
+          <label class="toggle" for="opt-rotate">
+            <input id="opt-rotate" type="checkbox" />
+            <span>
+              <strong>Turn the back 180°</strong>
+              <small>Only if printed cards come out with the back upside down. Remembered on this device.</small>
+            </span>
+          </label>
+          </section>
+
+          <section class="block tool" id="tool-design" hidden>
+          <p class="msg">Now using <strong id="design-name">the built-in design</strong>.</p>
+
+          <div class="field">
+            <label for="f-tpl-front">Front artwork (PNG)</label>
+            <input id="f-tpl-front" type="file" accept="image/png,image/jpeg,image/webp" />
+          </div>
+          <div class="field">
+            <label for="f-tpl-back">Back artwork (PNG)</label>
+            <input id="f-tpl-back" type="file" accept="image/png,image/jpeg,image/webp" />
+            <p class="msg">Both at 638 × 1011 pixels. See TEMPLATE-SPEC.md for the full brief.</p>
+          </div>
+          <details class="sub-block">
+            <summary>Add a map (optional)</summary>
+            <div class="field">
+              <label for="f-tpl-map">Map (PNG)</label>
+              <input id="f-tpl-map" type="file" accept="image/png" />
+              <p class="msg">A third picture with every zone painted a flat colour. It sets the placeholders for you and lets artwork sit in front of the photo. Without one the photo is a plain rectangle on top of the artwork.</p>
+            </div>
+          </details>
+
+          <button type="button" id="btn-tpl-use" class="primary" disabled>Use this design</button>
+          <p class="msg" id="design-msg" role="status" aria-live="polite"></p>
+          <details class="sub-block" id="design-warn" hidden>
+            <summary id="design-warn-head"></summary>
+            <ul class="msg" id="design-warn-list"></ul>
+          </details>
+
+          <div id="design-adjust" hidden>
+            <p class="msg">Drag the boxes on the card to move them, the corner to resize. Arrow keys work too.</p>
+            <p class="msg" id="design-readout"></p>
+            <div class="sig-actions">
+              <button type="button" id="btn-tpl-done" class="primary">Done</button>
+              <button type="button" id="btn-tpl-defaults" class="ghost">Put the boxes back</button>
+            </div>
+          </div>
+
+          <div class="sig-actions" id="design-actions" hidden>
+            <button type="button" id="btn-tpl-adjust" class="ghost">Move the boxes</button>
+            <button type="button" id="btn-tpl-reset" class="ghost">Use the built-in design</button>
+          </div>
+          </section>
+      </aside>
+
       <!-- ---------------- preview ---------------- -->
       <section class="stage" aria-label="Card preview">
         <div class="segmented" role="tablist" aria-label="Card side">
@@ -286,119 +416,6 @@
           <p class="msg" id="status" role="status" aria-live="polite"></p>
 </section>
 
-        <div id="extras" class="extras">
-        <details class="block printer" id="register-block">
-          <summary>Issued IDs (<span id="register-count">0</span>)</summary>
-          <p class="msg" id="register-note"></p>
-          <ul class="register-list" id="register-list"></ul>
-          <div class="sig-actions">
-            <button type="button" id="btn-register-csv" class="ghost" disabled>Download register (CSV)</button>
-          </div>
-        </details>
-
-        <details class="block printer" id="batch-block">
-          <summary>Batch from CSV</summary>
-          <p class="msg">Make many cards in one go. <button type="button" id="btn-csv-template" class="link">Download the CSV template</button></p>
-
-          <div class="field">
-            <label for="f-csv">1. The list (CSV)</label>
-            <input id="f-csv" type="file" accept=".csv,text/csv" />
-            <p class="msg" id="csv-msg">Columns: name, title, seq, and optionally year, photo, signature, replacement.</p>
-          </div>
-          <div class="field">
-            <label for="f-photos">2. The photos</label>
-            <input id="f-photos" type="file" accept="image/png,image/jpeg,image/webp" multiple />
-            <p class="msg" id="photos-msg">Select every photo file. They are matched to the CSV by file name.</p>
-          </div>
-          <div class="field">
-            <label for="f-sigs">3. Scanned signatures (optional)</label>
-            <input id="f-sigs" type="file" accept="image/png,image/jpeg,image/webp" multiple />
-            <p class="msg" id="sigs-msg">Photos or scans of signatures on white paper. Rows without one get a card with no signature.</p>
-          </div>
-          <div class="field">
-            <label for="f-layout">Print layout</label>
-            <select id="f-layout">
-              <option value="duplex">Sheets, fronts then backs — print both sides</option>
-              <option value="pairs">Sheets, front &amp; back side by side — cut and laminate</option>
-              <option value="cards">One card per page — card printer</option>
-            </select>
-            <p class="msg" id="layout-msg"></p>
-          </div>
-          <div class="field">
-            <label for="f-batch-paper">Paper</label>
-            <select id="f-batch-paper"></select>
-          </div>
-
-          <button type="button" id="btn-batch" class="primary" disabled>Generate batch</button>
-          <p class="msg" id="batch-status" role="status" aria-live="polite"></p>
-          <ul class="batch-report" id="batch-report"></ul>
-        </details>
-
-        <details class="block printer">
-          <summary>Printer setting</summary>
-          <div class="print-opts" id="flip-opts">
-            <label class="field" for="opt-flip">
-              <span class="field-label">How your printer turns the paper over</span>
-              <select id="opt-flip">
-                <option value="long">On the long edge (usual)</option>
-                <option value="short">On the short edge</option>
-              </select>
-            </label>
-          </div>
-          <p class="msg" id="flip-msg">Set this once. It decides how the backs sheet is reversed, so each back lands behind the right front. If the backs come out behind the wrong people, change it and print again. It only applies to the <strong>Both sides</strong> layout.</p>
-          <label class="toggle" for="opt-rotate">
-            <input id="opt-rotate" type="checkbox" />
-            <span>
-              <strong>Turn the back 180°</strong>
-              <small>Only if printed cards come out with the back upside down. Remembered on this device.</small>
-            </span>
-          </label>
-        </details>
-
-        <details class="block printer" id="design-block">
-          <summary>Card design</summary>
-          <p class="msg">Now using <strong id="design-name">the built-in design</strong>.</p>
-
-          <div class="field">
-            <label for="f-tpl-front">Front artwork (PNG)</label>
-            <input id="f-tpl-front" type="file" accept="image/png,image/jpeg,image/webp" />
-          </div>
-          <div class="field">
-            <label for="f-tpl-back">Back artwork (PNG)</label>
-            <input id="f-tpl-back" type="file" accept="image/png,image/jpeg,image/webp" />
-            <p class="msg">Both at 638 × 1011 pixels. See TEMPLATE-SPEC.md for the full brief.</p>
-          </div>
-          <details class="sub-block">
-            <summary>Add a map (optional)</summary>
-            <div class="field">
-              <label for="f-tpl-map">Map (PNG)</label>
-              <input id="f-tpl-map" type="file" accept="image/png" />
-              <p class="msg">A third picture with every zone painted a flat colour. It sets the placeholders for you and lets artwork sit in front of the photo. Without one the photo is a plain rectangle on top of the artwork.</p>
-            </div>
-          </details>
-
-          <button type="button" id="btn-tpl-use" class="primary" disabled>Use this design</button>
-          <p class="msg" id="design-msg" role="status" aria-live="polite"></p>
-          <details class="sub-block" id="design-warn" hidden>
-            <summary id="design-warn-head"></summary>
-            <ul class="msg" id="design-warn-list"></ul>
-          </details>
-
-          <div id="design-adjust" hidden>
-            <p class="msg">Drag the boxes on the card to move them, the corner to resize. Arrow keys work too.</p>
-            <p class="msg" id="design-readout"></p>
-            <div class="sig-actions">
-              <button type="button" id="btn-tpl-done" class="primary">Done</button>
-              <button type="button" id="btn-tpl-defaults" class="ghost">Put the boxes back</button>
-            </div>
-          </div>
-
-          <div class="sig-actions" id="design-actions" hidden>
-            <button type="button" id="btn-tpl-adjust" class="ghost">Move the boxes</button>
-            <button type="button" id="btn-tpl-reset" class="ghost">Use the built-in design</button>
-          </div>
-        </details>
-        </div>
 
       </aside>
     </main>

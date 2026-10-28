@@ -60,6 +60,7 @@ const state = {
   signature: null,
   touched: { last: false, first: false, middle: false, suffix: false, title: false, title2: false, seq: false, photo: false, signature: false },
   step: 0,
+  tool: null,           // which tool panel the rail has open, if any
   // Cards always print front-and-back side by side, to be cut out and stuck
   // together. The batch panel still offers the other arrangements.
   print: { layout: readLayout(), paper: CONFIG.sheet.defaultPaper, copies: null, page: 0 },
@@ -445,7 +446,7 @@ function render() {
   $('btn-next').textContent = state.step === LAST_STEP - 1 ? 'Check the card' : 'Next';
   $('btn-next').disabled = !state.templates;
 
-  $('extras').hidden = state.step > 0 && state.step < LAST_STEP;
+  renderTools();
   renderRegister();
   renderDesign();
   drawPreview();
@@ -465,7 +466,9 @@ function syncChips(container, selected, hideValue) {
 
 function renderRegister() {
   const all = Register.all();
-  $('register-count').textContent = all.length;
+  // a badge on the rail, and nothing at all when there is nothing to count
+  $('rail-register-count').textContent = all.length;
+  $('rail-register-count').hidden = !all.length;
   $('btn-register-csv').disabled = !all.length;
   $('register-note').textContent = all.length
     ? 'The most recent cards issued here. Every one is also written to the shared register, which is what the duplicate check reads.'
@@ -1306,6 +1309,55 @@ $('f-layout').addEventListener('change', renderBatchLayout);
 $('f-batch-paper').addEventListener('change', renderBatchLayout);
 renderBatchLayout();
 
+/* ---- the tool rail ------------------------------------------------
+   The register, batches, the printer setting and the card design used
+   to be four collapsed panels stacked under the form, which put them
+   off the bottom of the screen and made them read as steps of the card
+   being made. They are none of those things: they are occasional, and
+   they belong beside the work rather than under it. One opens at a
+   time, because two of them at once is the stack again.
+   ------------------------------------------------------------------ */
+
+const TOOLS = ['register', 'batch', 'printer', 'design'];
+const TOOL_TITLE = {
+  register: 'Issued IDs',
+  batch: 'Batch from CSV',
+  printer: 'Printer setting',
+  design: 'Card design',
+};
+
+function openTool(name) {
+  state.tool = state.tool === name ? null : name;
+  renderTools();
+  if (state.tool) $('drawer').scrollTop = 0;
+}
+
+function renderTools() {
+  document.body.classList.toggle('adjusting', TemplateEdit.open);
+  // the design can only be changed before an ID is started
+  const designOK = designAllowed();
+  $('rail-design').hidden = !designOK;
+  if (!designOK && state.tool === 'design') state.tool = null;
+
+  $('drawer').hidden = !state.tool;
+  if (state.tool) {
+    const n = state.tool === 'register' ? Register.all().length : 0;
+    $('drawer-title').textContent = n ? `${TOOL_TITLE.register} (${n})` : TOOL_TITLE[state.tool];
+  }
+  for (const name of TOOLS) {
+    const on = name === state.tool;
+    $(`tool-${name}`).hidden = !on;
+    $(`rail-${name}`).classList.toggle('on', on);
+    $(`rail-${name}`).setAttribute('aria-expanded', String(on));
+  }
+}
+
+for (const name of TOOLS) $(`rail-${name}`).addEventListener('click', () => openTool(name));
+$('drawer-close').addEventListener('click', () => { state.tool = null; renderTools(); });
+addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && state.tool && !TemplateEdit.open) { state.tool = null; renderTools(); }
+});
+
 /* ---- the card design ---------------------------------------------
    Swapping the artwork changes where everything on the card belongs, so
    it is offered on the first step of a blank card and nowhere else: once
@@ -1322,7 +1374,6 @@ function designAllowed() {
 
 function renderDesign() {
   const allowed = designAllowed();
-  $('design-block').hidden = !allowed;
   if (!allowed && TemplateEdit.open) stopAdjusting();
   $('design-name').textContent = TemplateStore.isCustom ? TemplateStore.name : 'the built-in design';
   $('design-actions').hidden = !TemplateStore.isCustom || TemplateEdit.open;
@@ -1396,7 +1447,7 @@ function showContrastWarnings(warnings) {
 function startAdjusting() {
   if (!TemplateStore.isCustom) return;
   state.side = 'front';
-  $('design-block').open = true;
+  state.tool = 'design';
   TemplateEdit.show();
   updateDesignReadout();
   render();

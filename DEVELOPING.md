@@ -105,7 +105,7 @@ Common edits:
 | How two roles are merged on the card | `CONFIG.titles.mergeJoiner` / `pairJoiner` |
 | Change where the photo sits or how big the head is | `CONFIG.photo` — `headTop`, `headCenterX`, `headWidth`, `reachY`; manual-adjust limits `nudgeStepMm`, `zoomMin/Max` |
 | Change the QR link | `CONFIG.qr.content` |
-| New card artwork, just for this computer | Nothing here: **Card design** at the bottom of the form takes the two PNGs and lets the placeholders be dragged. See `TEMPLATE-SPEC.md` |
+| New card artwork, just for this computer | Nothing here: **Card design** in the tool rail takes the two PNGs and lets the placeholders be dragged. See `TEMPLATE-SPEC.md` |
 | New card artwork, built into the app | Replace `assets/front-template.png` / `assets/back.png` (keep 638 × 1004 px). If the band or the photo window moved, re-trace `CONFIG.frontOutline.polygons` and `CONFIG.photoArea.polygon`, or ship a map |
 | Different number format | `CONFIG.employeeNo` (`prefix`, `digits`, `label`, years offered) |
 | Paper sizes, margins, gutters, crop marks | `CONFIG.sheet` |
@@ -139,6 +139,21 @@ separate lists. The shared Google Sheet register (see `register/README.md`)
 is not affected.
 
 ## How it looks
+
+The window is four columns: a rail of the four occasional tools, whichever
+one it has open, the card, and the form. The card's size comes from the
+window's height, so the whole job fits on one screen without scrolling and
+grows on a larger monitor. The four tools used to be collapsed panels
+stacked under the form, which put them off the bottom of the screen and
+made them read as steps of the card being made.
+
+Two things about that grid are load-bearing. Every column is placed by
+name (`.rail`, `.drawer`, `.stage`, `.panel` each set `grid-column`),
+because a closed drawer is `display: none` and auto-placement would slide
+the form into the card's column and leave an empty track on the right. And
+`.card-box` is width-led with a height cap, never the reverse: an explicit
+height plus an `aspect-ratio` makes a box that cannot shrink, so in a
+narrow column it overflowed across the form.
 
 The screen takes its colours from **alphapremiergroup.com**: brand gold
 `#D4AF37`, black panels, and Plus Jakarta Sans (the fonts come from Google

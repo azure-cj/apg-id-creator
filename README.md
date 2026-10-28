@@ -103,7 +103,7 @@ the app.
    both 638 × 1011 pixels. (`TEMPLATE-SPEC.md` is the brief to give them.)
 2. Start a **new, blank ID** — the design can only be changed before you
    start filling one in.
-3. Open **Card design** at the bottom of the form, choose the two files
+3. Click **Card design** in the list on the left, choose the two files
    and press **Use this design**.
 4. Boxes appear on the card for the name, job title, number, signature,
    QR and photo. **Drag them where they belong**, and drag the round
@@ -133,12 +133,12 @@ reprinting someone's lost ID.
 plain green, the person is wearing something the same colour as the
 background, or the photo is blurry. Take or request another one.
 
-**The back of the card prints upside down.** Open **Printer setting** at
-the bottom of the form and tick *Turn the back 180°*.
+**The back of the card prints upside down.** Click **Printer setting** on
+the left and tick *Turn the back 180°*.
 
 **The backs end up behind the wrong people.** Only happens with the *Both
-sides* layout. In **Printer setting**, change *How your printer turns the
-paper over* to **short edge**, and print again.
+sides* layout. In **Printer setting** on the left, change *How your printer
+turns the paper over* to **short edge**, and print again.
 
 **The cards come out the wrong size.** The printer was set to shrink the
 page. Print at 100% or "actual size".

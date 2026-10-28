@@ -45,40 +45,149 @@ body {
 }
 img { max-width: 100%; }
 
-/* ---- page frame ---- */
+/* ---- page frame ----
+   A wide window used to show a 1080px column with empty margins either
+   side, a 360px card marooned in a much wider tray, and four collapsed
+   panels stacked under the form where they had to be scrolled to. The
+   frame now spreads to 1500px and the panels move into a rail, so the
+   whole job — card, form and tools — fits on one screen. */
 .page {
-  max-width: 1080px;
+  max-width: 1500px;
   margin: 0 auto;
-  padding-block: 24px 48px;
+  padding-block: 14px 16px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   display: grid;
-  gap: 24px;
+  gap: 16px;
 }
-.masthead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 24px; }
-.brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+/* centred over a centred layout, or it floats off at the left edge */
+.masthead { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 14px; }
+@media (width <= 1100px) { .masthead { justify-content: flex-start; } }
 /* the peacock mark, lifted from the card artwork so it matches what is printed.
    It is fine gold linework, so it sits on black the way it does on the website. */
 .brand-mark {
-  flex: none; width: 52px; height: 52px; padding: 5px; box-sizing: border-box;
-  object-fit: contain; border-radius: 13px; background: #000;
+  flex: none; width: 40px; height: 40px; padding: 4px; box-sizing: border-box;
+  object-fit: contain; border-radius: 11px; background: #000;
 }
-h1 { margin: 0; font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; line-height: 1.15; letter-spacing: -0.01em; text-wrap: balance; }
-.sub { margin: 2px 0 0; color: var(--muted); font-size: 0.95rem; }
+h1 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; line-height: 1.15; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { margin: 0; color: var(--muted); font-size: 0.9rem; }
+.masthead .sub { flex: 1 1 auto; }
 
-.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); align-items: start; gap: 24px; }
-@media (width <= 820px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+/* Four columns: the rail, whichever tool it has open, the card, the
+   form. They are sized to their contents and the row is centred, so a
+   wide window grows the margins rather than stranding the card at one
+   end of a 1fr column. */
+/* Four columns: the rail, whichever tool it has open, the card, the
+   form. The card column is sized from the window's height, so the card
+   is as large as it can be without the page scrolling, and the row is
+   centred — a wide window grows the margins rather than stranding the
+   card at one end of a 1fr column. The track has a 0 minimum so that
+   opening a tool squeezes the card rather than overflowing it across
+   the form. */
+.layout {
+  --card-w: min(420px, calc((100svh - 250px) * 54 / 85.6));
+  display: grid;
+  grid-template-columns: auto auto minmax(0, calc(var(--card-w) + 40px)) minmax(280px, 380px);
+  justify-content: center; align-items: start; gap: 16px;
+}
+/* Named, not auto-placed. A closed drawer is display:none, and without
+   this the stage and the form each slide one track to the left — the
+   form ends up in the card's column and a 380px track sits empty on the
+   right, which is exactly the wasted space this was meant to remove. */
+.rail { grid-column: 1; }
+.drawer { grid-column: 2; }
+.stage { grid-column: 3; }
+.panel { grid-column: 4; }
+@media (width <= 1100px) {
+  .layout { grid-template-columns: auto auto minmax(0, 1fr); justify-content: stretch; }
+  .panel { grid-column: 3; }             /* the form drops under the card */
+}
+@media (width <= 820px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .rail, .drawer, .stage, .panel { grid-column: 1; }
+  .stage { order: 1; }
+  .panel { order: 2; }
+  /* on a phone the tools belong under the work, not above it */
+  .rail { order: 3; flex-direction: row; flex-wrap: wrap; width: auto; }
+  .rail-btn { width: auto; }
+  .drawer { order: 4; width: auto; max-height: none; }
+}
+
+/* Dragging placeholders is the one job that needs the drawer and the
+   card side by side at full size. Nothing is being typed then — the
+   design can only be changed on a blank ID — so the form stands down
+   and the card takes its column. */
+.adjusting .panel { display: none; }
+@media (width >= 821px) {
+  /* three tracks, each sized to what it holds, and the row centred: the
+     card is as big as the window's height allows either way, so giving
+     the stage the form's width would only widen the tray around it */
+  .adjusting .layout { grid-template-columns: auto auto auto; }
+}
+
+/* ---- the tool rail ----
+   Four things HR needs occasionally — the register, batches, the printer
+   setting, the card design. As a stack under the form they were four
+   scrolls away and read as part of the card being made. As a rail they
+   are one click away and take no room until they are wanted. */
+.rail { display: flex; flex-direction: column; gap: 6px; width: 176px; }
+.rail-btn {
+  position: relative; display: flex; align-items: center; gap: 10px;
+  width: 100%; height: 42px; padding: 0 12px; box-sizing: border-box;
+  border: 1px solid var(--line); border-radius: 11px;
+  background: var(--surface); color: var(--muted);
+  font: 600 0.9rem var(--font-body); text-align: left; cursor: pointer;
+  transition: color 120ms, border-color 120ms, background 120ms;
+}
+.rail-btn svg { flex: none; width: 21px; height: 21px; }
+.rail-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rail-btn:hover { color: var(--ink); border-color: var(--gold); }
+.rail-btn.on { color: var(--on-gold); border-color: var(--gold-strong); background: var(--gold-strong); }
+.rail-btn:focus-visible { outline: 2px solid var(--gold-strong); outline-offset: 2px; }
+.rail-count {
+  flex: none; margin-left: auto; min-width: 20px; height: 18px; padding: 0 5px;
+  box-sizing: border-box; border-radius: 999px; background: color-mix(in srgb, var(--gold-strong) 22%, transparent);
+  color: var(--gold); font: 700 0.7rem/18px var(--font-body); text-align: center;
+}
+.rail-btn.on .rail-count { background: var(--on-gold); color: var(--gold-strong); }
+
+.drawer {
+  display: grid; gap: 14px; width: min(340px, 78vw);
+  padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface);
+  max-height: calc(100svh - 165px); overflow-y: auto;   /* leaves room for the masthead and the footer */
+}
+.drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.drawer-head h2 { margin: 0; }
+.drawer .tool { padding: 0; border: 0; background: none; }
+.icon-btn {
+  flex: none; width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 8px;
+  background: none; color: var(--muted); font-size: 0.85rem; cursor: pointer;
+}
+.icon-btn:hover { color: var(--ink); border-color: var(--gold); }
 
 /* ---- preview stage ---- */
 .stage {
   display: grid; justify-items: center; gap: 16px; min-width: 0;
   padding: 20px 20px 18px; border-radius: 14px; background: var(--tray);
 }
-@media (width >= 821px) { .stage { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); } }
+@media (width >= 821px) { .stage { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); } }
 .segmented { display: inline-flex; padding: 3px; border-radius: 999px; background: #ffffff14; }
 .seg { border: 0; padding: 6px 18px; border-radius: 999px; background: none; color: var(--tray-ink); font: 600 0.9rem var(--font-body); cursor: pointer; }
 .seg.on { background: var(--gold-strong); color: var(--on-gold); }
-.card-box { position: relative; width: min(360px, 100%); max-width: 100%; aspect-ratio: 54 / 85; }
+/* Height-led, so the card grows to fill the tray on a wide screen and
+   shrinks rather than scrolls on a short one. 54 / 85.6 is the card's
+   real shape — the preview used to be 0.7 % short, which put the drag
+   handles slightly off where they print. */
+.card-box {
+  position: relative; aspect-ratio: 54 / 85.6;
+  /* Width-led with a height cap, never the other way round: an explicit
+     height plus an aspect ratio makes a box that cannot shrink, so in a
+     narrow column it overflowed across the form instead of giving way.
+     54 / 85.6 is the card's real shape — the preview used to be 0.7 %
+     short, which put the drag handles off where they print. */
+  width: min(var(--card-w, 420px), 100%);
+  height: auto;
+}
 .card-canvas { display: block; width: 100%; height: 100%; border-radius: 3.2% / 2%; box-shadow: 0 1px #ffffff0f, 0 18px 40px #0000008c; }
 .card-loading { display: grid; place-items: center; padding: 16px; border: 1px dashed #fff3; border-radius: 10px; color: var(--tray-ink); text-align: center; }
 .caption { margin: 0; max-width: 42ch; color: var(--tray-ink); font-size: 0.875rem; text-align: center; }
@@ -373,15 +482,13 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 
 /* ---- generate ---- */
 .generate { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
-.generate .primary, .wizard .primary, .dialog .primary, .printer .primary {
+.generate .primary, .wizard .primary, .dialog .primary, .drawer .primary {
   min-height: 48px; padding: 0 20px; border: 1px solid var(--gold-strong); border-radius: 10px;
   background: var(--gold-strong); color: var(--on-gold); font: 700 1rem var(--font-body); cursor: pointer;
 }
-.generate .primary:hover:not(:disabled), .wizard .primary:hover:not(:disabled), .dialog .primary:hover:not(:disabled), .printer .primary:hover:not(:disabled) { filter: brightness(1.06); }
+.generate .primary:hover:not(:disabled), .wizard .primary:hover:not(:disabled), .dialog .primary:hover:not(:disabled), .drawer .primary:hover:not(:disabled) { filter: brightness(1.06); }
 .primary:disabled { opacity: 0.55; cursor: default; }
 
-.printer > summary { cursor: pointer; font-family: var(--font-display); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
-.printer[open] > summary { margin-bottom: 4px; }
 /* a panel inside a panel: quieter, so it does not read as a second heading */
 .sub-block > summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
 .sub-block[open] > summary { margin-bottom: 6px; }
@@ -406,7 +513,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .sides { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; border-radius: 12px; background: var(--tray); }
 .sides img { max-width: 180px; }
 .sides figure { display: grid; justify-items: center; gap: 6px; min-width: 0; margin: 0; }
-.sides img { width: 100%; max-width: 260px; aspect-ratio: 54 / 85; border-radius: 3.2% / 2%; box-shadow: 0 10px 24px #00000080; }
+.sides img { width: 100%; max-width: 260px; aspect-ratio: 54 / 85.6; border-radius: 3.2% / 2%; box-shadow: 0 10px 24px #00000080; }
 .sides figcaption { color: var(--tray-ink); font-size: 0.85rem; }
 #review-stage, #saved-stage { display: grid; gap: 12px; }
 .review-list { display: grid; gap: 4px; margin: 0; padding-left: 1.2em; font-size: 0.95rem; }
@@ -421,4 +528,3 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
    stage has given itself over to the whole sheet */
 .summary-card { display: flex; justify-content: center; padding: 14px 0 4px; }
 .summary-card img { border-radius: 4px; box-shadow: 0 1px 6px #0000001f; }
-.extras { display: grid; gap: 14px; }

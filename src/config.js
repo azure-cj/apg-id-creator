@@ -7,7 +7,7 @@
    ------------------------------------------------------------------ */
 
 const APP_NAME = 'Alpha Premier ID Maker';
-const APP_VERSION = '1.14.0';          // stamped into every PDF's metadata
+const APP_VERSION = '1.15.0';          // stamped into every PDF's metadata
 
 const CONFIG = {
   card: {

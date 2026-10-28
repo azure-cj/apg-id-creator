@@ -242,7 +242,7 @@ behind the right people** before running a batch.
 
 The app assumes the paper is turned **on the long edge**, which is what
 most printers do. If the backs come out behind the wrong people, open
-**Printer setting** at the bottom of the form and change *How your printer
+**Printer setting** in the tool rail and change *How your printer
 turns the paper over* to **short edge**, then print again. That setting
 appears only for this layout, and is remembered on that computer.
 
