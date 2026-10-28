@@ -89,6 +89,45 @@ The back has no zones at all: nothing is drawn on it except the signature
 of whoever signs the cards, which is part of your artwork, not something
 the app adds. Design it freely at the same 638 × 1011 px.
 
+## If a zone has to move: the map
+
+Everything above assumes the zones stay put. If the design needs the
+photo on the other side, or the name somewhere else, you can say so in a
+picture instead of asking for code: draw a **map**.
+
+A map is a third PNG, the same 638 × 1011 px, with each zone painted a
+flat colour and nothing else on it. The app reads it and works out the
+geometry itself — including the two regions, which stop being the
+six-sided approximations they are today and become whatever shape you
+paint, so a band can curve, taper or tear.
+
+| Paint this | In this colour | Hex |
+| --- | --- | --- |
+| The photo window | magenta | `#FF00FF` |
+| Artwork that covers the person | cyan | `#00FFFF` |
+| Name box | yellow | `#FFFF00` |
+| Job-title box | orange | `#FF8000` |
+| Employee-number box | red | `#FF0000` |
+| Signature box | green | `#00FF00` |
+| QR square | blue | `#0000FF` |
+| A line where the top of the head goes | purple | `#8000FF` |
+
+The head marker is a horizontal bar: its **top edge** is where the top of
+the head lands, and its **left and right ends** say how wide the head
+should be.
+
+Use the exact hex codes, with no gradient, shadow, transparency or
+rounded blur on the shapes. Soft edges are tolerated — the app treats a
+half-blended pixel as half-belonging to each side, which is what keeps a
+shoulder smooth against a band — but a gradient across a whole zone is
+not a zone.
+
+**To start from today's layout rather than a blank page**, open the app
+with `#map` on the end of the address. It downloads `template-map.png`:
+the current card's zones, ready to move around.
+
+Submit the map with the artwork and nobody has to measure anything.
+
 ## Submitting it
 
 Hand over the two PNGs, named clearly, for example

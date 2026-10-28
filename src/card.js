@@ -77,9 +77,9 @@ function layoutText(data) {
   measureCtx ??= document.createElement('canvas').getContext('2d');
   const ppm = printPxPerMm();
   return {
-    name: fitText(measureCtx, CONFIG.text.name, data.name, ppm),
-    title: fitText(measureCtx, CONFIG.text.title, data.title, ppm),
-    employeeNo: fitText(measureCtx, CONFIG.text.employeeNo, employeeNoLine(data.year, data.seq), ppm),
+    name: fitText(measureCtx, geo().text.name, data.name, ppm),
+    title: fitText(measureCtx, geo().text.title, data.title, ppm),
+    employeeNo: fitText(measureCtx, geo().text.employeeNo, employeeNoLine(data.year, data.seq), ppm),
   };
 }
 
@@ -109,21 +109,32 @@ function drawFront(ctx, templates, pxPerMm, data = null, options = {}) {
   const { w, h } = prepareCanvas(ctx, pxPerMm);
   ctx.drawImage(templates.front, 0, 0, w, h);
 
+  const masks = geo().masks;
+
   if (data?.photo) {
     const p = data.photo.placement;   // mm
-    ctx.save();
-    tracePolygons(ctx, [CONFIG.photoArea.polygon], pxPerMm);
-    ctx.clip();
-    ctx.drawImage(data.photo.image, p.x * pxPerMm, p.y * pxPerMm, p.w * pxPerMm, p.h * pxPerMm);
-    ctx.restore();
+    const put = (c) => c.drawImage(data.photo.image, p.x * pxPerMm, p.y * pxPerMm, p.w * pxPerMm, p.h * pxPerMm);
+    if (masks?.photo) {
+      throughMask(ctx, masks.photo, w, h, put);
+    } else {
+      ctx.save();
+      tracePolygons(ctx, [CONFIG.photoArea.polygon], pxPerMm);
+      ctx.clip();
+      put(ctx);
+      ctx.restore();
+    }
   }
 
   // band + gold line back on top of the photo
-  ctx.save();
-  tracePolygons(ctx, CONFIG.frontOutline.polygons, pxPerMm);
-  ctx.clip();
-  ctx.drawImage(templates.front, 0, 0, w, h);
-  ctx.restore();
+  if (masks?.front) {
+    throughMask(ctx, masks.front, w, h, (c) => c.drawImage(templates.front, 0, 0, w, h));
+  } else {
+    ctx.save();
+    tracePolygons(ctx, CONFIG.frontOutline.polygons, pxPerMm);
+    ctx.clip();
+    ctx.drawImage(templates.front, 0, 0, w, h);
+    ctx.restore();
+  }
 
   if (options.showGuides) {
     ctx.save();
@@ -138,9 +149,9 @@ function drawFront(ctx, templates, pxPerMm, data = null, options = {}) {
 
   const layout = layoutText(data);
   ctx.save();
-  drawFittedText(ctx, CONFIG.text.name, layout.name, pxPerMm);
-  drawFittedText(ctx, CONFIG.text.title, layout.title, pxPerMm);
-  drawFittedText(ctx, CONFIG.text.employeeNo, layout.employeeNo, pxPerMm);
+  drawFittedText(ctx, geo().text.name, layout.name, pxPerMm);
+  drawFittedText(ctx, geo().text.title, layout.title, pxPerMm);
+  drawFittedText(ctx, geo().text.employeeNo, layout.employeeNo, pxPerMm);
   ctx.restore();
 
   if (data.signature) { ctx.save(); drawSignatureOnCard(ctx, data.signature, pxPerMm); ctx.restore(); }

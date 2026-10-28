@@ -185,7 +185,7 @@ function tintedSignature(sig) {
   const ctx = c.getContext('2d');
   ctx.drawImage(sig.mask, 0, 0);
   ctx.globalCompositeOperation = 'source-in';
-  ctx.fillStyle = CONFIG.signature.color;
+  ctx.fillStyle = geo().signature.color;
   ctx.fillRect(0, 0, c.width, c.height);
   sig._white = c;
   return c;
@@ -193,7 +193,7 @@ function tintedSignature(sig) {
 
 /* ---- onto the card ----------------------------------------------- */
 
-/** Draw the signature in white inside CONFIG.signature.box on the card. */
+/** Draw the signature in white inside geo().signature.box on the card. */
 function drawSignatureOnCard(ctx, sig, pxPerMm) {
   if (!hasInk(sig)) return;
   if (sig.kind === 'image') return drawSignatureImage(ctx, sig, pxPerMm);
@@ -202,7 +202,7 @@ function drawSignatureOnCard(ctx, sig, pxPerMm) {
   const minY = Math.min(...pts.map((p) => p.y)), maxY = Math.max(...pts.map((p) => p.y));
   const inkW = Math.max(maxX - minX, 1), inkH = Math.max(maxY - minY, 1);
 
-  const { box, color, strokeMm, minStrokeMm } = CONFIG.signature;
+  const { box, color, strokeMm, minStrokeMm } = geo().signature;
   const pad = strokeMm / 2;                       // keep thick strokes inside the box
   const availW = box.w - 2 * pad, availH = box.h - 2 * pad;
   const mmPerUnit = Math.min(availW / inkW, availH / inkH);   // fit, no stretch
@@ -221,7 +221,7 @@ function drawSignatureOnCard(ctx, sig, pxPerMm) {
 
 /** Scanned signature: fit the trimmed mask into the box, no stretching. */
 function drawSignatureImage(ctx, sig, pxPerMm) {
-  const { box, strokeMm } = CONFIG.signature;
+  const { box, strokeMm } = geo().signature;
   const pad = strokeMm / 2;
   const availW = box.w - 2 * pad, availH = box.h - 2 * pad;
   const scale = Math.min(availW / sig.mask.width, availH / sig.mask.height);

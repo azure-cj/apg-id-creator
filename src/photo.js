@@ -149,7 +149,7 @@ function sharpnessOf(img, x0, y0, x1, y1) {
 function findHeadAndPlace(analysis, fullWidth, keyed) {
   const { width: w, height: h, data } = analysis;
   const scale = fullWidth / w;              // analysis px -> full-size px
-  const P = CONFIG.photo;
+  const P = geo().photo;
 
   // must really be a cut-out: enough transparent pixels, and a mostly clear top row
   let transparent = 0;

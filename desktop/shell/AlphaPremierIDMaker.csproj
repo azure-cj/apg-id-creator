@@ -17,7 +17,7 @@
     <Company>Alpha Premier Group of Companies</Company>
     <Product>Alpha Premier ID Maker</Product>
     <!-- keep in step with APP_VERSION in src/config.js -->
-    <Version>1.12.0</Version>
+    <Version>1.13.0</Version>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

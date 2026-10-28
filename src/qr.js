@@ -9,10 +9,10 @@
 let qrCache = null;
 
 function qrModules() {
-  const key = `${CONFIG.qr.content}|${CONFIG.qr.errorCorrection}`;
+  const key = `${geo().qr.content}|${geo().qr.errorCorrection}`;
   if (!qrCache || qrCache.key !== key) {
-    const qr = qrcode(0 /* auto version */, CONFIG.qr.errorCorrection);
-    qr.addData(CONFIG.qr.content);
+    const qr = qrcode(0 /* auto version */, geo().qr.errorCorrection);
+    qr.addData(geo().qr.content);
     qr.make();
     const n = qr.getModuleCount();
     const dark = new Array(n * n);
@@ -26,10 +26,10 @@ function drawQr(ctx, pxPerMm) {
   const { size: n, dark } = qrModules();
   const printPpm = printPxPerMm();
   const snap = (mm) => Math.round(mm * printPpm) / printPpm;   // to whole print pixels
-  const sq = CONFIG.qr.square;
+  const sq = geo().qr.square;
   const x0 = snap(sq.x), y0 = snap(sq.y), side = snap(sq.size);
 
-  ctx.fillStyle = CONFIG.qr.background;
+  ctx.fillStyle = geo().qr.background;
   ctx.fillRect(x0 * pxPerMm, y0 * pxPerMm, side * pxPerMm, side * pxPerMm);
 
   // module size: whole print pixels, leaving a 2-module quiet zone each side
@@ -38,7 +38,7 @@ function drawQr(ctx, pxPerMm) {
   const left = snap(x0 + (side - codeMm) / 2);
   const top = snap(y0 + (side - codeMm) / 2);
 
-  ctx.fillStyle = CONFIG.qr.color;
+  ctx.fillStyle = geo().qr.color;
   for (let r = 0; r < n; r++) {
     for (let c = 0; c < n; c++) {
       if (!dark[r * n + c]) continue;

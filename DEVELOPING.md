@@ -29,6 +29,7 @@ and does not do is in **PHOTO-SPEC.md**.
 | `src/` | The readable source code. See "How the app is built" below. |
 | `build.mjs` | Rebuilds `Alpha Premier ID Maker.html` from `src/` + `assets/`. |
 | `serve.mjs` | `npm start` — serves the folder on `http://localhost:8000`. No dependencies. |
+| `test/map.mjs` | `npm run test:map` — builds a map from `config.js`, reads it back, and checks the zones land where they started, that the card still renders, and that the contrast check refuses artwork the text would vanish on. |
 | `test/golden.mjs` | Renders the example card at 300 DPI and compares it with `test/golden-front.png`, so a code or config change cannot silently move anything. |
 | `package.json` | `npm run build`, `npm test`, `npm run dev`. |
 
@@ -51,6 +52,9 @@ src/
   text-fit.js       shrinks and wraps the name/title so they fit their boxes
   signature.js      the signature pad + drawing strokes onto the card
   qr.js             the QR code square (uses vendor/qrcode-generator.js, MIT)
+  template-map.js   reads a colour-coded map PNG into masks, boxes and the
+                    head target, so a template's layout can come from the
+                    artwork instead of from hand-measured numbers
   card.js           draws the front and back at any resolution
   photo.js          the photo pipeline: background check, chroma key, head
                     detection, automatic placement

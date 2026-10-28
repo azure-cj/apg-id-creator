@@ -748,6 +748,12 @@ async function loadExample() {
 }
 if (location.hash === '#example') addEventListener('load', loadExample);
 
+// #map downloads the current layout as a template map: the starting
+// point for a redesign, and the thing test/map.mjs renders through.
+if (location.hash === '#map') addEventListener('load', () => {
+  mapFromConfig().toBlob((blob) => downloadBlob('template-map.png', blob), 'image/png');
+});
+
 // step navigation
 $('btn-next').addEventListener('click', nextStep);
 $('btn-back').addEventListener('click', () => goStep(state.step - 1));
