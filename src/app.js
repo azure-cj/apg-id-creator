@@ -1337,11 +1337,22 @@ function openTool(name) {
 }
 
 function renderTools() {
-  document.body.classList.toggle('adjusting', TemplateEdit.open);
   // the design can only be changed before an ID is started
   const designOK = designAllowed();
   $('rail-design').hidden = !designOK;
   if (!designOK && state.tool === 'design') state.tool = null;
+
+  /* Editing the map and having the Card design drawer open are the same
+     state, and this is where that is enforced rather than in each of the
+     handlers that can close it.
+     The Done button lives in that drawer, and the form stands down while
+     the boxes are being dragged. So any route that closed the drawer
+     without going through Done — the x, Escape, clicking another tool in
+     the rail — left the boxes on the card, the form gone and no button
+     anywhere to finish with. The only way out was to reload the app and
+     lose the work. */
+  if (TemplateEdit.open && state.tool !== 'design') stopAdjusting();
+  document.body.classList.toggle('adjusting', TemplateEdit.open);
 
   $('drawer').hidden = !state.tool;
   if (state.tool) {
@@ -1357,9 +1368,9 @@ function renderTools() {
 }
 
 for (const name of TOOLS) $(`rail-${name}`).addEventListener('click', () => openTool(name));
-$('drawer-close').addEventListener('click', () => { state.tool = null; renderTools(); });
+$('drawer-close').addEventListener('click', () => { state.tool = null; renderTools(); render(); });
 addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && state.tool && !TemplateEdit.open) { state.tool = null; renderTools(); }
+  if (e.key === 'Escape' && state.tool) { state.tool = null; renderTools(); render(); }
 });
 
 /* ---- the card design ---------------------------------------------

@@ -9,10 +9,12 @@
      1. opening the map changes nothing until a box is moved
      2. the built-in card keeps its stepped photo cut-out when the map
         is dragged, rather than falling back to a rectangle
-     3. artwork of the wrong shape is refused, with a size in the message
-     4. the right shape reaches the printed card
-     5. dragging a box moves what is drawn, by the amount dragged
-     6. it survives a restart, and "use the built-in" undoes it
+     3. every way of closing the drawer also ends the editing, instead
+        of stranding the boxes on a card with no form and no Done
+     4. artwork of the wrong shape is refused, with a size in the message
+     5. the right shape reaches the printed card
+     6. dragging a box moves what is drawn, by the amount dragged
+     7. it survives a restart, and "use the built-in" undoes it
 
      npm run test:design
    ------------------------------------------------------------------ */
@@ -105,7 +107,34 @@ await page.evaluate(() => { TemplateStore.resetBoxes(); stopAdjusting(); render(
 check(await page.evaluate(() => !TemplateStore.isCustom), 'putting the boxes back drops the override entirely');
 check(await page.evaluate(() => cardPixels().join(',')) === pristine, 'and the card is the built-in one again');
 
-/* ---- 3. the wrong shape is refused ------------------------------- */
+/* ---- 3. every way out of the map leaves the app usable ----------- */
+
+// The Done button lives in the Card design drawer, and the form stands
+// down while the boxes are being dragged. So every route that closes
+// that drawer has to end the editing too, or the boxes stay on the card
+// with no form, no Done and nothing to do but reload.
+const escapes = {
+  'the drawer\u2019s \u00d7': () => page.click('#drawer-close'),
+  'Escape': () => page.keyboard.press('Escape'),
+  'opening another tool': () => page.click('#rail-printer'),
+};
+for (const [how, leave] of Object.entries(escapes)) {
+  await page.evaluate(() => startAdjusting());
+  await page.waitForTimeout(150);
+  await leave();
+  await page.waitForTimeout(250);
+  const after = await page.evaluate(() => ({
+    editing: TemplateEdit.open,
+    boxes: !document.getElementById('tpl-overlay').hidden,
+    form: getComputedStyle(document.querySelector('.panel')).display !== 'none',
+  }));
+  check(!after.editing && !after.boxes && after.form,
+    `leaving by ${how}: editing ${after.editing ? 'stuck on' : 'ended'}, `
+    + `boxes ${after.boxes ? 'STILL ON THE CARD' : 'gone'}, form ${after.form ? 'back' : 'MISSING'}`);
+  await page.evaluate(() => { state.tool = null; renderTools(); render(); });
+}
+
+/* ---- 4. the wrong shape is refused ------------------------------- */
 
 await page.evaluate(async () => {
   const square = await asFile(makeArtwork(600, 600, '#102030', '#c0a000'), 'square.png');
@@ -118,7 +147,7 @@ const refusal = await page.textContent('#design-msg');
 check(/600 × 600/.test(refusal) && /not the shape of an ID card/.test(refusal), `square artwork refused: "${refusal.slice(0, 60)}…"`);
 check(await page.evaluate(() => !TemplateStore.isCustom), 'and the built-in design is still in use');
 
-/* ---- 4. the right shape reaches the card ------------------------- */
+/* ---- 5. the right shape reaches the card ------------------------- */
 
 const beforeColour = await page.evaluate(() => cornerColour());
 await page.evaluate(async () => {
@@ -134,7 +163,7 @@ check(await page.evaluate(() => TemplateStore.name) === 'Spring 2027', 'and is n
 check(beforeColour !== afterColour && afterColour === '11,61,46', `the printed card is the new artwork (${beforeColour} → ${afterColour})`);
 check(await page.isVisible('#tpl-overlay'), 'the placeholders are offered straight away');
 
-/* ---- 5. dragging moves what is drawn ----------------------------- */
+/* ---- 6. dragging moves what is drawn ----------------------------- */
 
 const box = await page.$('.tpl-ph[data-key="name"]');
 const r = await box.boundingBox();
@@ -167,7 +196,7 @@ const back1 = await page.evaluate(() => TemplateStore.box('name'));
 const configX = await page.evaluate(() => CONFIG.text.name.box.x);
 check(back0.x !== back1.x && Math.abs(back1.x - configX) < 0.001, 'putting the boxes back undoes the drag');
 
-/* ---- 6. it survives a restart, and can be undone ------------------ */
+/* ---- 7. it survives a restart, and can be undone ------------------ */
 
 await page.evaluate(() => { TemplateEdit.hide(); TemplateStore.save(); });
 await page.reload();
