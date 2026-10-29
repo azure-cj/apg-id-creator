@@ -106,8 +106,10 @@ boxes for the photo, name, job title, number, signature and QR appear on
 the card. Drag one to move it, drag its round corner to resize it, or
 select one and nudge it with the arrow keys. The card redraws as you go.
 
-**Done** keeps it on this computer. **Put the boxes back** undoes
-everything and returns to the original layout.
+**Done** keeps it on this computer. **Cancel** puts the boxes back where
+they were when you opened the map. **Reset to the built-in layout** goes
+all the way back to the original positions, including moves you kept
+earlier.
 
 ### New artwork
 

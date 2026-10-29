@@ -1460,7 +1460,22 @@ function showContrastWarnings(warnings) {
   box.open = false;
 }
 
+/**
+ * The map as it was when the editor opened — what Cancel puts back.
+ *
+ * Only the boxes, not the artwork. Artwork cannot be changed while the
+ * editor is open (the upload section is hidden), so anything loaded this
+ * session was loaded before it, and undoing that is what "Use the
+ * built-in design" is for. Copying the boxes alone also keeps this cheap:
+ * the artwork is two base64 PNGs and cloning those on every open would
+ * cost megabytes for nothing.
+ */
+let editSnapshot = null;
+
 function startAdjusting() {
+  editSnapshot = TemplateStore.custom
+    ? JSON.parse(JSON.stringify({ boxes: TemplateStore.custom.boxes, photoRect: TemplateStore.custom.photoRect }))
+    : null;                        // nothing was overridden when we opened
   // nothing is committed yet: the first drag is what creates an override
   state.side = 'front';
   state.tool = 'design';
@@ -1474,6 +1489,22 @@ function stopAdjusting() {
   if (TemplateStore.isPristine) TemplateStore.clear();   // looked, moved nothing
   else TemplateStore.save();
   $('tpl-overlay').hidden = true;
+}
+
+/** Put the map back as it was when the editor opened, and close it. */
+function cancelAdjusting() {
+  if (!editSnapshot) {
+    TemplateStore.clear();         // there was no override before: leave none
+  } else {
+    TemplateStore.beginEditing();
+    TemplateStore.custom.boxes = editSnapshot.boxes;
+    TemplateStore.custom.photoRect = editSnapshot.photoRect;
+    TemplateStore.apply();
+  }
+  stopAdjusting();
+  showContrastWarnings(TemplateStore.warnings());
+  $('design-msg').textContent = 'Left as it was.';
+  render();
 }
 
 function updateDesignReadout() {
@@ -1494,6 +1525,11 @@ function resetDesign() {
 TemplateEdit.mount($('tpl-overlay'), () => { drawPreview(); updateDesignReadout(); });
 $('btn-tpl-use').addEventListener('click', useUploadedDesign);
 $('btn-tpl-map').addEventListener('click', startAdjusting);
+$('btn-tpl-cancel').addEventListener('click', cancelAdjusting);
+// Closing the drawer another way keeps the changes rather than discarding
+// them: the preview has been showing the result the whole time, and
+// throwing away work on a stray click is the worse of the two mistakes.
+// Cancel is right there for the other direction.
 $('btn-tpl-done').addEventListener('click', () => {
   stopAdjusting();
   showContrastWarnings(TemplateStore.warnings());     // the boxes may have been moved somewhere darker

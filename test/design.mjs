@@ -134,6 +134,53 @@ for (const [how, leave] of Object.entries(escapes)) {
   await page.evaluate(() => { state.tool = null; renderTools(); render(); });
 }
 
+/* ---- 3b. Cancel puts the map back, Done keeps it ----------------- */
+
+const nameBox = () => page.evaluate(() => TemplateStore.box('name'));
+const start = await nameBox();
+
+await page.evaluate(() => startAdjusting());
+await page.evaluate(() => {
+  const b = TemplateStore.box('name');
+  TemplateStore.setBox('name', { ...b, x: b.x - 6 });
+  TemplateEdit.refresh();
+});
+const dragged = await nameBox();
+await page.click('#btn-tpl-cancel');
+await page.waitForTimeout(250);
+const cancelled = await nameBox();
+check(dragged.x !== start.x && cancelled.x === start.x,
+  `Cancel puts the map back (${start.x} \u2192 ${dragged.x} \u2192 ${cancelled.x} mm)`);
+check(await page.evaluate(() => !TemplateStore.isCustom),
+  'and leaves no override behind when there was none to begin with');
+
+// now with something already saved: Cancel must go back to that, not to the defaults
+await page.evaluate(() => startAdjusting());
+await page.evaluate(() => {
+  const b = TemplateStore.box('name');
+  TemplateStore.setBox('name', { ...b, x: b.x - 4 });
+});
+await page.click('#btn-tpl-done');
+await page.waitForTimeout(250);
+const kept = await nameBox();
+check(kept.x === start.x - 4, `Done keeps the move (${kept.x} mm)`);
+
+await page.evaluate(() => startAdjusting());
+await page.evaluate(() => {
+  const b = TemplateStore.box('name');
+  TemplateStore.setBox('name', { ...b, x: b.x - 9 });
+});
+await page.click('#btn-tpl-cancel');
+await page.waitForTimeout(250);
+check((await nameBox()).x === kept.x, 'Cancel goes back to what was saved, not to the defaults');
+
+await page.click('#btn-tpl-map');
+await page.click('#btn-tpl-defaults');
+await page.waitForTimeout(150);
+await page.click('#btn-tpl-done');
+await page.waitForTimeout(250);
+check(await page.evaluate(() => !TemplateStore.isCustom), 'and the reset still clears everything');
+
 /* ---- 4. the wrong shape is refused ------------------------------- */
 
 await page.evaluate(async () => {
