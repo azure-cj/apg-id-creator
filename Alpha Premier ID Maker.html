@@ -142,8 +142,8 @@ h1 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; font-weigh
 }
 
 /* ---- the tool rail ----
-   Four things HR needs occasionally — the register, batches, the printer
-   setting, the card design. As a stack under the form they were four
+   Three things HR needs occasionally — the register, the printer
+   setting, the card design. As a stack under the form they were
    scrolls away and read as part of the card being made. As a rail they
    are one click away and take no room until they are wanted. */
 .rail { display: flex; flex-direction: column; gap: 6px; width: 176px; }
@@ -166,6 +166,11 @@ h1 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; font-weigh
   color: var(--gold); font: 700 0.7rem/18px var(--font-body); text-align: center;
 }
 .rail-btn.on .rail-count { background: var(--on-gold); color: var(--gold-strong); }
+/* Pinned, like the card: the Check step scrolls by most of a screen on a
+   laptop, and the tools should not scroll away with it. */
+@media (width >= 821px) {
+  .rail, .drawer { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+}
 
 .drawer {
   display: grid; gap: 14px; width: min(340px, 78vw);
@@ -403,7 +408,7 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 
 .sig-image { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); object-fit: contain; }
 /* ---- the signature step: guide, preview, start ---- */
-.sig kbd, .sign-act kbd { display: inline-block; min-width: 1.6em; padding: 0 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; font: 500 0.78rem/1.5 var(--font-mono); text-align: center; color: var(--ink); background: var(--surface); }
+.sig kbd, .sign-keys kbd { display: inline-block; min-width: 1.6em; padding: 0 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; font: 500 0.78rem/1.5 var(--font-mono); text-align: center; color: var(--ink); background: var(--surface); }
 .sign-guide { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .sign-guide li { display: flex; align-items: flex-start; gap: 10px; color: var(--muted); font-size: 0.9rem; line-height: 1.45; }
 .sign-guide-n { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 50%; color: var(--ink); font: 700 0.75rem var(--font-body); }
@@ -419,50 +424,41 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .sign-start:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /* ---- signing mode: the window is the signing surface ---- */
-.sign-sheet { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: rgb(12 12 10 / 0.94); cursor: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+.sign-sheet { position: fixed; inset: 0; z-index: 1000; padding: 14px 16px 12px; background: #0f0f0d; cursor: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+.sign-sheet * { cursor: none; }
 .sign-sheet[hidden] { display: none; }
 .sign-sheet:focus { outline: none; }
-.sign-sheet-panel { display: grid; gap: 14px; width: min(100%, calc((100vh - 230px) * 2.6)); color: #ece8de; }
-.sign-sheet-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; }
+/* the board takes every pixel the header and the key line leave: a pen
+   tablet is mapped to the whole screen, so the board is the tablet */
+.sign-sheet-panel { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px; height: 100%; color: #ece8de; }
+.sign-sheet-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+.sign-sheet-head > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
 .sign-sheet-kicker { margin: 0; color: var(--gold-strong); font: 700 0.75rem var(--font-body); letter-spacing: 0.12em; text-transform: uppercase; }
-.sign-sheet-title { margin: 2px 0 0; font: 700 1.35rem var(--font-display); color: #fff; }
+.sign-sheet-title { margin: 0; font: 700 1.2rem var(--font-display); color: #fff; }
 .sign-sheet .pen-status { color: #a39e92; }
 .sign-sheet-note { flex-basis: 100%; margin: 0; color: #ffb74d; font-size: 0.85rem; }
 .sign-sheet .pen-status[data-state="found"] { color: #ece8de; }
 .sign-sheet .pen-status[data-state="found"] .pen-dot { background: #81c784; }
-.sign-board { position: relative; overflow: hidden; border-radius: 14px; background: #fff; box-shadow: 0 0 0 3px var(--gold-strong), 0 24px 60px #000a; }
-.sign-board canvas { display: block; width: 100%; }
+.sign-board { position: relative; min-height: 0; overflow: hidden; border-radius: 12px; background: #fff; box-shadow: 0 0 0 3px var(--gold-strong); }
+.sign-board canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
 .sign-board-line { position: absolute; left: 6%; right: 6%; bottom: 24%; border-bottom: 2px dashed #c9c4b8; pointer-events: none; }
 .sign-board-x { position: absolute; left: 6%; bottom: calc(24% + 2px); color: #b9b3a5; font: 700 1.8rem/1 var(--font-display); pointer-events: none; }
 .sign-board-hint { position: absolute; inset: 0; display: grid; place-items: center; color: #8a857a; font: 600 1.15rem var(--font-body); pointer-events: none; }
 .sign-cursor { position: absolute; top: 0; left: 0; width: 16px; height: 16px; margin: -8px 0 0 -8px; border: 2px solid #8a6a14; border-radius: 50%; background: rgb(212 175 55 / 0.25); pointer-events: none; will-change: transform; }
 .sign-cursor.is-outside { border-style: dashed; opacity: 0.5; }
 .sign-cursor.is-drawing { width: 6px; height: 6px; margin: -3px 0 0 -3px; border-color: #1d1c1a; background: #1d1c1a; }
-.sign-sheet-status { min-height: 1.4em; margin: 0; color: #d9d4c7; font-size: 0.95rem; text-align: center; }
+.sign-sheet-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 20px; }
+.sign-sheet-status { min-height: 1.4em; margin: 0; color: #d9d4c7; font-size: 0.95rem; }
 .sign-sheet-status[data-tone="warn"] { color: #ffb74d; font-weight: 600; }
-.sign-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-.sign-act { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 1px solid #ffffff3d; border-radius: 10px; background: #ffffff10; color: #ece8de; font: 600 0.95rem var(--font-body); cursor: pointer; }
-.sign-act:hover:not(:disabled) { border-color: #ffffff80; background: #ffffff1c; }
-.sign-act:disabled { opacity: 0.4; cursor: default; }
-.sign-act.is-primary { border-color: var(--gold-strong); background: var(--gold-strong); color: var(--on-gold); }
-.sign-act kbd { border-color: #ffffff33; background: #ffffff14; color: inherit; }
-.sign-act.is-primary kbd { border-color: #00000033; background: #ffffff55; }
+.sign-keys { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; padding: 0; list-style: none; color: #cfc9bb; font-size: 0.9rem; }
+.sign-keys li { display: flex; align-items: center; gap: 5px; }
+.sign-keys li[data-off] { opacity: 0.4; }
+.sign-keys li.is-primary { color: var(--gold-strong); font-weight: 700; }
+.sign-keys kbd { border-color: #ffffff33; background: #ffffff14; color: #fff; }
 .sig-upload { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; cursor: pointer; }
 #f-sig-image:focus-visible + .sig-upload { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 
-/* ---- batch ---- */
-#batch-block .field input[type="file"] { padding: 8px; font: 400 0.9rem var(--font-body); }
-#batch-block .field select { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: 400 1rem var(--font-body); }
-#btn-batch { min-height: 48px; padding: 0 20px; border: 1px solid var(--gold-strong); border-radius: 10px; background: var(--gold-strong); color: var(--on-gold); font: 700 1rem var(--font-body); cursor: pointer; }
-#btn-batch:disabled { opacity: 0.55; cursor: default; }
-.batch-report { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 0.9rem; }
-.batch-report li { display: grid; gap: 2px; padding-bottom: 6px; border-bottom: 1px dashed var(--line); }
-.batch-report li:last-child { border-bottom: 0; }
-.batch-report .row-ok { color: var(--muted); }
-.batch-report .row-bad { color: var(--danger); }
-.batch-report .row-warn { color: var(--gold); }
-.batch-report strong { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500; }
 
 .colophon { color: var(--muted); font-size: 0.8rem; font-family: var(--font-mono); text-align: center; }
 .linklike { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
@@ -646,10 +642,6 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
           <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></g></svg>
           <span class="rail-text">Issued IDs</span><span class="rail-count" id="rail-register-count">0</span>
         </button>
-        <button type="button" class="rail-btn" id="rail-batch" data-tool="batch" aria-expanded="false" title="Batch from CSV">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11"/></g></svg>
-          <span class="rail-text">Batch from CSV</span>
-        </button>
         <button type="button" class="rail-btn" id="rail-printer" data-tool="printer" aria-expanded="false" title="Printer setting">
           <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8V3h10v5"/><path d="M5 8h14a2 2 0 0 1 2 2v6h-4v4H7v-4H3v-6a2 2 0 0 1 2-2z"/></g></svg>
           <span class="rail-text">Printer setting</span>
@@ -671,43 +663,6 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
           <div class="sig-actions">
             <button type="button" id="btn-register-csv" class="ghost" disabled>Download register (CSV)</button>
           </div>
-          </section>
-
-          <section class="block tool" id="tool-batch" hidden>
-          <p class="msg">Make many cards in one go. <button type="button" id="btn-csv-template" class="link">Download the CSV template</button></p>
-
-          <div class="field">
-            <label for="f-csv">1. The list (CSV)</label>
-            <input id="f-csv" type="file" accept=".csv,text/csv" />
-            <p class="msg" id="csv-msg">Columns: name, title, seq, and optionally year, photo, signature, replacement.</p>
-          </div>
-          <div class="field">
-            <label for="f-photos">2. The photos</label>
-            <input id="f-photos" type="file" accept="image/png,image/jpeg,image/webp" multiple />
-            <p class="msg" id="photos-msg">Select every photo file. They are matched to the CSV by file name.</p>
-          </div>
-          <div class="field">
-            <label for="f-sigs">3. Scanned signatures (optional)</label>
-            <input id="f-sigs" type="file" accept="image/png,image/jpeg,image/webp" multiple />
-            <p class="msg" id="sigs-msg">Photos or scans of signatures on white paper. Rows without one get a card with no signature.</p>
-          </div>
-          <div class="field">
-            <label for="f-layout">Print layout</label>
-            <select id="f-layout">
-              <option value="duplex">Sheets, fronts then backs — print both sides</option>
-              <option value="pairs">Sheets, front &amp; back side by side — cut and laminate</option>
-              <option value="cards">One card per page — card printer</option>
-            </select>
-            <p class="msg" id="layout-msg"></p>
-          </div>
-          <div class="field">
-            <label for="f-batch-paper">Paper</label>
-            <select id="f-batch-paper"></select>
-          </div>
-
-          <button type="button" id="btn-batch" class="primary" disabled>Generate batch</button>
-          <p class="msg" id="batch-status" role="status" aria-live="polite"></p>
-          <ul class="batch-report" id="batch-report"></ul>
           </section>
 
           <section class="block tool" id="tool-printer" hidden>
@@ -1063,13 +1018,17 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
           <span class="sign-board-hint" id="sign-board-hint" aria-hidden="true">Sign anywhere in this box</span>
           <span class="sign-cursor" id="sign-cursor" hidden aria-hidden="true"></span>
         </div>
-        <p class="sign-sheet-status" id="sign-sheet-status" role="status" aria-live="polite">Waiting for the pen…</p>
-        <div class="sign-acts">
-          <button type="button" class="sign-act" id="sheet-cancel" tabindex="-1">Cancel <kbd>Esc</kbd></button>
-          <button type="button" class="sign-act" id="sheet-clear" tabindex="-1">Clear <kbd>Backspace</kbd></button>
-          <button type="button" class="sign-act" id="sheet-undo" tabindex="-1">Undo <kbd>Ctrl</kbd><kbd>Z</kbd></button>
-          <button type="button" class="sign-act is-primary" id="sheet-keep" tabindex="-1">Keep it and continue <kbd>Enter</kbd></button>
-        </div>
+        <footer class="sign-sheet-foot">
+          <p class="sign-sheet-status" id="sign-sheet-status" role="status" aria-live="polite">Waiting for the pen…</p>
+          <!-- Keys, not buttons: a pen's pointer is not held on the board the
+               way the mouse is, and must find nothing to press out here. -->
+          <ul class="sign-keys" id="sign-keys" aria-label="Keys">
+            <li class="is-primary" id="sheet-keep" data-act="keep"><kbd>Enter</kbd> Keep it and continue</li>
+            <li id="sheet-undo" data-act="undo"><kbd>Ctrl</kbd><kbd>Z</kbd> Undo</li>
+            <li id="sheet-clear" data-act="clear"><kbd>Backspace</kbd> Clear</li>
+            <li id="sheet-cancel" data-act="cancel"><kbd>Esc</kbd> Cancel</li>
+          </ul>
+        </footer>
       </div>
     </div>
 
@@ -4321,12 +4280,14 @@ function fitStrokes(strokes, w, h) {
  *            follows the pen anywhere, pinned.
  *   cursor   an element moved to where the pen is, pinned to the canvas
  *            like the points: the pen's cursor as the person sees it
+ *   fill     the canvas takes its box's height too (CSS sizes the box),
+ *            instead of a height from its width (PAD_ASPECT)
  *
  * Returns { clear(), undo(), canUndo(), setValue(sig), value(), width(),
  * destroy() }. undo() takes back the last stroke, or a clear(); setValue()
  * starts that history afresh.
  */
-function createSignaturePad(canvas, onChange, { input = true, surface = null, clamp = false, cursor = null } = {}) {
+function createSignaturePad(canvas, onChange, { input = true, surface = null, clamp = false, cursor = null, fill = false } = {}) {
   const ctx = canvas.getContext('2d');
   const target = surface || canvas;
   let strokes = [];
@@ -4370,13 +4331,14 @@ function createSignaturePad(canvas, onChange, { input = true, surface = null, cl
   const changed = () => { doneOk = false; redraw(); };
 
   const resize = () => {
-    const w = canvas.parentElement.clientWidth;
-    if (!w || w === cssW) return;
+    const box = canvas.parentElement;
+    const w = box.clientWidth, h = fill ? box.clientHeight : Math.round(w / PAD_ASPECT);
+    if (!w || !h || (w === cssW && h === cssH)) return;
     const prevW = cssW;
-    cssW = w; cssH = Math.round(w / PAD_ASPECT);
+    cssW = w; cssH = h;
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     canvas.width = cssW * dpr; canvas.height = cssH * dpr;
-    canvas.style.height = `${cssH}px`;
+    if (!fill) canvas.style.height = `${cssH}px`;
     if (prevW) {                                     // same pad, new width: everything scales along
       const k = w / prevW;
       const along = (s) => s.map((p) => ({ x: p.x * k, y: p.y * k }));
@@ -6274,8 +6236,8 @@ const state = {
   touched: { last: false, first: false, middle: false, suffix: false, title: false, title2: false, seq: false, photo: false, signature: false },
   step: 0,
   tool: null,           // which tool panel the rail has open, if any
-  // Cards always print front-and-back side by side, to be cut out and stuck
-  // together. The batch panel still offers the other arrangements.
+  // Cards print front-and-back side by side, to be cut out and stuck
+  // together, unless the printer setting says both sides.
   print: { layout: readLayout(), paper: CONFIG.sheet.defaultPaper, copies: null, page: 0 },
   queue: [],            // cards already finished, waiting to print with this one
   example: false,
@@ -7077,23 +7039,26 @@ const pad = createSignaturePad($('f-signature'), (sig) => {
      Ctrl+Z     undo the last stroke (or the Clear)
      Backspace  clear and start again
      Esc        cancel: the signature from before stays
-   The same four are buttons under the board, for a tablet PC with the
-   keyboard taken off. The board opens empty every time: signing again
-   replaces the signature rather than drawing over it.
+   Under the board the four keys are listed, and that is all they are: a
+   pen's pointer roams the whole screen whatever the mouse is held to,
+   so nothing in signing mode answers a pen or a mouse but the board. A
+   finger can tap them, so a tablet PC without its keyboard is not stuck.
+   The board opens empty every time: signing again replaces the
+   signature rather than drawing over it.
    The cursor is let go when the mode ends, when the window loses focus
    and when the app closes (app/src-tauri/src/desktop.rs).
    ------------------------------------------------------------------ */
 
 const board = createSignaturePad($('sign-board-canvas'), (sig) => renderBoardStatus(sig), {
-  surface: $('sign-sheet'), clamp: true, cursor: $('sign-cursor'),
+  surface: $('sign-sheet'), clamp: true, cursor: $('sign-cursor'), fill: true,
 });
 
 function renderBoardStatus(sig, { warn = '', note = '' } = {}) {
   const strokes = sig?.strokes?.length || 0;
   $('sign-board-hint').hidden = strokes > 0;
-  $('sheet-keep').disabled = !strokes;
-  $('sheet-clear').disabled = !strokes;
-  $('sheet-undo').disabled = !board.canUndo();
+  $('sheet-keep').toggleAttribute('data-off', !strokes);
+  $('sheet-clear').toggleAttribute('data-off', !strokes);
+  $('sheet-undo').toggleAttribute('data-off', !board.canUndo());
   const el = $('sign-sheet-status');
   el.dataset.tone = warn ? 'warn' : '';
   el.textContent = warn || note
@@ -7175,10 +7140,14 @@ function clearSignature() {
 }
 $('btn-clear-sig').addEventListener('click', clearSignature);
 $('btn-sign').addEventListener('click', openSigning);
-$('sheet-keep').addEventListener('click', keepSigning);
-$('sheet-undo').addEventListener('click', () => board.undo());
-$('sheet-clear').addEventListener('click', clearBoard);
-$('sheet-cancel').addEventListener('click', () => closeSigning({ keep: false }));
+const SHEET_ACTS = { keep: keepSigning, undo: () => board.undo(), clear: clearBoard, cancel: () => closeSigning({ keep: false }) };
+$('sign-keys').addEventListener('pointerup', (e) => {
+  if (e.pointerType !== 'touch') return;             // a pen or mouse presses nothing here
+  const act = e.target.closest?.('[data-act]')?.dataset.act;
+  if (act && signing.on) SHEET_ACTS[act]();
+});
+// nothing in signing mode is clicked: the board draws, the keys do the rest
+$('sign-sheet').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); }, true);
 $('sig-pad').addEventListener('click', openSigning);
 $('sig-pad').addEventListener('keydown', (e) => {
   if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); openSigning(); }
@@ -7768,125 +7737,23 @@ function printFileLine() {
   return `${pages} page${pages === 1 ? '' : 's'} of ${state.print.paper}`;
 }
 
-/* ---- batch from CSV ---------------------------------------------- */
-
-const batchFiles = { csv: null, photos: null, sigs: null };
-const updateBatchButton = () => { $('btn-batch').disabled = !(batchFiles.csv && batchFiles.photos?.length && state.templates); };
-
-$('f-csv').addEventListener('change', (e) => {
-  batchFiles.csv = e.target.files?.[0] ?? null;
-  $('csv-msg').textContent = batchFiles.csv ? batchFiles.csv.name : 'Columns: name, title, seq, and optionally year, photo, signature, replacement.';
-  updateBatchButton();
-});
-$('f-photos').addEventListener('change', (e) => {
-  batchFiles.photos = e.target.files;
-  $('photos-msg').textContent = batchFiles.photos?.length ? `${batchFiles.photos.length} photo file(s) selected.` : 'Select every photo file. They are matched to the CSV by file name.';
-  updateBatchButton();
-});
-$('f-sigs').addEventListener('change', (e) => {
-  batchFiles.sigs = e.target.files;
-  $('sigs-msg').textContent = batchFiles.sigs?.length ? `${batchFiles.sigs.length} signature file(s) selected.` : 'Photos or scans of signatures on white paper. Rows without one get a card with no signature.';
-});
-$('btn-csv-template').addEventListener('click', () => {
-  downloadBlob('apg-id-batch-template.csv', new Blob([CSV_TEMPLATE], { type: 'text/csv;charset=utf-8' }));
-});
-
-function renderBatchReport(results) {
-  const list = $('batch-report');
-  list.innerHTML = '';
-  for (const r of results) {
-    const li = document.createElement('li');
-    const head = document.createElement('strong');
-    head.textContent = r.ok ? `${r.id} · ${r.label}` : `Line ${r.line} · ${r.label}`;
-    const note = document.createElement('span');
-    if (!r.ok) { note.className = 'row-bad'; note.textContent = r.problem; }
-    else if (r.warnings?.length || r.noSignature) {
-      note.className = 'row-warn';
-      note.textContent = [r.noSignature ? 'No signature on this card.' : '', ...(r.warnings ?? [])].filter(Boolean).join(' ');
-    } else { note.className = 'row-ok'; note.textContent = 'Ready.'; }
-    li.append(head, note);
-    list.appendChild(li);
-  }
-}
-
-async function runBatchUi() {
-  $('btn-batch').disabled = true;
-  $('batch-report').innerHTML = '';
-  $('batch-status').textContent = 'Reading the list…';
-  try {
-    const csvText = await batchFiles.csv.text();
-    const out = await runBatch({
-      csvText,
-      photos: batchFiles.photos,
-      signatures: batchFiles.sigs,
-      templates: state.templates,
-      rotateBack: state.rotateBack,
-      layout: $('f-layout').value,
-      paper: $('f-batch-paper').value,
-      onProgress: (phase, i, n) => { $('batch-status').textContent = `Checking ${i} of ${n}…`; },
-    });
-    if (out.results) renderBatchReport(out.results);
-    if (out.error) { $('batch-status').textContent = out.error; return; }
-
-    const blob = await buildPdf(out.pages.map(withPageSize), out.title, {
-      onProgress: (done, total) => { $('batch-status').textContent = `Building the PDF — page ${done} of ${total}…`; },
-    });
-    downloadBlob(out.fileName, blob);
-
-    for (const r of out.good) Register.record(r.entry);
-    for (const r of out.good) Register.noteShared(r.entry);
-    if (Register.shared) (async () => { for (const r of out.good) await Register.recordShared(r.entry); })();
-    refreshDuplicate();
-    render();
-
-    const skipped = out.results.length - out.good.length;
-    $('batch-status').textContent = `${out.good.length} card${out.good.length === 1 ? '' : 's'} saved as ${out.fileName}`
-      + (skipped ? ` · ${skipped} row${skipped === 1 ? '' : 's'} skipped, see below.` : '. Print at 100 %, both sides.');
-  } catch (err) {
-    console.error(err);
-    $('batch-status').textContent = 'Something went wrong while building the batch. Try a smaller list, or check the CSV.';
-  } finally {
-    updateBatchButton();
-  }
-}
 $('btn-add-another').addEventListener('click', addAnother);
 $('btn-cancel-add').addEventListener('click', cancelAdding);
 $('prev-page').addEventListener('click', () => { state.print.page--; drawPrintPreview(); });
 $('next-page').addEventListener('click', () => { state.print.page++; drawPrintPreview(); });
 
-$('btn-batch').addEventListener('click', runBatchUi);
-
-// paper list and the "N per sheet" hint for the batch panel
-for (const [key, p] of Object.entries(CONFIG.sheet.papers)) {
-  const o = document.createElement('option');
-  o.value = key; o.textContent = p.label;
-  $('f-batch-paper').append(o);
-}
-$('f-batch-paper').value = CONFIG.sheet.defaultPaper;
-function renderBatchLayout() {
-  const layout = $('f-layout').value;
-  $('f-batch-paper').closest('.field').hidden = layout === 'cards';
-  if (layout === 'cards') { $('layout-msg').textContent = 'Two pages per person, each the size of the card.'; return; }
-  const plan = planSheet($('f-batch-paper').value, layout);
-  $('layout-msg').textContent = `${plan.count} cards per sheet (${plan.cols} × ${plan.rows}, ${plan.landscape ? 'landscape' : 'portrait'}).`;
-}
-$('f-layout').addEventListener('change', renderBatchLayout);
-$('f-batch-paper').addEventListener('change', renderBatchLayout);
-renderBatchLayout();
-
 /* ---- the tool rail ------------------------------------------------
-   The register, batches, the printer setting and the card design used
-   to be four collapsed panels stacked under the form, which put them
+   The register, the printer setting and the card design used to be
+   collapsed panels stacked under the form, which put them
    off the bottom of the screen and made them read as steps of the card
    being made. They are none of those things: they are occasional, and
    they belong beside the work rather than under it. One opens at a
    time, because two of them at once is the stack again.
    ------------------------------------------------------------------ */
 
-const TOOLS = ['register', 'batch', 'printer', 'design'];
+const TOOLS = ['register', 'printer', 'design'];
 const TOOL_TITLE = {
   register: 'Issued IDs',
-  batch: 'Batch from CSV',
   printer: 'Printer setting',
   design: 'Card design',
 };
@@ -8198,7 +8065,6 @@ Promise.all([loadTemplates(), loadCardFonts()])
     // name counts as finished. Choosing the step before this point is
     // what used to open step 4 over a broken step 1.
     if (restored) goStep(furthestStep(), { focus: false });
-    updateBatchButton();
     if (state.step === LAST_STEP) buildReview();
     render();
   })

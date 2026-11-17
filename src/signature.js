@@ -269,12 +269,14 @@ function fitStrokes(strokes, w, h) {
  *            follows the pen anywhere, pinned.
  *   cursor   an element moved to where the pen is, pinned to the canvas
  *            like the points: the pen's cursor as the person sees it
+ *   fill     the canvas takes its box's height too (CSS sizes the box),
+ *            instead of a height from its width (PAD_ASPECT)
  *
  * Returns { clear(), undo(), canUndo(), setValue(sig), value(), width(),
  * destroy() }. undo() takes back the last stroke, or a clear(); setValue()
  * starts that history afresh.
  */
-function createSignaturePad(canvas, onChange, { input = true, surface = null, clamp = false, cursor = null } = {}) {
+function createSignaturePad(canvas, onChange, { input = true, surface = null, clamp = false, cursor = null, fill = false } = {}) {
   const ctx = canvas.getContext('2d');
   const target = surface || canvas;
   let strokes = [];
@@ -318,13 +320,14 @@ function createSignaturePad(canvas, onChange, { input = true, surface = null, cl
   const changed = () => { doneOk = false; redraw(); };
 
   const resize = () => {
-    const w = canvas.parentElement.clientWidth;
-    if (!w || w === cssW) return;
+    const box = canvas.parentElement;
+    const w = box.clientWidth, h = fill ? box.clientHeight : Math.round(w / PAD_ASPECT);
+    if (!w || !h || (w === cssW && h === cssH)) return;
     const prevW = cssW;
-    cssW = w; cssH = Math.round(w / PAD_ASPECT);
+    cssW = w; cssH = h;
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     canvas.width = cssW * dpr; canvas.height = cssH * dpr;
-    canvas.style.height = `${cssH}px`;
+    if (!fill) canvas.style.height = `${cssH}px`;
     if (prevW) {                                     // same pad, new width: everything scales along
       const k = w / prevW;
       const along = (s) => s.map((p) => ({ x: p.x * k, y: p.y * k }));

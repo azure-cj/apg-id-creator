@@ -72,8 +72,8 @@ const state = {
   touched: { last: false, first: false, middle: false, suffix: false, title: false, title2: false, seq: false, photo: false, signature: false },
   step: 0,
   tool: null,           // which tool panel the rail has open, if any
-  // Cards always print front-and-back side by side, to be cut out and stuck
-  // together. The batch panel still offers the other arrangements.
+  // Cards print front-and-back side by side, to be cut out and stuck
+  // together, unless the printer setting says both sides.
   print: { layout: readLayout(), paper: CONFIG.sheet.defaultPaper, copies: null, page: 0 },
   queue: [],            // cards already finished, waiting to print with this one
   example: false,
@@ -875,23 +875,26 @@ const pad = createSignaturePad($('f-signature'), (sig) => {
      Ctrl+Z     undo the last stroke (or the Clear)
      Backspace  clear and start again
      Esc        cancel: the signature from before stays
-   The same four are buttons under the board, for a tablet PC with the
-   keyboard taken off. The board opens empty every time: signing again
-   replaces the signature rather than drawing over it.
+   Under the board the four keys are listed, and that is all they are: a
+   pen's pointer roams the whole screen whatever the mouse is held to,
+   so nothing in signing mode answers a pen or a mouse but the board. A
+   finger can tap them, so a tablet PC without its keyboard is not stuck.
+   The board opens empty every time: signing again replaces the
+   signature rather than drawing over it.
    The cursor is let go when the mode ends, when the window loses focus
    and when the app closes (app/src-tauri/src/desktop.rs).
    ------------------------------------------------------------------ */
 
 const board = createSignaturePad($('sign-board-canvas'), (sig) => renderBoardStatus(sig), {
-  surface: $('sign-sheet'), clamp: true, cursor: $('sign-cursor'),
+  surface: $('sign-sheet'), clamp: true, cursor: $('sign-cursor'), fill: true,
 });
 
 function renderBoardStatus(sig, { warn = '', note = '' } = {}) {
   const strokes = sig?.strokes?.length || 0;
   $('sign-board-hint').hidden = strokes > 0;
-  $('sheet-keep').disabled = !strokes;
-  $('sheet-clear').disabled = !strokes;
-  $('sheet-undo').disabled = !board.canUndo();
+  $('sheet-keep').toggleAttribute('data-off', !strokes);
+  $('sheet-clear').toggleAttribute('data-off', !strokes);
+  $('sheet-undo').toggleAttribute('data-off', !board.canUndo());
   const el = $('sign-sheet-status');
   el.dataset.tone = warn ? 'warn' : '';
   el.textContent = warn || note
@@ -973,10 +976,14 @@ function clearSignature() {
 }
 $('btn-clear-sig').addEventListener('click', clearSignature);
 $('btn-sign').addEventListener('click', openSigning);
-$('sheet-keep').addEventListener('click', keepSigning);
-$('sheet-undo').addEventListener('click', () => board.undo());
-$('sheet-clear').addEventListener('click', clearBoard);
-$('sheet-cancel').addEventListener('click', () => closeSigning({ keep: false }));
+const SHEET_ACTS = { keep: keepSigning, undo: () => board.undo(), clear: clearBoard, cancel: () => closeSigning({ keep: false }) };
+$('sign-keys').addEventListener('pointerup', (e) => {
+  if (e.pointerType !== 'touch') return;             // a pen or mouse presses nothing here
+  const act = e.target.closest?.('[data-act]')?.dataset.act;
+  if (act && signing.on) SHEET_ACTS[act]();
+});
+// nothing in signing mode is clicked: the board draws, the keys do the rest
+$('sign-sheet').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); }, true);
 $('sig-pad').addEventListener('click', openSigning);
 $('sig-pad').addEventListener('keydown', (e) => {
   if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); openSigning(); }
@@ -1566,125 +1573,23 @@ function printFileLine() {
   return `${pages} page${pages === 1 ? '' : 's'} of ${state.print.paper}`;
 }
 
-/* ---- batch from CSV ---------------------------------------------- */
-
-const batchFiles = { csv: null, photos: null, sigs: null };
-const updateBatchButton = () => { $('btn-batch').disabled = !(batchFiles.csv && batchFiles.photos?.length && state.templates); };
-
-$('f-csv').addEventListener('change', (e) => {
-  batchFiles.csv = e.target.files?.[0] ?? null;
-  $('csv-msg').textContent = batchFiles.csv ? batchFiles.csv.name : 'Columns: name, title, seq, and optionally year, photo, signature, replacement.';
-  updateBatchButton();
-});
-$('f-photos').addEventListener('change', (e) => {
-  batchFiles.photos = e.target.files;
-  $('photos-msg').textContent = batchFiles.photos?.length ? `${batchFiles.photos.length} photo file(s) selected.` : 'Select every photo file. They are matched to the CSV by file name.';
-  updateBatchButton();
-});
-$('f-sigs').addEventListener('change', (e) => {
-  batchFiles.sigs = e.target.files;
-  $('sigs-msg').textContent = batchFiles.sigs?.length ? `${batchFiles.sigs.length} signature file(s) selected.` : 'Photos or scans of signatures on white paper. Rows without one get a card with no signature.';
-});
-$('btn-csv-template').addEventListener('click', () => {
-  downloadBlob('apg-id-batch-template.csv', new Blob([CSV_TEMPLATE], { type: 'text/csv;charset=utf-8' }));
-});
-
-function renderBatchReport(results) {
-  const list = $('batch-report');
-  list.innerHTML = '';
-  for (const r of results) {
-    const li = document.createElement('li');
-    const head = document.createElement('strong');
-    head.textContent = r.ok ? `${r.id} · ${r.label}` : `Line ${r.line} · ${r.label}`;
-    const note = document.createElement('span');
-    if (!r.ok) { note.className = 'row-bad'; note.textContent = r.problem; }
-    else if (r.warnings?.length || r.noSignature) {
-      note.className = 'row-warn';
-      note.textContent = [r.noSignature ? 'No signature on this card.' : '', ...(r.warnings ?? [])].filter(Boolean).join(' ');
-    } else { note.className = 'row-ok'; note.textContent = 'Ready.'; }
-    li.append(head, note);
-    list.appendChild(li);
-  }
-}
-
-async function runBatchUi() {
-  $('btn-batch').disabled = true;
-  $('batch-report').innerHTML = '';
-  $('batch-status').textContent = 'Reading the list…';
-  try {
-    const csvText = await batchFiles.csv.text();
-    const out = await runBatch({
-      csvText,
-      photos: batchFiles.photos,
-      signatures: batchFiles.sigs,
-      templates: state.templates,
-      rotateBack: state.rotateBack,
-      layout: $('f-layout').value,
-      paper: $('f-batch-paper').value,
-      onProgress: (phase, i, n) => { $('batch-status').textContent = `Checking ${i} of ${n}…`; },
-    });
-    if (out.results) renderBatchReport(out.results);
-    if (out.error) { $('batch-status').textContent = out.error; return; }
-
-    const blob = await buildPdf(out.pages.map(withPageSize), out.title, {
-      onProgress: (done, total) => { $('batch-status').textContent = `Building the PDF — page ${done} of ${total}…`; },
-    });
-    downloadBlob(out.fileName, blob);
-
-    for (const r of out.good) Register.record(r.entry);
-    for (const r of out.good) Register.noteShared(r.entry);
-    if (Register.shared) (async () => { for (const r of out.good) await Register.recordShared(r.entry); })();
-    refreshDuplicate();
-    render();
-
-    const skipped = out.results.length - out.good.length;
-    $('batch-status').textContent = `${out.good.length} card${out.good.length === 1 ? '' : 's'} saved as ${out.fileName}`
-      + (skipped ? ` · ${skipped} row${skipped === 1 ? '' : 's'} skipped, see below.` : '. Print at 100 %, both sides.');
-  } catch (err) {
-    console.error(err);
-    $('batch-status').textContent = 'Something went wrong while building the batch. Try a smaller list, or check the CSV.';
-  } finally {
-    updateBatchButton();
-  }
-}
 $('btn-add-another').addEventListener('click', addAnother);
 $('btn-cancel-add').addEventListener('click', cancelAdding);
 $('prev-page').addEventListener('click', () => { state.print.page--; drawPrintPreview(); });
 $('next-page').addEventListener('click', () => { state.print.page++; drawPrintPreview(); });
 
-$('btn-batch').addEventListener('click', runBatchUi);
-
-// paper list and the "N per sheet" hint for the batch panel
-for (const [key, p] of Object.entries(CONFIG.sheet.papers)) {
-  const o = document.createElement('option');
-  o.value = key; o.textContent = p.label;
-  $('f-batch-paper').append(o);
-}
-$('f-batch-paper').value = CONFIG.sheet.defaultPaper;
-function renderBatchLayout() {
-  const layout = $('f-layout').value;
-  $('f-batch-paper').closest('.field').hidden = layout === 'cards';
-  if (layout === 'cards') { $('layout-msg').textContent = 'Two pages per person, each the size of the card.'; return; }
-  const plan = planSheet($('f-batch-paper').value, layout);
-  $('layout-msg').textContent = `${plan.count} cards per sheet (${plan.cols} × ${plan.rows}, ${plan.landscape ? 'landscape' : 'portrait'}).`;
-}
-$('f-layout').addEventListener('change', renderBatchLayout);
-$('f-batch-paper').addEventListener('change', renderBatchLayout);
-renderBatchLayout();
-
 /* ---- the tool rail ------------------------------------------------
-   The register, batches, the printer setting and the card design used
-   to be four collapsed panels stacked under the form, which put them
+   The register, the printer setting and the card design used to be
+   collapsed panels stacked under the form, which put them
    off the bottom of the screen and made them read as steps of the card
    being made. They are none of those things: they are occasional, and
    they belong beside the work rather than under it. One opens at a
    time, because two of them at once is the stack again.
    ------------------------------------------------------------------ */
 
-const TOOLS = ['register', 'batch', 'printer', 'design'];
+const TOOLS = ['register', 'printer', 'design'];
 const TOOL_TITLE = {
   register: 'Issued IDs',
-  batch: 'Batch from CSV',
   printer: 'Printer setting',
   design: 'Card design',
 };
@@ -1996,7 +1901,6 @@ Promise.all([loadTemplates(), loadCardFonts()])
     // name counts as finished. Choosing the step before this point is
     // what used to open step 4 over a broken step 1.
     if (restored) goStep(furthestStep(), { focus: false });
-    updateBatchButton();
     if (state.step === LAST_STEP) buildReview();
     render();
   })

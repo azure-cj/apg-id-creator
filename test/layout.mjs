@@ -12,7 +12,8 @@
    It has happened twice. So: open the app at the sizes HR actually
    uses, in the states that hold the widest content, and check that
    nothing inside the tray reaches past it and that the page never
-   scrolls sideways.
+   scrolls sideways. Also that the rail and the open tool stay in view
+   when the page scrolls.
 
      npm run test:layout
    ------------------------------------------------------------------ */
@@ -93,10 +94,36 @@ for (const [w, h] of SIZES) {
   }
 }
 
+/* ---- the tools stay put while the page scrolls ----------------------
+   The last step scrolls by most of a screen on the laptop. The rail and
+   the open tool are pinned like the card, so they must still be in view
+   at the bottom of it. (On a phone they sit under the work instead.) */
+for (const [w, h] of SIZES.filter(([w]) => w > 820)) {
+  const page = await browser.newPage({ viewport: { width: w, height: h } });
+  page.on('pageerror', (e) => errors.push(`${w}×${h} pinned: ${e.message}`));
+  await page.goto(app);
+  await page.waitForSelector('#card-box:not([hidden])', { timeout: 20000 });
+  await page.evaluate(() => loadExample());
+  await page.waitForFunction(() => state.step === LAST_STEP && state.photo);
+  await page.click('#rail-register');
+  await page.waitForTimeout(300);
+  const p = await page.evaluate(() => {
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    const top = (sel) => Math.round(document.querySelector(sel).getBoundingClientRect().top);
+    return { scrolled: Math.round(scrollY), rail: top('.rail'), drawer: top('.drawer') };
+  });
+  await page.close();
+  // a window tall enough not to scroll has nothing to pin against
+  const ok = p.scrolled === 0 || (p.rail >= 0 && p.rail < 40 && p.drawer >= 0 && p.drawer < 40);
+  const label = `${w}×${h}  tools pinned`.padEnd(34);
+  console.log(`${ok ? '  ok  ' : ' FAIL '} ${label} ${p.scrolled ? `scrolled ${p.scrolled}px, rail at ${p.rail}px, panel at ${p.drawer}px` : 'fits without scrolling'}`);
+  if (!ok) fail.push(`${w}×${h} tools pinned`);
+}
+
 await browser.close();
 if (errors.length) { console.error('\npage errors:'); errors.forEach((e) => console.error('  ' + e)); }
 if (fail.length || errors.length) {
   console.error(`\nFAIL — ${fail.length} layout(s) overflow${errors.length ? `, ${errors.length} page error(s)` : ''}`);
   process.exit(1);
 }
-console.log('\nPASS — nothing escapes the tray at any size');
+console.log('\nPASS — nothing escapes the tray at any size, and the tools stay pinned');

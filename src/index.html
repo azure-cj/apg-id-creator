@@ -30,10 +30,6 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></g></svg>
           <span class="rail-text">Issued IDs</span><span class="rail-count" id="rail-register-count">0</span>
         </button>
-        <button type="button" class="rail-btn" id="rail-batch" data-tool="batch" aria-expanded="false" title="Batch from CSV">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11"/></g></svg>
-          <span class="rail-text">Batch from CSV</span>
-        </button>
         <button type="button" class="rail-btn" id="rail-printer" data-tool="printer" aria-expanded="false" title="Printer setting">
           <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8V3h10v5"/><path d="M5 8h14a2 2 0 0 1 2 2v6h-4v4H7v-4H3v-6a2 2 0 0 1 2-2z"/></g></svg>
           <span class="rail-text">Printer setting</span>
@@ -55,43 +51,6 @@
           <div class="sig-actions">
             <button type="button" id="btn-register-csv" class="ghost" disabled>Download register (CSV)</button>
           </div>
-          </section>
-
-          <section class="block tool" id="tool-batch" hidden>
-          <p class="msg">Make many cards in one go. <button type="button" id="btn-csv-template" class="link">Download the CSV template</button></p>
-
-          <div class="field">
-            <label for="f-csv">1. The list (CSV)</label>
-            <input id="f-csv" type="file" accept=".csv,text/csv" />
-            <p class="msg" id="csv-msg">Columns: name, title, seq, and optionally year, photo, signature, replacement.</p>
-          </div>
-          <div class="field">
-            <label for="f-photos">2. The photos</label>
-            <input id="f-photos" type="file" accept="image/png,image/jpeg,image/webp" multiple />
-            <p class="msg" id="photos-msg">Select every photo file. They are matched to the CSV by file name.</p>
-          </div>
-          <div class="field">
-            <label for="f-sigs">3. Scanned signatures (optional)</label>
-            <input id="f-sigs" type="file" accept="image/png,image/jpeg,image/webp" multiple />
-            <p class="msg" id="sigs-msg">Photos or scans of signatures on white paper. Rows without one get a card with no signature.</p>
-          </div>
-          <div class="field">
-            <label for="f-layout">Print layout</label>
-            <select id="f-layout">
-              <option value="duplex">Sheets, fronts then backs — print both sides</option>
-              <option value="pairs">Sheets, front &amp; back side by side — cut and laminate</option>
-              <option value="cards">One card per page — card printer</option>
-            </select>
-            <p class="msg" id="layout-msg"></p>
-          </div>
-          <div class="field">
-            <label for="f-batch-paper">Paper</label>
-            <select id="f-batch-paper"></select>
-          </div>
-
-          <button type="button" id="btn-batch" class="primary" disabled>Generate batch</button>
-          <p class="msg" id="batch-status" role="status" aria-live="polite"></p>
-          <ul class="batch-report" id="batch-report"></ul>
           </section>
 
           <section class="block tool" id="tool-printer" hidden>
@@ -447,13 +406,17 @@
           <span class="sign-board-hint" id="sign-board-hint" aria-hidden="true">Sign anywhere in this box</span>
           <span class="sign-cursor" id="sign-cursor" hidden aria-hidden="true"></span>
         </div>
-        <p class="sign-sheet-status" id="sign-sheet-status" role="status" aria-live="polite">Waiting for the pen…</p>
-        <div class="sign-acts">
-          <button type="button" class="sign-act" id="sheet-cancel" tabindex="-1">Cancel <kbd>Esc</kbd></button>
-          <button type="button" class="sign-act" id="sheet-clear" tabindex="-1">Clear <kbd>Backspace</kbd></button>
-          <button type="button" class="sign-act" id="sheet-undo" tabindex="-1">Undo <kbd>Ctrl</kbd><kbd>Z</kbd></button>
-          <button type="button" class="sign-act is-primary" id="sheet-keep" tabindex="-1">Keep it and continue <kbd>Enter</kbd></button>
-        </div>
+        <footer class="sign-sheet-foot">
+          <p class="sign-sheet-status" id="sign-sheet-status" role="status" aria-live="polite">Waiting for the pen…</p>
+          <!-- Keys, not buttons: a pen's pointer is not held on the board the
+               way the mouse is, and must find nothing to press out here. -->
+          <ul class="sign-keys" id="sign-keys" aria-label="Keys">
+            <li class="is-primary" id="sheet-keep" data-act="keep"><kbd>Enter</kbd> Keep it and continue</li>
+            <li id="sheet-undo" data-act="undo"><kbd>Ctrl</kbd><kbd>Z</kbd> Undo</li>
+            <li id="sheet-clear" data-act="clear"><kbd>Backspace</kbd> Clear</li>
+            <li id="sheet-cancel" data-act="cancel"><kbd>Esc</kbd> Cancel</li>
+          </ul>
+        </footer>
       </div>
     </div>
 

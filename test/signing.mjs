@@ -12,8 +12,10 @@
      Backspace  clear and start again
      Esc        cancel; the signature from before stays
 
-   The same four are buttons under the board, for a tablet PC without
-   its keyboard. The board opens empty each time, so signing again
+   The same four are listed under the board. A pen's pointer roams the
+   whole screen (Windows does not hold it as it holds the mouse), so a
+   pen or mouse pressing them does nothing; a finger can, for a tablet PC
+   without its keyboard. The board opens empty each time, so signing again
    replaces the signature; Clear can be undone.
 
    The board takes the pen from anywhere in the window and pins every
@@ -209,29 +211,55 @@ await page.evaluate(() => goStep(SIGN_STEP - 1, { force: true }));
 s = await look();
 check(!s.signing && !s.sheet && !(await page.evaluate(() => document.body.classList.contains('signing'))), 'changing step closes the board');
 
-/* ---- the buttons under the board, for a tablet without a keyboard -- */
+/* ---- under the board: keys to press, nothing to click --------------- */
+// A pen's pointer is not held on the board as the mouse is, so a pen or a
+// mouse pressing the key line must do nothing. A finger can, so a tablet
+// PC without its keyboard is not stuck in signing mode.
 
 await page.evaluate(() => { goStep(SIGN_STEP, { force: true }); clearSignature(); });
 await page.click('#btn-sign');
-const btn = (id) => page.evaluate((i) => document.getElementById(i).disabled, id);
-check(await btn('sheet-keep') && await btn('sheet-clear') && await btn('sheet-undo'), 'on an empty board, Keep, Clear and Undo are off');
-await stroke(bd.x + 100, bd.y + bd.height * 0.5, 20, 12);
-await stroke(bd.x + 400, bd.y + bd.height * 0.5, 20, 12);
-await page.click('#sheet-undo');
-check((await look()).strokes === 1, 'the Undo button takes back a stroke');
-await page.click('#sheet-clear');
-check((await look()).strokes === 0, 'the Clear button clears');
-await page.click('#sheet-undo');
-check((await look()).strokes === 1, 'and Undo brings it back');
+const off = (id) => page.evaluate((i) => document.getElementById(i).hasAttribute('data-off'), id);
+check(await off('sheet-keep') && await off('sheet-clear') && await off('sheet-undo'), 'on an empty board, Keep, Clear and Undo are greyed');
+const area = await page.evaluate(() => {
+  const r = document.getElementById('sign-board').getBoundingClientRect();
+  return (r.width * r.height) / (innerWidth * innerHeight);
+});
+check(area > 0.7, `the board fills most of the window (${Math.round(area * 100)} %)`);
+const bd2 = await page.locator('#sign-board-canvas').boundingBox();
+await stroke(bd2.x + 100, bd2.y + bd2.height * 0.5, 20, 12);
+await stroke(bd2.x + 400, bd2.y + bd2.height * 0.5, 20, 12);
+
+const press = (id, pointerType) => page.evaluate(([i, t]) => {
+  const el = document.getElementById(i), r = el.getBoundingClientRect();
+  const at = { bubbles: true, cancelable: true, composed: true, pointerType: t, isPrimary: true, clientX: r.x + 5, clientY: r.y + 5, button: 0, buttons: 1 };
+  el.dispatchEvent(new PointerEvent('pointerdown', at));
+  el.dispatchEvent(new PointerEvent('pointerup', { ...at, buttons: 0 }));
+  el.dispatchEvent(new MouseEvent('click', at));
+}, [id, pointerType]);
+
+await press('sheet-cancel', 'pen');
+await press('sheet-clear', 'pen');
+s = await look();
+check(s.signing && s.strokes === 2, 'a pen pressing Cancel or Clear under the board does nothing');
 await page.click('#sheet-cancel');
 s = await look();
-check(!s.signing && !s.ink, 'the Cancel button closes the board and keeps nothing');
+check(s.signing && s.strokes === 2, 'nor does a mouse click');
+
+await press('sheet-undo', 'touch');
+check((await look()).strokes === 1, 'a finger on Undo takes back a stroke');
+await press('sheet-clear', 'touch');
+check((await look()).strokes === 0, 'a finger on Clear clears');
+await press('sheet-undo', 'touch');
+check((await look()).strokes === 1, 'and Undo brings it back');
+await press('sheet-cancel', 'touch');
+s = await look();
+check(!s.signing && !s.ink, 'a finger on Cancel closes the board and keeps nothing');
 await page.click('#btn-sign');
-await stroke(bd.x + 100, bd.y + bd.height * 0.5, 20, 12);
-await page.click('#sheet-keep');
+await stroke(bd2.x + 100, bd2.y + bd2.height * 0.5, 20, 12);
+await press('sheet-keep', 'touch');
 await page.waitForTimeout(300);
 s = await look();
-check(!s.signing && s.ink && s.step === 'check', `the Keep button keeps it and moves on (on ${s.step})`);
+check(!s.signing && s.ink && s.step === 'check', `a finger on Keep keeps it and moves on (on ${s.step})`);
 
 /* ---- a scanned signature still shows on the step -------------------- */
 
