@@ -391,6 +391,14 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .ghost:disabled { opacity: 0.5; cursor: default; }
 
 .sig-image { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); object-fit: contain; }
+.sign-keys { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.sign-keys kbd { padding: 0 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; font: 500 0.8rem var(--font-mono); color: var(--ink); background: var(--surface); }
+.sig-badge { display: none; position: absolute; top: 8px; right: 8px; padding: 3px 10px; border-radius: 999px; background: var(--gold-strong); color: var(--on-gold); font: 700 0.8rem var(--font-body); pointer-events: none; }
+/* While signing, only the pad answers the pointer; Enter finishes. */
+body.signing { pointer-events: none; }
+body.signing .sig-pad { pointer-events: auto; border-color: var(--gold-strong); box-shadow: 0 0 0 3px var(--gold-strong); }
+body.signing .sig-badge { display: block; }
+body.signing .sign-keys { color: var(--ink); font-weight: 600; }
 .sig-upload { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; cursor: pointer; }
 #f-sig-image:focus-visible + .sig-upload { outline: 2px solid var(--focus); outline-offset: 2px; }
 
@@ -414,17 +422,11 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .update[data-state="available"] #btn-update { color: var(--gold); font-weight: 700; }
 .update[data-state="error"] #update-status { color: var(--danger); }
 
-/* ---- pen tablet, and signing with the pointer held on the pad ---- */
+/* ---- pen tablet (signing itself is styled with the pad, above) ---- */
 .pen-status { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--muted); font-size: 0.85rem; }
 .pen-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); box-shadow: 0 0 0 1px var(--muted) inset; }
 .pen-status[data-state="found"] { color: var(--ink); }
 .pen-status[data-state="found"] .pen-dot { background: var(--ok); box-shadow: none; }
-.sign-keys { margin: 0; color: var(--muted); font-size: 0.85rem; }
-.sign-keys kbd { padding: 0 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; font: 500 0.8rem var(--font-mono); color: var(--ink); background: var(--surface); }
-/* While signing, nothing but the pad answers the pointer: Enter finishes. */
-body.signing { pointer-events: none; }
-body.signing .sig-pad { pointer-events: auto; border-color: var(--gold-strong); box-shadow: 0 0 0 3px var(--gold-strong); }
-body.signing .sign-keys { color: var(--ink); font-weight: 600; }
 
 /* ---- the sheet preview, in the stage ---- */
 .sheet-box { display: grid; justify-items: center; gap: 8px; margin: 0; width: 100%; }

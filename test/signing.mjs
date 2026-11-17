@@ -7,11 +7,14 @@
    drifts over Next must not click it — and the keyboard ends it: Enter
    moves on, Backspace starts again, Esc stops.
 
+   While signing the pad is ringed in gold and a badge on it says to
+   press Enter; the line under it spells out all three keys.
+
    Also checks the pen-tablet line notices a pen, and that a browser
    (which cannot update itself) shows no "Check for updates".
 
    Holding the real cursor inside the pad is the desktop app's job
-   (ClipCursor, app/src-tauri/src/desktop.rs) and cannot be seen from a
+   (ClipCursor, clip_cursor in app/src-tauri/src/desktop.rs) and cannot be seen from a
    browser; this covers everything around it.
 
      npm run test:signing
@@ -41,6 +44,7 @@ const look = () => page.evaluate(() => ({
   step: STEPS[state.step].id,
   signing: document.body.classList.contains('signing'),
   ink: hasInk(state.signature),
+  badge: getComputedStyle(document.querySelector('.sig-badge')).display !== 'none',
   pen: document.getElementById('pen-status').dataset.state,
   penText: document.getElementById('pen-status-text').textContent,
   keys: document.getElementById('sign-keys').textContent,
@@ -54,6 +58,7 @@ await page.waitForTimeout(300);
 
 let s = await look();
 check(s.step === 'sign' && !s.signing, 'the signature step opens without signing having started');
+check(!s.badge && /Enter/.test(s.keys), `before signing, the guide says how it works: "${s.keys}"`);
 check(!(await page.isVisible('#update')), 'a browser shows no "Check for updates"');
 check(s.pen === 'none', `no pen yet: "${s.penText}"`);
 
@@ -71,7 +76,8 @@ await draw();
 s = await look();
 check(s.signing, 'drawing on the pad starts signing');
 check(s.ink, 'the stroke is kept');
-check(/Enter/.test(s.keys), `the keys are spelled out: "${s.keys}"`);
+check(/Enter/.test(s.keys) && /Esc/.test(s.keys), `the keys are spelled out: "${s.keys}"`);
+check(s.badge, 'the pad shows the "press Enter when done" badge while signing');
 
 /* ---- while signing, clicks elsewhere do nothing -------------------- */
 
@@ -98,6 +104,7 @@ await draw(30);
 await page.keyboard.press('Escape');
 s = await look();
 check(!s.signing && s.step === 'sign' && s.ink, 'Esc stops signing, keeps the signature, stays on the step');
+check(!s.badge, 'the badge goes away when signing stops');
 
 /* ---- Enter finishes and moves on ----------------------------------- */
 
