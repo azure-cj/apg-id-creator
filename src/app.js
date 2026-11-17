@@ -1839,7 +1839,7 @@ async function checkForUpdate({ quiet = false } = {}) {
     update.state = update.info ? 'available' : 'current';
   } catch (err) {
     update.state = quiet ? 'idle' : 'error';
-    update.error = 'Could not reach GitHub to check. Check the internet connection and try again.';
+    update.error = 'Could not check for updates. The computer may be offline, or GitHub has no update information yet. Try again later.';
     console.warn('update check failed:', err);
   }
   renderUpdate();

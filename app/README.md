@@ -105,7 +105,7 @@ issued-ID list, printer setting and card design are kept. A card in
 progress is asked about first.
 
 Offline, the start-up check says nothing. Pressing **Check for updates**
-offline says it could not reach GitHub.
+when it cannot get an answer says so, and suggests trying again later.
 
 ---
 
