@@ -38,6 +38,18 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="8.5" cy="10" r="2"/><path d="M14 9h4M14 13h4M6 16h6"/></g></svg>
           <span class="rail-text">Card design</span>
         </button>
+        <button type="button" class="rail-btn" id="rail-news" data-tool="news" aria-expanded="false" title="What’s new">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2 5.5 5.5 2-5.5 2-2 5.5-2-5.5-5.5-2 5.5-2z"/><path d="M19 3v3M17.5 4.5h3"/></g></svg>
+          <span class="rail-text">What’s new</span><span class="rail-new" id="rail-news-new" hidden>New</span>
+        </button>
+        <!-- which version this is, and whether there is a newer one -->
+        <div class="rail-about">
+          <p class="rail-version" id="app-version"></p>
+          <div class="update" id="update" data-state="idle" hidden>
+            <button type="button" id="btn-update" class="linklike">Check for updates</button>
+            <p class="update-status" id="update-status" role="status" aria-live="polite"></p>
+          </div>
+        </div>
       </nav>
 
       <aside class="drawer" id="drawer" hidden aria-label="Tool">
@@ -51,6 +63,10 @@
           <div class="sig-actions">
             <button type="button" id="btn-register-csv" class="ghost" disabled>Download register (CSV)</button>
           </div>
+          </section>
+
+          <section class="block tool" id="tool-news" hidden>
+          <div class="news" id="news-list"></div>
           </section>
 
           <section class="block tool" id="tool-printer" hidden>
@@ -420,18 +436,12 @@
       </div>
     </div>
 
-    <footer class="colophon">
-      <span id="app-version"></span>
-      <span class="update" id="update" data-state="idle" hidden>
-        · <button type="button" id="btn-update" class="linklike">Check for updates</button>
-        <span id="update-status" role="status" aria-live="polite"></span>
-      </span>
-    </footer>
   </div>
 
   <script src="vendor/qrcode-generator.js"></script>
   <script src="assets.dev.js"></script>
   <script src="config.ts"></script>
+  <script src="whats-new.ts"></script>
   <script src="register.ts"></script>
   <script src="titles.ts"></script>
   <script src="text-fit.ts"></script>

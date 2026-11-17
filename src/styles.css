@@ -164,7 +164,7 @@ h1 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; font-weigh
 .drawer {
   display: grid; gap: 14px; width: min(340px, 78vw);
   padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface);
-  max-height: calc(100svh - 165px); overflow-y: auto;   /* leaves room for the masthead and the footer */
+  max-height: calc(100svh - 110px); overflow-y: auto;   /* leaves room for the masthead */
 }
 .drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .drawer-head h2 { margin: 0; }
@@ -449,11 +449,33 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 
 
 
-.colophon { color: var(--muted); font-size: 0.8rem; font-family: var(--font-mono); text-align: center; }
 .linklike { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .linklike:disabled { text-decoration: none; cursor: default; }
-.update[data-state="available"] #btn-update { color: var(--gold); font-weight: 700; }
-.update[data-state="error"] #update-status { color: var(--danger); }
+/* ---- under the tools: the version, and updates ---- */
+.rail-about { display: grid; gap: 6px; margin-top: 8px; padding: 12px 6px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.82rem; }
+.rail-version { margin: 0; font: 500 0.8rem var(--font-mono); }
+.update { display: grid; gap: 4px; justify-items: start; }
+.update #btn-update { color: var(--ink); font-weight: 600; text-align: left; }
+.update-status { margin: 0; line-height: 1.4; }
+.update-status:empty { display: none; }
+.update[data-state="current"] .update-status { color: var(--ok); font-weight: 600; }
+.update[data-state="current"] .update-status::before { content: "✓ "; }
+.update[data-state="available"] #btn-update,
+.update[data-state="installing"] #btn-update { padding: 7px 10px; border-radius: 8px; background: var(--gold-strong); color: var(--on-gold); font-weight: 700; text-decoration: none; }
+.update[data-state="error"] .update-status { color: var(--danger); }
+.rail-new { flex: none; margin-left: auto; padding: 1px 7px; border-radius: 999px; background: var(--gold-strong); color: var(--on-gold); font: 700 0.68rem/1.4 var(--font-body); }
+.rail-btn.on .rail-new { background: var(--on-gold); color: var(--gold-strong); }
+@media (width <= 820px) { .rail-about { flex-basis: 100%; } }
+
+/* ---- what's new ---- */
+.news { display: grid; gap: 20px; }
+.news-release h3, .news-next h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 0; font: 700 1rem var(--font-body); }
+.news-this { padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--gold-strong) 22%, transparent); color: var(--gold); font: 700 0.7rem/1.4 var(--font-body); }
+.news-date { margin: 2px 0 8px; color: var(--muted); font-size: 0.8rem; }
+.news ul { display: grid; gap: 7px; margin: 0; padding-left: 18px; font-size: 0.9rem; line-height: 1.45; }
+.news-next { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--gold-strong); border-radius: 10px; }
+.news-next .primary { justify-self: start; min-height: 40px; padding: 0 14px; border: 1px solid var(--gold-strong); border-radius: 8px; background: var(--gold-strong); color: var(--on-gold); font: 700 0.9rem var(--font-body); cursor: pointer; }
+.news-next .primary:disabled { opacity: 0.6; cursor: default; }
 
 /* ---- pen tablet (signing itself is styled with the pad, above) ---- */
 .pen-status { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--muted); font-size: 0.85rem; }

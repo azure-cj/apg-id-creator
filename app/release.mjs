@@ -40,6 +40,11 @@ const version = JSON.parse(readFileSync(join(here, 'src-tauri', 'tauri.conf.json
 const appVersion = /APP_VERSION\s*=\s*'([^']+)'/.exec(readFileSync(join(root, 'src', 'config.ts'), 'utf8'))?.[1];
 if (appVersion !== version) die(`Version mismatch: tauri.conf.json says ${version}, src/config.ts says ${appVersion}.`);
 
+// what this release brings, from the notes the app itself shows
+// (src/whats-new.ts is plain JavaScript, so it can be run as it is)
+const WHATS_NEW = new Function(`${readFileSync(join(root, 'src', 'whats-new.ts'), 'utf8')}\nreturn WHATS_NEW;`)();
+if (WHATS_NEW[0]?.version !== version) die(`src/whats-new.ts has no notes for ${version} yet. Add them at the top, then release.`);
+
 if (!process.env.TAURI_SIGNING_PRIVATE_KEY) {
   const keyFile = join(homedir(), '.tauri', 'apg-id-maker.key');
   if (!existsSync(keyFile)) die(`No signing key. Make one first (see the top of app/release.mjs):\n  npx tauri signer generate -w "${keyFile}"`);
@@ -68,7 +73,7 @@ const target = {
 };
 writeFileSync(join(out, 'latest.json'), `${JSON.stringify({
   version,
-  notes: `Alpha Premier ID Maker ${version}`,
+  notes: WHATS_NEW[0].items.join('\n'),
   pub_date: new Date().toISOString(),
   platforms: { 'windows-x86_64': target, 'windows-x86_64-nsis': target },
 }, null, 2)}\n`);

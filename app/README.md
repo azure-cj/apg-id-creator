@@ -75,10 +75,15 @@ leaves two files in `app\release\`:
 | `Alpha.Premier.ID.Maker_<version>_x64-setup.exe` | The installer HR runs |
 | `latest.json` | What installed copies read to learn there is a new version |
 
+Before releasing, add the new version's notes at the top of
+`src/whats-new.ts`: the app shows them under **What's new**, and
+`npm run release` refuses without them and copies them into
+`latest.json`, so a computer with the update waiting can show them too.
+
 Publish both on GitHub as a release tagged `v<version>`, **not** ticked as
 a pre-release. Installed copies look at the repository's *Latest*
-release when they start, and when "Check for updates" is pressed at the
-bottom of the window.
+release when they start, and when "Check for updates" is pressed under
+the tools on the left.
 
 The first `npm run release` is slow — Rust compiles Tauri from source,
 which takes several minutes. Later builds take seconds. Plain
@@ -97,7 +102,10 @@ npm run dev
 
 At start-up the window asks GitHub for
 `releases/latest/download/latest.json`. If it names a newer version,
-the footer says so and offers **Install version … and restart**.
+the list on the left says so and offers **Install version … and restart**,
+and What's new shows what that version brings. With nothing newer it
+says **The app is up to date**. On the first start after an update it
+says **Updated to version …** and opens What's new by itself, once.
 Installing downloads the installer, checks its signature against the
 public key built into the app, and runs it without questions
 (`installMode: passive`). The app closes and the new version opens; the

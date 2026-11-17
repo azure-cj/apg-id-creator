@@ -1587,12 +1587,16 @@ $('next-page').addEventListener('click', () => { state.print.page++; drawPrintPr
    time, because two of them at once is the stack again.
    ------------------------------------------------------------------ */
 
-const TOOLS = ['register', 'printer', 'design'];
+const TOOLS = ['register', 'printer', 'design', 'news'];
 const TOOL_TITLE = {
   register: 'Issued IDs',
   printer: 'Printer setting',
   design: 'Card design',
+  news: 'What’s new',
 };
+// What's new: `updatedFrom` is set on the first start after an update,
+// `unread` until the page has been opened once since.
+const news = { updatedFrom: null, unread: false, drawnFor: '' };
 
 function openTool(name) {
   state.tool = state.tool === name ? null : name;
@@ -1617,6 +1621,9 @@ function renderTools() {
      lose the work. */
   if (TemplateEdit.open && state.tool !== 'design') stopAdjusting();
   document.body.classList.toggle('adjusting', TemplateEdit.open);
+
+  if (state.tool === 'news') news.unread = false;
+  $('rail-news-new').hidden = !news.unread;
 
   $('drawer').hidden = !state.tool;
   if (state.tool) {
@@ -1816,6 +1823,7 @@ for (const id of ['f-tpl-front', 'f-tpl-back']) $(id).addEventListener('change',
 const update = { state: 'idle', info: null, error: '', percent: 0 };
 
 function renderUpdate() {
+  renderNews();                        // what a waiting update brings, if one is
   const box = $('update');
   box.hidden = !Desktop.available;
   if (!Desktop.available) return;
@@ -1823,19 +1831,20 @@ function renderUpdate() {
   const btn = $('btn-update'), status = $('update-status');
   btn.disabled = update.state === 'checking' || update.state === 'installing';
   const v = update.info?.version;
+  const updated = news.updatedFrom ? `Updated to version ${APP_VERSION}. ` : '';
   btn.textContent = {
     idle: 'Check for updates',
     checking: 'Checking for updates…',
     current: 'Check for updates',
     available: `Install version ${v} and restart`,
-    installing: `Installing version ${v}… ${update.percent}%`,
+    installing: `Installing… ${update.percent}%`,
     error: 'Check for updates',
   }[update.state];
   status.textContent = {
-    idle: '',
+    idle: updated.trim(),
     checking: '',
-    current: 'Up to date.',
-    available: `Version ${v} is available.`,
+    current: `${updated}The app is up to date.`,
+    available: `Version ${v} is available. What’s new says what it brings.`,
     installing: 'The app will close and reopen.',
     error: update.error,
   }[update.state];
@@ -1871,11 +1880,82 @@ async function installUpdate() {
 
 $('btn-update').addEventListener('click', () => (update.state === 'available' ? installUpdate() : checkForUpdate()));
 
+/* ---- what's new ---------------------------------------------------
+   The notes in whats-new.ts, newest first, and above them what a waiting
+   update brings (its notes come with it in latest.json). On the first
+   start after an update the page opens by itself, once, so the people
+   using the app hear what changed from the app itself.
+   ------------------------------------------------------------------ */
+
+const SEEN_VERSION_KEY = 'apg-id-seen-version';
+
+/** a > b, for versions like 1.21.0 */
+function newerVersion(a, b) {
+  const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
+  return false;
+}
+
+function noticeUpdate() {
+  let seen = null;
+  try { seen = localStorage.getItem(SEEN_VERSION_KEY); } catch { /* storage blocked */ }
+  // 1.20 kept no note of its version, but it did keep the issued-ID list
+  const returning = seen !== null || Register.all().length > 0;
+  if (returning && (seen === null || newerVersion(APP_VERSION, seen))) {
+    news.updatedFrom = seen || 'an earlier version';
+    news.unread = true;
+  }
+  try { localStorage.setItem(SEEN_VERSION_KEY, APP_VERSION); } catch { /* storage blocked */ }
+}
+
+const formatReleaseDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+
+function renderNews() {
+  const waiting = update.state === 'available' || update.state === 'installing';
+  const key = waiting ? `${update.state} ${update.info?.version}` : 'none';
+  if (news.drawnFor === key) return;            // only when it changes: keeps the panel's scroll
+  news.drawnFor = key;
+  const make = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
+  const list = $('news-list');
+  list.replaceChildren();
+
+  if (waiting) {
+    const box = make('section', 'news-next');
+    box.append(make('h3', '', `Version ${update.info.version} is ready to install`));
+    // notes from latest.json: one line per item; older releases sent only a title
+    const lines = String(update.info.notes ?? '').split('\n').map((l) => l.replace(/^[•\-*]\s*/, '').trim()).filter(Boolean);
+    if (lines.length > 1) {
+      const ul = make('ul');
+      for (const l of lines) ul.append(make('li', '', l));
+      box.append(ul);
+    }
+    const go = make('button', 'primary', update.state === 'installing' ? 'Installing…' : 'Install and restart');
+    go.type = 'button';
+    go.disabled = update.state === 'installing';
+    go.addEventListener('click', installUpdate);
+    box.append(go);
+    list.append(box);
+  }
+
+  for (const r of WHATS_NEW) {
+    const sec = make('section', 'news-release');
+    const h = make('h3', '', `Version ${r.version}`);
+    if (r.version === APP_VERSION) h.append(make('span', 'news-this', 'This version'));
+    sec.append(h, make('p', 'news-date', formatReleaseDate(r.date)));
+    const ul = make('ul');
+    for (const item of r.items) ul.append(make('li', '', item));
+    sec.append(ul);
+    list.append(sec);
+  }
+}
+
 /* ---- boot -------------------------------------------------------- */
 
 new ResizeObserver(drawPreview).observe(previewBox);
 
-$('app-version').textContent = `${APP_NAME} ${APP_VERSION}`;
+$('app-version').textContent = `Version ${APP_VERSION}`;
+$('app-version').title = `${APP_NAME} ${APP_VERSION}`;
+noticeUpdate();
 renderSignGuide();
 renderPenStatus();
 refreshPens();
@@ -1886,6 +1966,9 @@ $('brand-logo').src = ASSETS.logo;
 buildPrintControls();
 const restored = restoreDraft();
 if (restored) $('restored-note').hidden = false;
+// just updated: say what changed, once. Not over a card in progress:
+// then the "New" on What's new waits until it is opened.
+if (news.updatedFrom && !restored) openTool('news');
 
 Promise.all([loadTemplates(), loadCardFonts()])
   .then(async ([templates]) => {
