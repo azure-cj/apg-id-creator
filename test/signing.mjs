@@ -2,20 +2,31 @@
 /* ------------------------------------------------------------------
    Signing test
    ------------------------------------------------------------------
-   Putting the pen or mouse down on the signature pad starts signing.
-   While signing, nothing but the pad answers the pointer — a pen that
-   drifts over Next must not click it — and the keyboard ends it: Enter
-   moves on, Backspace starts again, Esc stops.
+   Signing has a mode of its own. On the signature step a three-line
+   guide says how; Ctrl+D (or Enter while nothing is signed, or a click
+   on the pad or "Start signing") opens the signing board over the whole
+   window. On it:
 
-   While signing the pad is ringed in gold and a badge on it says to
-   press Enter; the line under it spells out all three keys.
+     Enter      keep it and go on to Check
+     Ctrl+Z     undo the last stroke
+     Backspace  clear and start again
+     Esc        cancel; the signature from before stays
+
+   The same four are buttons under the board, for a tablet PC without
+   its keyboard. The board opens empty each time, so signing again
+   replaces the signature; Clear can be undone.
+
+   The board takes the pen from anywhere in the window and pins every
+   point to its edge, so a stroke that runs off it stays on it, and a
+   tap beside it marks nothing. Nothing behind the board can be clicked.
 
    Also checks the pen-tablet line notices a pen, and that a browser
    (which cannot update itself) shows no "Check for updates".
 
-   Holding the real cursor inside the pad is the desktop app's job
-   (ClipCursor, clip_cursor in app/src-tauri/src/desktop.rs) and cannot be seen from a
-   browser; this covers everything around it.
+   Filling the screen and holding the real cursor on the board are the
+   desktop app's job (full_screen and clip_cursor in
+   app/src-tauri/src/desktop.rs) and cannot be seen from a browser; this
+   covers everything around them.
 
      npm run test:signing
    ------------------------------------------------------------------ */
@@ -42,12 +53,18 @@ await page.waitForSelector('#card-box:not([hidden])', { timeout: 20000 });
 
 const look = () => page.evaluate(() => ({
   step: STEPS[state.step].id,
-  signing: document.body.classList.contains('signing'),
+  signing: signing.on,
+  sheet: !document.getElementById('sign-sheet').hidden,
   ink: hasInk(state.signature),
-  badge: getComputedStyle(document.querySelector('.sig-badge')).display !== 'none',
+  strokes: board.value()?.strokes.length || 0,
+  guide: [...document.querySelectorAll('#sign-guide li')].map((li) => li.dataset.state || '-').join(' '),
+  button: document.getElementById('btn-sign-text').textContent,
+  status: document.getElementById('sign-sheet-status').textContent,
+  tone: document.getElementById('sign-sheet-status').dataset.tone,
   pen: document.getElementById('pen-status').dataset.state,
   penText: document.getElementById('pen-status-text').textContent,
-  keys: document.getElementById('sign-keys').textContent,
+  sheetPen: document.getElementById('sheet-pen-status').dataset.state,
+  focus: document.activeElement?.id || document.activeElement?.tagName,
 }));
 
 // a complete card, then back to the signature with the pad empty
@@ -57,82 +74,194 @@ await page.evaluate(() => { goStep(SIGN_STEP, { force: true }); clearSignature()
 await page.waitForTimeout(300);
 
 let s = await look();
-check(s.step === 'sign' && !s.signing, 'the signature step opens without signing having started');
-check(!s.badge && /Enter/.test(s.keys), `before signing, the guide says how it works: "${s.keys}"`);
+check(s.step === 'sign' && !s.signing && !s.sheet, 'the signature step opens with signing not started');
+check(s.guide === 'active - -' && s.button === 'Start signing', `the guide points at step 1 (${s.guide}), the button says "${s.button}"`);
+check(await page.isVisible('#sign-guide') && /Ctrl/.test(await page.textContent('#sign-guide')), 'the guide names Ctrl + D');
 check(!(await page.isVisible('#update')), 'a browser shows no "Check for updates"');
 check(s.pen === 'none', `no pen yet: "${s.penText}"`);
 
-const box = await page.locator('#f-signature').boundingBox();
-const draw = async (dx = 0) => {
-  await page.mouse.move(box.x + 40 + dx, box.y + box.height * 0.6);
+/* ---- drawing on the small pad does nothing; the board is for signing - */
+
+const pad = await page.locator('#f-signature').boundingBox();
+await page.mouse.move(pad.x + 30, pad.y + 30);
+await page.mouse.down(); await page.mouse.move(pad.x + 120, pad.y + 60); await page.mouse.up();
+s = await look();
+check(!s.ink, 'a stroke on the small pad is not kept');
+check(s.signing && s.sheet, 'a click on the pad opens the signing board');
+await page.keyboard.press('Escape');
+s = await look();
+check(!s.signing && !s.sheet && !s.ink, 'Esc closes it, nothing signed');
+check(s.focus === 'btn-sign', `focus goes back to "Start signing" (${s.focus})`);
+
+/* ---- Ctrl+D opens the board ---------------------------------------- */
+
+await page.evaluate(() => document.activeElement.blur());
+await page.keyboard.press('Control+d');
+s = await look();
+check(s.signing && s.sheet, 'Ctrl+D opens the signing board');
+check(/Waiting/.test(s.status), `it says it is waiting for the pen: "${s.status}"`);
+check(s.focus === 'sign-sheet', `the board has the keyboard (${s.focus})`);
+
+const bd = await page.locator('#sign-board-canvas').boundingBox();
+check(bd.width > pad.width * 1.5, `the board is much bigger than the pad (${Math.round(bd.width)} vs ${Math.round(pad.width)} px)`);
+
+const stroke = async (x0, y0, dx, dy, n = 12) => {
+  await page.mouse.move(x0, y0);
   await page.mouse.down();
-  for (let i = 1; i <= 12; i++) await page.mouse.move(box.x + 40 + dx + i * 12, box.y + box.height * (0.6 - (i % 3) * 0.08));
+  for (let i = 1; i <= n; i++) await page.mouse.move(x0 + dx * i, y0 + dy * (i % 2 ? 1 : -1));
   await page.mouse.up();
 };
 
-/* ---- putting the mouse down starts signing ------------------------- */
-
-await draw();
+await stroke(bd.x + 60, bd.y + bd.height * 0.6, 20, 12);
 s = await look();
-check(s.signing, 'drawing on the pad starts signing');
-check(s.ink, 'the stroke is kept');
-check(/Enter/.test(s.keys) && /Esc/.test(s.keys), `the keys are spelled out: "${s.keys}"`);
-check(s.badge, 'the pad shows the "press Enter when done" badge while signing');
+check(s.strokes === 1 && /1 stroke/.test(s.status), `a stroke shows on the board: "${s.status}"`);
+check(await page.isVisible('#sign-cursor'), 'the pen dot shows where the pen is');
 
-/* ---- while signing, clicks elsewhere do nothing -------------------- */
+// a stroke that runs off the right and the bottom of the board stays on it
+await stroke(bd.x + bd.width - 80, bd.y + bd.height - 60, 40, 30, 8);
+const pts = await page.evaluate(() => board.value().strokes.flat());
+const w = await page.evaluate(() => board.width());
+check(pts.every((p) => p.x >= 0 && p.y >= 0 && p.x <= w + 0.5 && p.y <= bd.height + 0.5), 'a stroke that runs off the board is pinned to its edge');
 
+// a tap beside the board marks nothing, and nothing behind it is clicked
 const next = await page.locator('#btn-next').boundingBox();
-await page.mouse.click(next.x + next.width / 2, next.y + next.height / 2);
-await page.waitForTimeout(200);
+const before = (await look()).strokes;
+const under = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('#sign-sheet') !== null, [next.x + next.width / 2, next.y + next.height / 2]);
+check(under, 'Next is under the board, out of the pen’s reach');
+await page.mouse.click(4, 4);
+await page.mouse.click(1250, 890);
 s = await look();
-check(s.step === 'sign' && s.signing, 'clicking Next while signing does nothing');
-
-await page.evaluate(() => document.getElementById('btn-back').click());   // even a scripted click
-await page.waitForTimeout(200);
-check((await look()).step === 'sign', 'a click event on Back while signing does nothing');
+check(s.step === 'sign' && s.signing && s.strokes === before, 'a tap beside the board marks nothing and clicks nothing behind it');
 
 await page.keyboard.press('Tab');
-check((await look()).signing, 'Tab does not leave the pad');
+s = await look();
+check(s.signing && s.focus === 'sign-sheet', 'Tab does not leave the board');
 
-/* ---- Backspace starts again, Esc stops ----------------------------- */
+/* ---- Ctrl+Z, Backspace, Enter on nothing ---------------------------- */
+
+await page.keyboard.press('Control+z');
+check((await look()).strokes === 1, 'Ctrl+Z takes back the last stroke');
 
 await page.keyboard.press('Backspace');
 s = await look();
-check(!s.ink && s.signing, 'Backspace clears the pad and keeps signing');
+check(s.strokes === 0 && s.signing && /Ctrl \+ Z/.test(s.status), `Backspace clears the board and keeps signing: "${s.status}"`);
+await page.keyboard.press('Control+z');
+check((await look()).strokes === 1, 'Ctrl+Z after Backspace brings the signature back');
+await page.keyboard.press('Backspace');
 
-await draw(30);
-await page.keyboard.press('Escape');
-s = await look();
-check(!s.signing && s.step === 'sign' && s.ink, 'Esc stops signing, keeps the signature, stays on the step');
-check(!s.badge, 'the badge goes away when signing stops');
-
-/* ---- Enter finishes and moves on ----------------------------------- */
-
-await draw(60);
-check((await look()).signing, 'drawing again starts signing again');
 await page.keyboard.press('Enter');
-await page.waitForTimeout(400);
 s = await look();
-check(!s.signing && s.step === 'check', `Enter finishes and moves on to Check (on ${s.step})`);
+check(s.signing && s.tone === 'warn' && /Esc/.test(s.status), `Enter with nothing signed stays and says why: "${s.status}"`);
 
-/* ---- Enter on an empty pad says why it cannot move on --------------- */
+/* ---- Enter keeps it and moves on ------------------------------------ */
 
-await page.evaluate(() => { goStep(SIGN_STEP, { force: true }); clearSignature(); });
-await page.waitForTimeout(200);
-await page.mouse.click(box.x + 20, box.y + 20);         // a tap starts signing (and leaves a dot)
-await page.keyboard.press('Backspace');                 // so the pad is empty
+await stroke(bd.x + 100, bd.y + bd.height * 0.55, 30, 18);
 await page.keyboard.press('Enter');
 await page.waitForTimeout(300);
 s = await look();
+check(!s.signing && !s.sheet && s.step === 'check' && s.ink, `Enter keeps the signature and moves on to Check (on ${s.step})`);
+const kept1 = await page.evaluate(() => ({ sig: state.signature.strokes.length, pad: pad.value()?.strokes.length }));
+check(kept1.sig === 1 && kept1.pad === 1, `the kept signature is the one on the board, and the pad shows it (${JSON.stringify(kept1)})`);
+await page.keyboard.press('Control+d');
+check(!(await look()).sheet, 'Ctrl+D does nothing on another step');
+
+/* ---- back on the step: the guide shows it is done ------------------- */
+
+await page.evaluate(() => goStep(SIGN_STEP, { force: true }));
+await page.waitForTimeout(200);
+s = await look();
+check(s.guide === 'done done active' && s.button === 'Sign again', `signed: the guide is at step 3 (${s.guide}), the button says "${s.button}"`);
+
+// Sign again opens an empty board; Esc keeps the signature that was there
+const kept = await page.evaluate(() => JSON.stringify(state.signature));
+await page.click('#btn-sign');
+s = await look();
+check(s.signing && s.strokes === 0, 'Sign again opens an empty board, not the old signature to draw over');
+await stroke(bd.x + 300, bd.y + bd.height * 0.4, 25, 10);
+await page.keyboard.press('Escape');
+s = await look();
+check(!s.signing && (await page.evaluate(() => JSON.stringify(state.signature))) === kept, 'Esc cancels: the signature from before stays');
+check(s.focus === 'btn-next', `after Esc, a signed step puts the keyboard on Next (${s.focus})`);
+
+// with a signature, Enter on the step moves on
+await page.keyboard.press('Enter');
+await page.waitForTimeout(300);
+s = await look();
+check(s.step === 'check' && !s.sheet, `signed, Enter on the step moves on to Check (on ${s.step})`);
+
+/* ---- with nothing signed, Enter opens the board; Next says why not --- */
+
+await page.evaluate(() => { goStep(SIGN_STEP, { force: true }); clearSignature(); document.activeElement.blur(); });
+await page.waitForTimeout(200);
+await page.keyboard.press('Enter');
+s = await look();
+check(s.signing && s.sheet, 'unsigned, Enter on the step opens the board');
+await page.keyboard.press('Escape');
+await page.click('#btn-next');
+await page.waitForTimeout(300);
+s = await look();
 const blocked = await page.evaluate(() => document.getElementById('blocked').textContent);
-check(s.step === 'sign' && !s.signing && /Can’t continue/.test(blocked), `Enter with no signature stays and says so ("${blocked.trim()}")`);
+check(s.step === 'sign' && !s.signing && /Can’t continue/.test(blocked), `Next with no signature stays and says so ("${blocked.trim()}")`);
+
+// leaving the step some other way closes the board
+await page.keyboard.press('Control+d');
+await page.evaluate(() => goStep(SIGN_STEP - 1, { force: true }));
+s = await look();
+check(!s.signing && !s.sheet && !(await page.evaluate(() => document.body.classList.contains('signing'))), 'changing step closes the board');
+
+/* ---- the buttons under the board, for a tablet without a keyboard -- */
+
+await page.evaluate(() => { goStep(SIGN_STEP, { force: true }); clearSignature(); });
+await page.click('#btn-sign');
+const btn = (id) => page.evaluate((i) => document.getElementById(i).disabled, id);
+check(await btn('sheet-keep') && await btn('sheet-clear') && await btn('sheet-undo'), 'on an empty board, Keep, Clear and Undo are off');
+await stroke(bd.x + 100, bd.y + bd.height * 0.5, 20, 12);
+await stroke(bd.x + 400, bd.y + bd.height * 0.5, 20, 12);
+await page.click('#sheet-undo');
+check((await look()).strokes === 1, 'the Undo button takes back a stroke');
+await page.click('#sheet-clear');
+check((await look()).strokes === 0, 'the Clear button clears');
+await page.click('#sheet-undo');
+check((await look()).strokes === 1, 'and Undo brings it back');
+await page.click('#sheet-cancel');
+s = await look();
+check(!s.signing && !s.ink, 'the Cancel button closes the board and keeps nothing');
+await page.click('#btn-sign');
+await stroke(bd.x + 100, bd.y + bd.height * 0.5, 20, 12);
+await page.click('#sheet-keep');
+await page.waitForTimeout(300);
+s = await look();
+check(!s.signing && s.ink && s.step === 'check', `the Keep button keeps it and moves on (on ${s.step})`);
+
+/* ---- a scanned signature still shows on the step -------------------- */
+
+await page.evaluate(() => {
+  const mask = document.createElement('canvas'); mask.width = 300; mask.height = 100;
+  const c = mask.getContext('2d'); c.fillRect(20, 40, 260, 20);
+  state.signature = { kind: 'image', mask, fileName: 'scan.png' };
+  goStep(SIGN_STEP, { force: true }); render();
+});
+const scan = await page.evaluate(() => ({ pad: document.getElementById('sig-pad').getBoundingClientRect().height, img: document.getElementById('sig-image').getBoundingClientRect().height }));
+check(scan.pad > 60 && scan.img > 40, `a scanned signature shows in the box (box ${Math.round(scan.pad)} px, picture ${Math.round(scan.img)} px tall)`);
+
+/* ---- Ctrl+D works with a side panel open ---------------------------- */
+
+await page.evaluate(() => { clearSignature(); document.activeElement.blur(); });
+await page.click('text=Issued IDs');
+await page.keyboard.press('Control+d');
+s = await look();
+check(s.signing && s.sheet, 'Ctrl+D opens the board with a side panel open');
+await page.keyboard.press('Escape');
+s = await look();
+check(!s.signing && (await page.evaluate(() => !!state.tool)), 'Esc closes only the board, not the panel too');
+await page.evaluate(() => { state.tool = null; renderTools(); render(); });
 
 /* ---- a pen is noticed ---------------------------------------------- */
 
 await page.evaluate(() => document.getElementById('f-signature').dispatchEvent(
   new PointerEvent('pointerover', { pointerType: 'pen', bubbles: true })));
 s = await look();
-check(s.pen === 'found', `a pen over the page counts as detected: "${s.penText}"`);
+check(s.pen === 'found' && s.sheetPen === 'found', `a pen over the page counts as detected, on the step and the board: "${s.penText}"`);
 
 /* ---- done --------------------------------------------------------- */
 
@@ -142,4 +271,4 @@ if (fail.length || errors.length) {
   console.error(`\nFAIL — ${fail.length} check(s) failed${errors.length ? `, ${errors.length} page error(s)` : ''}`);
   process.exit(1);
 }
-console.log('\nPASS — signing holds the pointer on the pad, and the keyboard ends it');
+console.log('\nPASS — signing mode opens with Ctrl+D, keeps the pen on the board, and the keyboard ends it');

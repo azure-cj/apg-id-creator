@@ -3,7 +3,8 @@
    ------------------------------------------------------------------
    In the Tauri window (app/) the page can ask for things a browser tab
    cannot have: updates from GitHub, the list of pen tablets plugged in,
-   and holding the cursor inside the signature pad. The Rust side is
+   filling the screen while signing, and holding the cursor on the
+   signing board. The Rust side is
    app/src-tauri/src/desktop.rs.
 
    In a browser, or the development page, Desktop.available is false and
@@ -60,6 +61,12 @@ const Desktop = {
   async penTablets(): Promise<DesktopPen[]> {
     if (!this.tauri) return [];
     try { return await this.tauri.core.invoke<DesktopPen[]>('pen_tablets'); } catch { return []; }
+  },
+
+  /** Fill the screen (signing mode), or go back to the window as it was. */
+  async fullScreen(on: boolean): Promise<void> {
+    if (!this.tauri) return;
+    try { await this.tauri.core.invoke('full_screen', { on }); } catch { /* signing still works in the window */ }
   },
 
   /** Hold the cursor inside an element's box, or let it go with null. */

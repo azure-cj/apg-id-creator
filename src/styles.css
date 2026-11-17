@@ -391,14 +391,51 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .ghost:disabled { opacity: 0.5; cursor: default; }
 
 .sig-image { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); object-fit: contain; }
-.sign-keys { margin: 0; color: var(--muted); font-size: 0.85rem; }
-.sign-keys kbd { padding: 0 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; font: 500 0.8rem var(--font-mono); color: var(--ink); background: var(--surface); }
-.sig-badge { display: none; position: absolute; top: 8px; right: 8px; padding: 3px 10px; border-radius: 999px; background: var(--gold-strong); color: var(--on-gold); font: 700 0.8rem var(--font-body); pointer-events: none; }
-/* While signing, only the pad answers the pointer; Enter finishes. */
-body.signing { pointer-events: none; }
-body.signing .sig-pad { pointer-events: auto; border-color: var(--gold-strong); box-shadow: 0 0 0 3px var(--gold-strong); }
-body.signing .sig-badge { display: block; }
-body.signing .sign-keys { color: var(--ink); font-weight: 600; }
+/* ---- the signature step: guide, preview, start ---- */
+.sig kbd, .sign-act kbd { display: inline-block; min-width: 1.6em; padding: 0 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; font: 500 0.78rem/1.5 var(--font-mono); text-align: center; color: var(--ink); background: var(--surface); }
+.sign-guide { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.sign-guide li { display: flex; align-items: flex-start; gap: 10px; color: var(--muted); font-size: 0.9rem; line-height: 1.45; }
+.sign-guide-n { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 50%; color: var(--ink); font: 700 0.75rem var(--font-body); }
+.sign-guide li[data-state="active"] { color: var(--ink); }
+.sign-guide li[data-state="active"] .sign-guide-n { border-color: var(--gold-strong); background: var(--gold-strong); color: var(--on-gold); }
+.sign-guide li[data-state="done"] .sign-guide-n { border-color: var(--ok); background: var(--ok); color: var(--surface); }
+.sig-pad[role="button"] { cursor: pointer; transition: border-color 120ms, box-shadow 120ms; }
+.sig-pad[role="button"]:hover { border-color: var(--gold-strong); }
+.sig-pad[role="button"]:focus-visible { outline: none; border-color: var(--gold-strong); box-shadow: 0 0 0 3px var(--focus); }
+.sig-pad canvas { cursor: inherit; }
+.sign-start { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 1px solid var(--gold-strong); border-radius: 8px; background: var(--gold-strong); color: var(--on-gold); font: 700 0.95rem var(--font-body); cursor: pointer; }
+.sign-start kbd { border-color: #00000033; background: #ffffff55; color: var(--on-gold); }
+.sign-start:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---- signing mode: the window is the signing surface ---- */
+.sign-sheet { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: rgb(12 12 10 / 0.94); cursor: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+.sign-sheet[hidden] { display: none; }
+.sign-sheet:focus { outline: none; }
+.sign-sheet-panel { display: grid; gap: 14px; width: min(100%, calc((100vh - 230px) * 2.6)); color: #ece8de; }
+.sign-sheet-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; }
+.sign-sheet-kicker { margin: 0; color: var(--gold-strong); font: 700 0.75rem var(--font-body); letter-spacing: 0.12em; text-transform: uppercase; }
+.sign-sheet-title { margin: 2px 0 0; font: 700 1.35rem var(--font-display); color: #fff; }
+.sign-sheet .pen-status { color: #a39e92; }
+.sign-sheet-note { flex-basis: 100%; margin: 0; color: #ffb74d; font-size: 0.85rem; }
+.sign-sheet .pen-status[data-state="found"] { color: #ece8de; }
+.sign-sheet .pen-status[data-state="found"] .pen-dot { background: #81c784; }
+.sign-board { position: relative; overflow: hidden; border-radius: 14px; background: #fff; box-shadow: 0 0 0 3px var(--gold-strong), 0 24px 60px #000a; }
+.sign-board canvas { display: block; width: 100%; }
+.sign-board-line { position: absolute; left: 6%; right: 6%; bottom: 24%; border-bottom: 2px dashed #c9c4b8; pointer-events: none; }
+.sign-board-x { position: absolute; left: 6%; bottom: calc(24% + 2px); color: #b9b3a5; font: 700 1.8rem/1 var(--font-display); pointer-events: none; }
+.sign-board-hint { position: absolute; inset: 0; display: grid; place-items: center; color: #8a857a; font: 600 1.15rem var(--font-body); pointer-events: none; }
+.sign-cursor { position: absolute; top: 0; left: 0; width: 16px; height: 16px; margin: -8px 0 0 -8px; border: 2px solid #8a6a14; border-radius: 50%; background: rgb(212 175 55 / 0.25); pointer-events: none; will-change: transform; }
+.sign-cursor.is-outside { border-style: dashed; opacity: 0.5; }
+.sign-cursor.is-drawing { width: 6px; height: 6px; margin: -3px 0 0 -3px; border-color: #1d1c1a; background: #1d1c1a; }
+.sign-sheet-status { min-height: 1.4em; margin: 0; color: #d9d4c7; font-size: 0.95rem; text-align: center; }
+.sign-sheet-status[data-tone="warn"] { color: #ffb74d; font-weight: 600; }
+.sign-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.sign-act { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 1px solid #ffffff3d; border-radius: 10px; background: #ffffff10; color: #ece8de; font: 600 0.95rem var(--font-body); cursor: pointer; }
+.sign-act:hover:not(:disabled) { border-color: #ffffff80; background: #ffffff1c; }
+.sign-act:disabled { opacity: 0.4; cursor: default; }
+.sign-act.is-primary { border-color: var(--gold-strong); background: var(--gold-strong); color: var(--on-gold); }
+.sign-act kbd { border-color: #ffffff33; background: #ffffff14; color: inherit; }
+.sign-act.is-primary kbd { border-color: #00000033; background: #ffffff55; }
 .sig-upload { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; cursor: pointer; }
 #f-sig-image:focus-visible + .sig-upload { outline: 2px solid var(--focus); outline-offset: 2px; }
 

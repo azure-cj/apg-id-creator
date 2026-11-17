@@ -59,13 +59,15 @@ function strokeWidths(points, median, minW, maxW) {
  * Draw the strokes with Catmull-Rom style curves.
  *   toX/toY  map pad coordinates -> canvas pixels
  *   scale    multiplies the widths (which are given in pad units)
+ *   median   the signer's pace (medianStep) when only some of the
+ *            strokes are drawn — the pad draws the stroke in progress
+ *            on its own
  */
-function strokeSignature(ctx, sig, { toX, toY, scale, minW, maxW, color }) {
+function strokeSignature(ctx, sig, { toX, toY, scale, minW, maxW, color, median = medianStep(sig) }) {
   ctx.strokeStyle = color;
   ctx.fillStyle = color;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  const median = medianStep(sig);
   for (const raw of sig.strokes) {
     const p = smoothStroke(raw);
     if (!p.length) continue;
@@ -237,31 +239,83 @@ function drawSignatureImage(ctx, sig, pxPerMm) {
 
 const PAD_ASPECT = 2.6;   // width / height
 
+// Fit strokes drawn somewhere else (the example, the signing board) into a
+// w×h pad: centred, at most 86% of its width and 72% of its height.
+function fitStrokes(strokes, w, h) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const s of strokes) for (const p of s) {
+    x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y);
+  }
+  if (x0 === Infinity) return strokes;
+  const k = Math.min((w * 0.86) / Math.max(x1 - x0, 1), (h * 0.72) / Math.max(y1 - y0, 1));
+  const dx = (w - (x1 - x0) * k) / 2 - x0 * k, dy = (h - (y1 - y0) * k) / 2 - y0 * k;
+  return strokes.map((s) => s.map((p) => ({ x: p.x * k + dx, y: p.y * k + dy })));
+}
+
 /**
- * createSignaturePad(canvas, onChange)
+ * createSignaturePad(canvas, onChange, options)
  * Captures pointer strokes, draws them live with the same curve code
- * the card uses, and calls onChange(sig|null) after every stroke.
- * Returns { clear(), setValue(sig), destroy() }.
+ * the card uses, and calls onChange(sig|null) after every change.
+ *
+ * options
+ *   input    false: show a signature, take no strokes (the preview on
+ *            the signature step)
+ *   surface  the element that listens for the pen; default the canvas.
+ *            The signing board listens on the whole window, so a pen
+ *            outside the board still draws, pinned to its edge.
+ *   clamp    pin every point to the canvas. A stroke must still start on
+ *            the canvas (a tap beside the board is not a mark on its
+ *            edge, and the buttons there still work); once started it
+ *            follows the pen anywhere, pinned.
+ *   cursor   an element moved to where the pen is, pinned to the canvas
+ *            like the points: the pen's cursor as the person sees it
+ *
+ * Returns { clear(), undo(), canUndo(), setValue(sig), value(), width(),
+ * destroy() }. undo() takes back the last stroke, or a clear(); setValue()
+ * starts that history afresh.
  */
-function createSignaturePad(canvas, onChange) {
+function createSignaturePad(canvas, onChange, { input = true, surface = null, clamp = false, cursor = null } = {}) {
   const ctx = canvas.getContext('2d');
+  const target = surface || canvas;
   let strokes = [];
   let current = null;
+  let history = [];          // for undo(): 'stroke', or the strokes a clear() took away
   let cssW = 0, cssH = 0;
 
+  // Finished strokes are drawn once, into `done`. A pen move only draws
+  // the stroke in progress over them, and at most once a frame, so a long
+  // signature on the big board stays smooth on a slow laptop.
+  const done = document.createElement('canvas');
+  const doneCtx = done.getContext('2d');
+  let doneOk = false;
+  let frame = 0;
+
+  // The ink thickens with the pad, so a signature on the big board looks
+  // like one on the small pad rather than a hairline.
+  const ink = (c, list, median) => strokeSignature(c, { strokes: list }, {
+    toX: (x) => x, toY: (y) => y, scale: Math.max(1, Math.min(2.2, cssW / 560)),
+    minW: 0.9, maxW: 2.8, color: '#1d1c1a', median,
+  });
+
   const redraw = () => {
+    if (frame) { cancelAnimationFrame(frame); frame = 0; }
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    if (!doneOk) {
+      done.width = canvas.width; done.height = canvas.height;
+      doneCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (strokes.some((s) => s.length)) ink(doneCtx, strokes);
+      doneOk = true;
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const all = current ? [...strokes, current] : strokes;
-    if (all.some((s) => s.length)) {
-      strokeSignature(ctx, { strokes: all }, {
-        toX: (x) => x, toY: (y) => y, scale: 1,
-        minW: 0.9, maxW: 2.8, color: '#1d1c1a',
-      });
+    if (done.width && done.height) ctx.drawImage(done, 0, 0);
+    if (current?.length) {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ink(ctx, [current], medianStep({ strokes: [...strokes, current] }));
     }
   };
+  const redrawSoon = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; redraw(); }); };
+  const changed = () => { doneOk = false; redraw(); };
 
   const resize = () => {
     const w = canvas.parentElement.clientWidth;
@@ -271,69 +325,108 @@ function createSignaturePad(canvas, onChange) {
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     canvas.width = cssW * dpr; canvas.height = cssH * dpr;
     canvas.style.height = `${cssH}px`;
-    if (strokes.length) {
-      if (prevW) {                                     // same pad, new width: scale along
-        const k = w / prevW;
-        strokes = strokes.map((s) => s.map((p) => ({ x: p.x * k, y: p.y * k })));
-      } else {                                         // strokes from elsewhere (example): fit them
-        const pts = strokes.flat();
-        const maxX = Math.max(...pts.map((p) => p.x), 1), maxY = Math.max(...pts.map((p) => p.y), 1);
-        const k = Math.min((cssW * 0.9) / maxX, (cssH * 0.9) / maxY);
-        strokes = strokes.map((s) => s.map((p) => ({ x: p.x * k, y: p.y * k })));
-      }
+    if (prevW) {                                     // same pad, new width: everything scales along
+      const k = w / prevW;
+      const along = (s) => s.map((p) => ({ x: p.x * k, y: p.y * k }));
+      strokes = strokes.map(along);
+      if (current) current = along(current);         // the window can grow mid-stroke
+      history = history.map((h) => (h === 'stroke' ? h : h.map(along)));
+    } else if (strokes.length) {                     // strokes from elsewhere: fit them
+      strokes = fitStrokes(strokes, cssW, cssH);
     }
-    redraw();
+    changed();
   };
 
   const pos = (e) => {
     const r = canvas.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
+    let x = e.clientX - r.left, y = e.clientY - r.top;
+    if (clamp) { x = Math.max(0, Math.min(r.width, x)); y = Math.max(0, Math.min(r.height, y)); }
+    return { x, y };
   };
-  const emit = () => onChange(strokes.some((s) => s.length) ? { strokes: strokes.map((s) => s.map((p) => ({ ...p }))) } : null);
+  const inside = (e) => {
+    const r = canvas.getBoundingClientRect();
+    return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+  };
+  const value = () => (strokes.some((s) => s.length) ? { strokes: strokes.map((s) => s.map((p) => ({ ...p }))) } : null);
+  const emit = () => onChange(value());
+
+  const showCursor = (e, drawing) => {
+    if (!cursor) return;
+    const p = pos(e);
+    cursor.style.transform = `translate(${p.x}px, ${p.y}px)`;
+    cursor.hidden = false;
+    cursor.classList.toggle('is-drawing', drawing);
+    cursor.classList.toggle('is-outside', !drawing && !inside(e));
+  };
 
   const down = (e) => {
     if (e.button !== undefined && e.button !== 0) return;
+    if (clamp && !inside(e)) { showCursor(e, false); return; }
     e.preventDefault();
-    canvas.setPointerCapture?.(e.pointerId);
+    target.setPointerCapture?.(e.pointerId);
     current = [pos(e)];
+    showCursor(e, true);
     redraw();
   };
   const move = (e) => {
+    showCursor(e, !!current);
     if (!current) return;
     e.preventDefault();
-    const p = pos(e), last = current[current.length - 1];
-    if (Math.hypot(p.x - last.x, p.y - last.y) < 2) return;   // min distance: ignore jitter
-    current.push(p);
-    redraw();
+    // every sample the pen sent since the last event, not just the last
+    const samples = e.getCoalescedEvents?.() ?? [];
+    for (const c of samples.length ? samples : [e]) {
+      const p = pos(c), last = current[current.length - 1];
+      if (Math.hypot(p.x - last.x, p.y - last.y) >= 2) current.push(p);   // min distance: ignore jitter
+    }
+    redrawSoon();
   };
   const up = (e) => {
+    if (cursor) cursor.classList.remove('is-drawing');
     if (!current) return;
     e.preventDefault();
     strokes.push(current);
+    history.push('stroke');
     current = null;
-    redraw();
+    changed();
     emit();
   };
 
-  canvas.addEventListener('pointerdown', down);
-  canvas.addEventListener('pointermove', move);
-  canvas.addEventListener('pointerup', up);
-  canvas.addEventListener('pointercancel', up);
-  canvas.addEventListener('pointerleave', (e) => { if (current && !canvas.hasPointerCapture?.(e.pointerId)) up(e); });
+  if (input) {
+    target.addEventListener('pointerdown', down);
+    target.addEventListener('pointermove', move);
+    target.addEventListener('pointerup', up);
+    target.addEventListener('pointercancel', up);
+    target.addEventListener('pointerleave', (e) => {
+      if (cursor) cursor.hidden = true;
+      if (current && !target.hasPointerCapture?.(e.pointerId)) up(e);
+    });
+  }
 
   const ro = new ResizeObserver(resize);
   ro.observe(canvas.parentElement);
   resize();
 
   return {
-    clear() { strokes = []; current = null; redraw(); onChange(null); },
+    clear() {
+      if (strokes.length) history.push(strokes);
+      strokes = []; current = null; changed(); onChange(null);
+    },
+    undo() {
+      const last = history.pop();
+      if (!last) return;
+      if (last === 'stroke') strokes.pop(); else strokes = last;
+      current = null; changed(); emit();
+    },
+    canUndo: () => history.length > 0,
     setValue(sig) {
       // a scanned signature is shown as a picture, not re-drawn in the pad
       strokes = sig && sig.kind !== 'image' ? sig.strokes.map((s) => s.map((p) => ({ x: p.x, y: p.y }))) : [];
-      current = null;
-      const w = cssW; cssW = 0; resize();            // force a re-fit
-      if (!w) redraw();
+      current = null; history = [];
+      cssW = 0; resize();                            // fit it afresh
+      if (!cssW) doneOk = false;                     // hidden: fitted when it shows
     },
+    value,
+    width: () => cssW,
     destroy() { ro.disconnect(); },
   };
 }

@@ -44,6 +44,7 @@ fn main() {
             desktop::install_update,
             desktop::pen_tablets,
             desktop::clip_cursor,
+            desktop::full_screen,
         ])
         // The cursor is everybody's: never keep it held once this window
         // is not the one being used.

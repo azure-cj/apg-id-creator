@@ -150,7 +150,7 @@ What this does and does not cost:
 | Path | What it is |
 | --- | --- |
 | `src-tauri/src/main.rs` | The window: where the app may navigate, where downloads go, and letting the cursor go on focus loss and exit. |
-| `src-tauri/src/desktop.rs` | What the page can ask of the window: update check and install, the list of pen tablets, holding the cursor in the signature pad. |
+| `src-tauri/src/desktop.rs` | What the page can ask of the window: update check and install, the list of pen tablets, and for signing mode, filling the screen and holding the mouse on the signing board. (A pen tablet ignores the mouse hold; filling the screen is what keeps a pen tap off other programs.) |
 | `release.mjs` | `npm run release`: the signed installer and `latest.json`. |
 | `src-tauri/tauri.conf.json` | Window size, icon, installer settings. Keep `version` in step with `APP_VERSION` in `src/config.ts` (`npm run release` refuses if they differ). `plugins.updater` holds the update address and the public key. |
 | `src-tauri/Cargo.toml` | Rust dependencies. Also carries a version to keep in step. |

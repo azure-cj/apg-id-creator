@@ -341,15 +341,19 @@
               <p class="pen-status" id="pen-status" data-state="none" role="status" aria-live="polite">
                 <span class="pen-dot" aria-hidden="true"></span><span id="pen-status-text">No pen tablet detected</span>
               </p>
-              <div class="sig-pad">
-                <canvas id="f-signature" aria-label="Signature pad. Draw the signature with a finger, pen or mouse."></canvas>
+              <ol class="sign-guide" id="sign-guide" aria-label="How to sign">
+                <li data-state="active"><span class="sign-guide-n" aria-hidden="true">1</span><span>Press <kbd>Ctrl</kbd> + <kbd>D</kbd>, or click the box, to start signing.</span></li>
+                <li><span class="sign-guide-n" aria-hidden="true">2</span><span>Sign on the tablet. The pen stays on the signing board until you finish.</span></li>
+                <li><span class="sign-guide-n" aria-hidden="true">3</span><span id="sign-guide-3">Press <kbd>Enter</kbd> to keep it and go to Check. <kbd>Esc</kbd> cancels.</span></li>
+              </ol>
+              <div class="sig-pad" id="sig-pad" role="button" tabindex="0" aria-label="Signature. Press Control D, or click here, to sign.">
+                <canvas id="f-signature" aria-hidden="true"></canvas>
                 <img id="sig-image" class="sig-image" alt="Scanned signature" hidden />
-                <span class="sig-hint" id="sig-hint" aria-hidden="true">Sign here</span>
+                <span class="sig-hint" id="sig-hint" aria-hidden="true">Click, or press Ctrl + D, to sign</span>
                 <span class="sig-line" aria-hidden="true"></span>
-                <span class="sig-badge" aria-hidden="true">Signing · press Enter when done</span>
               </div>
-              <p class="sign-keys" id="sign-keys" aria-live="polite"></p>
               <div class="sig-actions">
+                <button type="button" id="btn-sign" class="sign-start"><span id="btn-sign-text">Start signing</span> <kbd>Ctrl</kbd><kbd>D</kbd></button>
                 <button type="button" id="btn-clear-sig" class="ghost" disabled>Clear</button>
                 <input id="f-sig-image" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" class="visually-hidden" />
                 <label for="f-sig-image" class="ghost sig-upload" id="sig-upload-btn">Upload a scan</label>
@@ -422,6 +426,36 @@
 
       </aside>
     </main>
+
+    <!-- Signing mode: the whole window becomes the signing surface, so a
+         pen tablet mapped to the screen gets most of its area for the
+         signature, and the pen's cursor cannot leave the board. -->
+    <div class="sign-sheet" id="sign-sheet" hidden tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="sign-sheet-h" aria-describedby="sign-sheet-status">
+      <div class="sign-sheet-panel">
+        <header class="sign-sheet-head">
+          <div>
+            <p class="sign-sheet-kicker">Signing mode</p>
+            <h2 class="sign-sheet-title" id="sign-sheet-h">Signature of <span id="sign-sheet-who">the new hire</span></h2>
+          </div>
+          <p class="pen-status" id="sheet-pen-status" data-state="none"><span class="pen-dot" aria-hidden="true"></span><span id="sheet-pen-text">No pen tablet detected</span></p>
+          <p class="sign-sheet-note" id="sign-sheet-note" hidden>This computer has more than one screen. If the pen reaches the other one, set the tablet to this screen only (Wacom: Tablet Properties → Mapping → Screen area).</p>
+        </header>
+        <div class="sign-board" id="sign-board">
+          <canvas id="sign-board-canvas" aria-hidden="true"></canvas>
+          <span class="sign-board-line" aria-hidden="true"></span>
+          <span class="sign-board-x" aria-hidden="true">×</span>
+          <span class="sign-board-hint" id="sign-board-hint" aria-hidden="true">Sign anywhere in this box</span>
+          <span class="sign-cursor" id="sign-cursor" hidden aria-hidden="true"></span>
+        </div>
+        <p class="sign-sheet-status" id="sign-sheet-status" role="status" aria-live="polite">Waiting for the pen…</p>
+        <div class="sign-acts">
+          <button type="button" class="sign-act" id="sheet-cancel" tabindex="-1">Cancel <kbd>Esc</kbd></button>
+          <button type="button" class="sign-act" id="sheet-clear" tabindex="-1">Clear <kbd>Backspace</kbd></button>
+          <button type="button" class="sign-act" id="sheet-undo" tabindex="-1">Undo <kbd>Ctrl</kbd><kbd>Z</kbd></button>
+          <button type="button" class="sign-act is-primary" id="sheet-keep" tabindex="-1">Keep it and continue <kbd>Enter</kbd></button>
+        </div>
+      </div>
+    </div>
 
     <footer class="colophon">
       <span id="app-version"></span>

@@ -402,14 +402,51 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .ghost:disabled { opacity: 0.5; cursor: default; }
 
 .sig-image { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); object-fit: contain; }
-.sign-keys { margin: 0; color: var(--muted); font-size: 0.85rem; }
-.sign-keys kbd { padding: 0 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; font: 500 0.8rem var(--font-mono); color: var(--ink); background: var(--surface); }
-.sig-badge { display: none; position: absolute; top: 8px; right: 8px; padding: 3px 10px; border-radius: 999px; background: var(--gold-strong); color: var(--on-gold); font: 700 0.8rem var(--font-body); pointer-events: none; }
-/* While signing, only the pad answers the pointer; Enter finishes. */
-body.signing { pointer-events: none; }
-body.signing .sig-pad { pointer-events: auto; border-color: var(--gold-strong); box-shadow: 0 0 0 3px var(--gold-strong); }
-body.signing .sig-badge { display: block; }
-body.signing .sign-keys { color: var(--ink); font-weight: 600; }
+/* ---- the signature step: guide, preview, start ---- */
+.sig kbd, .sign-act kbd { display: inline-block; min-width: 1.6em; padding: 0 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; font: 500 0.78rem/1.5 var(--font-mono); text-align: center; color: var(--ink); background: var(--surface); }
+.sign-guide { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.sign-guide li { display: flex; align-items: flex-start; gap: 10px; color: var(--muted); font-size: 0.9rem; line-height: 1.45; }
+.sign-guide-n { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 50%; color: var(--ink); font: 700 0.75rem var(--font-body); }
+.sign-guide li[data-state="active"] { color: var(--ink); }
+.sign-guide li[data-state="active"] .sign-guide-n { border-color: var(--gold-strong); background: var(--gold-strong); color: var(--on-gold); }
+.sign-guide li[data-state="done"] .sign-guide-n { border-color: var(--ok); background: var(--ok); color: var(--surface); }
+.sig-pad[role="button"] { cursor: pointer; transition: border-color 120ms, box-shadow 120ms; }
+.sig-pad[role="button"]:hover { border-color: var(--gold-strong); }
+.sig-pad[role="button"]:focus-visible { outline: none; border-color: var(--gold-strong); box-shadow: 0 0 0 3px var(--focus); }
+.sig-pad canvas { cursor: inherit; }
+.sign-start { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 1px solid var(--gold-strong); border-radius: 8px; background: var(--gold-strong); color: var(--on-gold); font: 700 0.95rem var(--font-body); cursor: pointer; }
+.sign-start kbd { border-color: #00000033; background: #ffffff55; color: var(--on-gold); }
+.sign-start:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---- signing mode: the window is the signing surface ---- */
+.sign-sheet { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: rgb(12 12 10 / 0.94); cursor: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+.sign-sheet[hidden] { display: none; }
+.sign-sheet:focus { outline: none; }
+.sign-sheet-panel { display: grid; gap: 14px; width: min(100%, calc((100vh - 230px) * 2.6)); color: #ece8de; }
+.sign-sheet-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; }
+.sign-sheet-kicker { margin: 0; color: var(--gold-strong); font: 700 0.75rem var(--font-body); letter-spacing: 0.12em; text-transform: uppercase; }
+.sign-sheet-title { margin: 2px 0 0; font: 700 1.35rem var(--font-display); color: #fff; }
+.sign-sheet .pen-status { color: #a39e92; }
+.sign-sheet-note { flex-basis: 100%; margin: 0; color: #ffb74d; font-size: 0.85rem; }
+.sign-sheet .pen-status[data-state="found"] { color: #ece8de; }
+.sign-sheet .pen-status[data-state="found"] .pen-dot { background: #81c784; }
+.sign-board { position: relative; overflow: hidden; border-radius: 14px; background: #fff; box-shadow: 0 0 0 3px var(--gold-strong), 0 24px 60px #000a; }
+.sign-board canvas { display: block; width: 100%; }
+.sign-board-line { position: absolute; left: 6%; right: 6%; bottom: 24%; border-bottom: 2px dashed #c9c4b8; pointer-events: none; }
+.sign-board-x { position: absolute; left: 6%; bottom: calc(24% + 2px); color: #b9b3a5; font: 700 1.8rem/1 var(--font-display); pointer-events: none; }
+.sign-board-hint { position: absolute; inset: 0; display: grid; place-items: center; color: #8a857a; font: 600 1.15rem var(--font-body); pointer-events: none; }
+.sign-cursor { position: absolute; top: 0; left: 0; width: 16px; height: 16px; margin: -8px 0 0 -8px; border: 2px solid #8a6a14; border-radius: 50%; background: rgb(212 175 55 / 0.25); pointer-events: none; will-change: transform; }
+.sign-cursor.is-outside { border-style: dashed; opacity: 0.5; }
+.sign-cursor.is-drawing { width: 6px; height: 6px; margin: -3px 0 0 -3px; border-color: #1d1c1a; background: #1d1c1a; }
+.sign-sheet-status { min-height: 1.4em; margin: 0; color: #d9d4c7; font-size: 0.95rem; text-align: center; }
+.sign-sheet-status[data-tone="warn"] { color: #ffb74d; font-weight: 600; }
+.sign-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.sign-act { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 1px solid #ffffff3d; border-radius: 10px; background: #ffffff10; color: #ece8de; font: 600 0.95rem var(--font-body); cursor: pointer; }
+.sign-act:hover:not(:disabled) { border-color: #ffffff80; background: #ffffff1c; }
+.sign-act:disabled { opacity: 0.4; cursor: default; }
+.sign-act.is-primary { border-color: var(--gold-strong); background: var(--gold-strong); color: var(--on-gold); }
+.sign-act kbd { border-color: #ffffff33; background: #ffffff14; color: inherit; }
+.sign-act.is-primary kbd { border-color: #00000033; background: #ffffff55; }
 .sig-upload { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; cursor: pointer; }
 #f-sig-image:focus-visible + .sig-upload { outline: 2px solid var(--focus); outline-offset: 2px; }
 
@@ -920,15 +957,19 @@ body.signing .sign-keys { color: var(--ink); font-weight: 600; }
               <p class="pen-status" id="pen-status" data-state="none" role="status" aria-live="polite">
                 <span class="pen-dot" aria-hidden="true"></span><span id="pen-status-text">No pen tablet detected</span>
               </p>
-              <div class="sig-pad">
-                <canvas id="f-signature" aria-label="Signature pad. Draw the signature with a finger, pen or mouse."></canvas>
+              <ol class="sign-guide" id="sign-guide" aria-label="How to sign">
+                <li data-state="active"><span class="sign-guide-n" aria-hidden="true">1</span><span>Press <kbd>Ctrl</kbd> + <kbd>D</kbd>, or click the box, to start signing.</span></li>
+                <li><span class="sign-guide-n" aria-hidden="true">2</span><span>Sign on the tablet. The pen stays on the signing board until you finish.</span></li>
+                <li><span class="sign-guide-n" aria-hidden="true">3</span><span id="sign-guide-3">Press <kbd>Enter</kbd> to keep it and go to Check. <kbd>Esc</kbd> cancels.</span></li>
+              </ol>
+              <div class="sig-pad" id="sig-pad" role="button" tabindex="0" aria-label="Signature. Press Control D, or click here, to sign.">
+                <canvas id="f-signature" aria-hidden="true"></canvas>
                 <img id="sig-image" class="sig-image" alt="Scanned signature" hidden />
-                <span class="sig-hint" id="sig-hint" aria-hidden="true">Sign here</span>
+                <span class="sig-hint" id="sig-hint" aria-hidden="true">Click, or press Ctrl + D, to sign</span>
                 <span class="sig-line" aria-hidden="true"></span>
-                <span class="sig-badge" aria-hidden="true">Signing · press Enter when done</span>
               </div>
-              <p class="sign-keys" id="sign-keys" aria-live="polite"></p>
               <div class="sig-actions">
+                <button type="button" id="btn-sign" class="sign-start"><span id="btn-sign-text">Start signing</span> <kbd>Ctrl</kbd><kbd>D</kbd></button>
                 <button type="button" id="btn-clear-sig" class="ghost" disabled>Clear</button>
                 <input id="f-sig-image" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" class="visually-hidden" />
                 <label for="f-sig-image" class="ghost sig-upload" id="sig-upload-btn">Upload a scan</label>
@@ -1001,6 +1042,36 @@ body.signing .sign-keys { color: var(--ink); font-weight: 600; }
 
       </aside>
     </main>
+
+    <!-- Signing mode: the whole window becomes the signing surface, so a
+         pen tablet mapped to the screen gets most of its area for the
+         signature, and the pen's cursor cannot leave the board. -->
+    <div class="sign-sheet" id="sign-sheet" hidden tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="sign-sheet-h" aria-describedby="sign-sheet-status">
+      <div class="sign-sheet-panel">
+        <header class="sign-sheet-head">
+          <div>
+            <p class="sign-sheet-kicker">Signing mode</p>
+            <h2 class="sign-sheet-title" id="sign-sheet-h">Signature of <span id="sign-sheet-who">the new hire</span></h2>
+          </div>
+          <p class="pen-status" id="sheet-pen-status" data-state="none"><span class="pen-dot" aria-hidden="true"></span><span id="sheet-pen-text">No pen tablet detected</span></p>
+          <p class="sign-sheet-note" id="sign-sheet-note" hidden>This computer has more than one screen. If the pen reaches the other one, set the tablet to this screen only (Wacom: Tablet Properties → Mapping → Screen area).</p>
+        </header>
+        <div class="sign-board" id="sign-board">
+          <canvas id="sign-board-canvas" aria-hidden="true"></canvas>
+          <span class="sign-board-line" aria-hidden="true"></span>
+          <span class="sign-board-x" aria-hidden="true">×</span>
+          <span class="sign-board-hint" id="sign-board-hint" aria-hidden="true">Sign anywhere in this box</span>
+          <span class="sign-cursor" id="sign-cursor" hidden aria-hidden="true"></span>
+        </div>
+        <p class="sign-sheet-status" id="sign-sheet-status" role="status" aria-live="polite">Waiting for the pen…</p>
+        <div class="sign-acts">
+          <button type="button" class="sign-act" id="sheet-cancel" tabindex="-1">Cancel <kbd>Esc</kbd></button>
+          <button type="button" class="sign-act" id="sheet-clear" tabindex="-1">Clear <kbd>Backspace</kbd></button>
+          <button type="button" class="sign-act" id="sheet-undo" tabindex="-1">Undo <kbd>Ctrl</kbd><kbd>Z</kbd></button>
+          <button type="button" class="sign-act is-primary" id="sheet-keep" tabindex="-1">Keep it and continue <kbd>Enter</kbd></button>
+        </div>
+      </div>
+    </div>
 
     <footer class="colophon">
       <span id="app-version"></span>
@@ -4040,13 +4111,15 @@ function strokeWidths(points, median, minW, maxW) {
  * Draw the strokes with Catmull-Rom style curves.
  *   toX/toY  map pad coordinates -> canvas pixels
  *   scale    multiplies the widths (which are given in pad units)
+ *   median   the signer's pace (medianStep) when only some of the
+ *            strokes are drawn — the pad draws the stroke in progress
+ *            on its own
  */
-function strokeSignature(ctx, sig, { toX, toY, scale, minW, maxW, color }) {
+function strokeSignature(ctx, sig, { toX, toY, scale, minW, maxW, color, median = medianStep(sig) }) {
   ctx.strokeStyle = color;
   ctx.fillStyle = color;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  const median = medianStep(sig);
   for (const raw of sig.strokes) {
     const p = smoothStroke(raw);
     if (!p.length) continue;
@@ -4218,31 +4291,83 @@ function drawSignatureImage(ctx, sig, pxPerMm) {
 
 const PAD_ASPECT = 2.6;   // width / height
 
+// Fit strokes drawn somewhere else (the example, the signing board) into a
+// w×h pad: centred, at most 86% of its width and 72% of its height.
+function fitStrokes(strokes, w, h) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const s of strokes) for (const p of s) {
+    x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y);
+  }
+  if (x0 === Infinity) return strokes;
+  const k = Math.min((w * 0.86) / Math.max(x1 - x0, 1), (h * 0.72) / Math.max(y1 - y0, 1));
+  const dx = (w - (x1 - x0) * k) / 2 - x0 * k, dy = (h - (y1 - y0) * k) / 2 - y0 * k;
+  return strokes.map((s) => s.map((p) => ({ x: p.x * k + dx, y: p.y * k + dy })));
+}
+
 /**
- * createSignaturePad(canvas, onChange)
+ * createSignaturePad(canvas, onChange, options)
  * Captures pointer strokes, draws them live with the same curve code
- * the card uses, and calls onChange(sig|null) after every stroke.
- * Returns { clear(), setValue(sig), destroy() }.
+ * the card uses, and calls onChange(sig|null) after every change.
+ *
+ * options
+ *   input    false: show a signature, take no strokes (the preview on
+ *            the signature step)
+ *   surface  the element that listens for the pen; default the canvas.
+ *            The signing board listens on the whole window, so a pen
+ *            outside the board still draws, pinned to its edge.
+ *   clamp    pin every point to the canvas. A stroke must still start on
+ *            the canvas (a tap beside the board is not a mark on its
+ *            edge, and the buttons there still work); once started it
+ *            follows the pen anywhere, pinned.
+ *   cursor   an element moved to where the pen is, pinned to the canvas
+ *            like the points: the pen's cursor as the person sees it
+ *
+ * Returns { clear(), undo(), canUndo(), setValue(sig), value(), width(),
+ * destroy() }. undo() takes back the last stroke, or a clear(); setValue()
+ * starts that history afresh.
  */
-function createSignaturePad(canvas, onChange) {
+function createSignaturePad(canvas, onChange, { input = true, surface = null, clamp = false, cursor = null } = {}) {
   const ctx = canvas.getContext('2d');
+  const target = surface || canvas;
   let strokes = [];
   let current = null;
+  let history = [];          // for undo(): 'stroke', or the strokes a clear() took away
   let cssW = 0, cssH = 0;
 
+  // Finished strokes are drawn once, into `done`. A pen move only draws
+  // the stroke in progress over them, and at most once a frame, so a long
+  // signature on the big board stays smooth on a slow laptop.
+  const done = document.createElement('canvas');
+  const doneCtx = done.getContext('2d');
+  let doneOk = false;
+  let frame = 0;
+
+  // The ink thickens with the pad, so a signature on the big board looks
+  // like one on the small pad rather than a hairline.
+  const ink = (c, list, median) => strokeSignature(c, { strokes: list }, {
+    toX: (x) => x, toY: (y) => y, scale: Math.max(1, Math.min(2.2, cssW / 560)),
+    minW: 0.9, maxW: 2.8, color: '#1d1c1a', median,
+  });
+
   const redraw = () => {
+    if (frame) { cancelAnimationFrame(frame); frame = 0; }
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    if (!doneOk) {
+      done.width = canvas.width; done.height = canvas.height;
+      doneCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (strokes.some((s) => s.length)) ink(doneCtx, strokes);
+      doneOk = true;
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const all = current ? [...strokes, current] : strokes;
-    if (all.some((s) => s.length)) {
-      strokeSignature(ctx, { strokes: all }, {
-        toX: (x) => x, toY: (y) => y, scale: 1,
-        minW: 0.9, maxW: 2.8, color: '#1d1c1a',
-      });
+    if (done.width && done.height) ctx.drawImage(done, 0, 0);
+    if (current?.length) {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ink(ctx, [current], medianStep({ strokes: [...strokes, current] }));
     }
   };
+  const redrawSoon = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; redraw(); }); };
+  const changed = () => { doneOk = false; redraw(); };
 
   const resize = () => {
     const w = canvas.parentElement.clientWidth;
@@ -4252,69 +4377,108 @@ function createSignaturePad(canvas, onChange) {
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     canvas.width = cssW * dpr; canvas.height = cssH * dpr;
     canvas.style.height = `${cssH}px`;
-    if (strokes.length) {
-      if (prevW) {                                     // same pad, new width: scale along
-        const k = w / prevW;
-        strokes = strokes.map((s) => s.map((p) => ({ x: p.x * k, y: p.y * k })));
-      } else {                                         // strokes from elsewhere (example): fit them
-        const pts = strokes.flat();
-        const maxX = Math.max(...pts.map((p) => p.x), 1), maxY = Math.max(...pts.map((p) => p.y), 1);
-        const k = Math.min((cssW * 0.9) / maxX, (cssH * 0.9) / maxY);
-        strokes = strokes.map((s) => s.map((p) => ({ x: p.x * k, y: p.y * k })));
-      }
+    if (prevW) {                                     // same pad, new width: everything scales along
+      const k = w / prevW;
+      const along = (s) => s.map((p) => ({ x: p.x * k, y: p.y * k }));
+      strokes = strokes.map(along);
+      if (current) current = along(current);         // the window can grow mid-stroke
+      history = history.map((h) => (h === 'stroke' ? h : h.map(along)));
+    } else if (strokes.length) {                     // strokes from elsewhere: fit them
+      strokes = fitStrokes(strokes, cssW, cssH);
     }
-    redraw();
+    changed();
   };
 
   const pos = (e) => {
     const r = canvas.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
+    let x = e.clientX - r.left, y = e.clientY - r.top;
+    if (clamp) { x = Math.max(0, Math.min(r.width, x)); y = Math.max(0, Math.min(r.height, y)); }
+    return { x, y };
   };
-  const emit = () => onChange(strokes.some((s) => s.length) ? { strokes: strokes.map((s) => s.map((p) => ({ ...p }))) } : null);
+  const inside = (e) => {
+    const r = canvas.getBoundingClientRect();
+    return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+  };
+  const value = () => (strokes.some((s) => s.length) ? { strokes: strokes.map((s) => s.map((p) => ({ ...p }))) } : null);
+  const emit = () => onChange(value());
+
+  const showCursor = (e, drawing) => {
+    if (!cursor) return;
+    const p = pos(e);
+    cursor.style.transform = `translate(${p.x}px, ${p.y}px)`;
+    cursor.hidden = false;
+    cursor.classList.toggle('is-drawing', drawing);
+    cursor.classList.toggle('is-outside', !drawing && !inside(e));
+  };
 
   const down = (e) => {
     if (e.button !== undefined && e.button !== 0) return;
+    if (clamp && !inside(e)) { showCursor(e, false); return; }
     e.preventDefault();
-    canvas.setPointerCapture?.(e.pointerId);
+    target.setPointerCapture?.(e.pointerId);
     current = [pos(e)];
+    showCursor(e, true);
     redraw();
   };
   const move = (e) => {
+    showCursor(e, !!current);
     if (!current) return;
     e.preventDefault();
-    const p = pos(e), last = current[current.length - 1];
-    if (Math.hypot(p.x - last.x, p.y - last.y) < 2) return;   // min distance: ignore jitter
-    current.push(p);
-    redraw();
+    // every sample the pen sent since the last event, not just the last
+    const samples = e.getCoalescedEvents?.() ?? [];
+    for (const c of samples.length ? samples : [e]) {
+      const p = pos(c), last = current[current.length - 1];
+      if (Math.hypot(p.x - last.x, p.y - last.y) >= 2) current.push(p);   // min distance: ignore jitter
+    }
+    redrawSoon();
   };
   const up = (e) => {
+    if (cursor) cursor.classList.remove('is-drawing');
     if (!current) return;
     e.preventDefault();
     strokes.push(current);
+    history.push('stroke');
     current = null;
-    redraw();
+    changed();
     emit();
   };
 
-  canvas.addEventListener('pointerdown', down);
-  canvas.addEventListener('pointermove', move);
-  canvas.addEventListener('pointerup', up);
-  canvas.addEventListener('pointercancel', up);
-  canvas.addEventListener('pointerleave', (e) => { if (current && !canvas.hasPointerCapture?.(e.pointerId)) up(e); });
+  if (input) {
+    target.addEventListener('pointerdown', down);
+    target.addEventListener('pointermove', move);
+    target.addEventListener('pointerup', up);
+    target.addEventListener('pointercancel', up);
+    target.addEventListener('pointerleave', (e) => {
+      if (cursor) cursor.hidden = true;
+      if (current && !target.hasPointerCapture?.(e.pointerId)) up(e);
+    });
+  }
 
   const ro = new ResizeObserver(resize);
   ro.observe(canvas.parentElement);
   resize();
 
   return {
-    clear() { strokes = []; current = null; redraw(); onChange(null); },
+    clear() {
+      if (strokes.length) history.push(strokes);
+      strokes = []; current = null; changed(); onChange(null);
+    },
+    undo() {
+      const last = history.pop();
+      if (!last) return;
+      if (last === 'stroke') strokes.pop(); else strokes = last;
+      current = null; changed(); emit();
+    },
+    canUndo: () => history.length > 0,
     setValue(sig) {
       // a scanned signature is shown as a picture, not re-drawn in the pad
       strokes = sig && sig.kind !== 'image' ? sig.strokes.map((s) => s.map((p) => ({ x: p.x, y: p.y }))) : [];
-      current = null;
-      const w = cssW; cssW = 0; resize();            // force a re-fit
-      if (!w) redraw();
+      current = null; history = [];
+      cssW = 0; resize();                            // fit it afresh
+      if (!cssW) doneOk = false;                     // hidden: fitted when it shows
     },
+    value,
+    width: () => cssW,
     destroy() { ro.disconnect(); },
   };
 }
@@ -6014,6 +6178,14 @@ const Desktop = {
       return [];
     }
   },
+  /** Fill the screen (signing mode), or go back to the window as it was. */
+  async fullScreen(on) {
+    if (!this.tauri) return;
+    try {
+      await this.tauri.core.invoke("full_screen", { on });
+    } catch {
+    }
+  },
   /** Hold the cursor inside an element's box, or let it go with null. */
   async holdCursor(el) {
     if (!this.tauri) return;
@@ -6074,8 +6246,8 @@ const STEPS = [
 const LAST_STEP = STEPS.length - 1;
 const SIGN_STEP = STEPS.findIndex((s) => s.id === 'sign');
 
-// Signing holds the pointer on the pad and turns clicks elsewhere off
-// until Enter (finish) or Esc (stop) — see "signing" below.
+// Signing mode: the signing board over the whole window, until Enter
+// (keep it) or Esc (cancel) — see "signing mode" below.
 const signing = { on: false };
 
 const state = {
@@ -6211,7 +6383,7 @@ function problems() {
        : state.dupShared === 'pending' ? 'Checking the shared register for this number…'
        : '',
     photo: state.photoError || (state.photo ? '' : 'Upload the new hire’s photo.'),
-    signature: hasInk(state.signature) ? '' : 'Ask the new hire to sign in the box.',
+    signature: hasInk(state.signature) ? '' : 'Ask the new hire to sign: press Ctrl + D.',
   };
 }
 
@@ -6317,7 +6489,7 @@ function furthestStep(p = problems()) {
  * already queued. Everything else is capped.
  */
 function goStep(i, { focus = true, force = false } = {}) {
-  if (signing.on) stopSigning();
+  if (signing.on) closeSigning({ keep: false, refocus: false });
   const want = Math.max(0, Math.min(LAST_STEP, i));
   state.step = force ? want : Math.min(want, furthestStep());
   if (state.step === LAST_STEP) buildReview();
@@ -6577,16 +6749,17 @@ function render() {
   const sigImage = state.signature?.kind === 'image';
   $('sig').classList.toggle('sig-invalid', !!shown('signature'));
   $('sig-hint').hidden = hasInk(state.signature);
-  $('f-signature').hidden = sigImage;
+  $('f-signature').style.visibility = sigImage ? 'hidden' : '';   // keeps the box its height
   $('sig-image').hidden = !sigImage;
   if (sigImage && $('sig-image').dataset.for !== state.signature.fileName) {
     $('sig-image').src = state.signature.mask.toDataURL('image/png');
     $('sig-image').dataset.for = state.signature.fileName ?? 'scan';
   }
   $('sig-help').textContent = sigImage
-    ? `Scanned: ${state.signature.fileName ?? 'signature'}. Clear to sign on screen instead.`
+    ? `Scanned: ${state.signature.fileName ?? 'signature'}. Press Ctrl + D to sign on screen instead.`
     : 'It prints in white on the card.';
   $('btn-clear-sig').disabled = !hasInk(state.signature);
+  renderSignGuide();
   $('sig-msg').hidden = !shown('signature');
   $('sig-msg').textContent = shown('signature');
 
@@ -6878,79 +7051,180 @@ $('btn-copy-prompt').addEventListener('click', async () => {
   catch { $('photo-prompt').focus(); $('photo-prompt').select(); $('copy-status').textContent = 'Selected. Press Ctrl+C or ⌘C to copy.'; }
 });
 
-// signature pad
+// The pad on the step shows the signature; signing itself happens on the
+// signing board (below), so the pad takes no strokes of its own.
 const pad = createSignaturePad($('f-signature'), (sig) => {
   state.example = false; touch('signature'); state.signature = sig; state.side = 'front'; render();
+}, { input: false });
+
+/* ---- signing mode ------------------------------------------------
+   A pen tablet is mapped to the whole screen, so the small pad on the
+   step was a few centimetres of the tablet, and the pen's cursor — which
+   Windows moves itself, ignoring any hold on the mouse — wandered off it
+   and clicked whatever was there. So signing has a mode of its own:
+
+     start   Ctrl+D, or Enter with nothing signed yet, or a click on the
+             pad or on "Start signing"
+     sign    the signing board fills the window and takes the pen from
+             anywhere on it; points past its edge are pinned to the edge,
+             the system cursor is hidden and a dot that cannot leave the
+             board shows where the pen is. In the desktop app the mouse
+             is also held on the board (ClipCursor), and the window fills
+             the screen, because a pen ignores that hold: with nothing
+             else on screen, a pen tap cannot land on another program.
+             Nothing behind the board can be clicked.
+     Enter      keep it and go on to Check
+     Ctrl+Z     undo the last stroke (or the Clear)
+     Backspace  clear and start again
+     Esc        cancel: the signature from before stays
+   The same four are buttons under the board, for a tablet PC with the
+   keyboard taken off. The board opens empty every time: signing again
+   replaces the signature rather than drawing over it.
+   The cursor is let go when the mode ends, when the window loses focus
+   and when the app closes (app/src-tauri/src/desktop.rs).
+   ------------------------------------------------------------------ */
+
+const board = createSignaturePad($('sign-board-canvas'), (sig) => renderBoardStatus(sig), {
+  surface: $('sign-sheet'), clamp: true, cursor: $('sign-cursor'),
 });
+
+function renderBoardStatus(sig, { warn = '', note = '' } = {}) {
+  const strokes = sig?.strokes?.length || 0;
+  $('sign-board-hint').hidden = strokes > 0;
+  $('sheet-keep').disabled = !strokes;
+  $('sheet-clear').disabled = !strokes;
+  $('sheet-undo').disabled = !board.canUndo();
+  const el = $('sign-sheet-status');
+  el.dataset.tone = warn ? 'warn' : '';
+  el.textContent = warn || note
+    || (strokes ? `${strokes} stroke${strokes === 1 ? '' : 's'}. Press Enter to keep it, or keep signing.` : 'Waiting for the pen… sign anywhere in the box.');
+}
+
+const GUIDE_LAST = {
+  unsigned: 'Press <kbd>Enter</kbd> to keep it and go to Check. <kbd>Esc</kbd> cancels.',
+  signed: 'Signed. Press <kbd>Enter</kbd> to go on to Check, or <kbd>Ctrl</kbd> + <kbd>D</kbd> to sign again.',
+};
+
+function renderSignGuide() {
+  const signed = hasInk(state.signature);
+  const scanned = state.signature?.kind === 'image';
+  const states = !signed ? ['active', '', ''] : scanned ? ['', '', 'active'] : ['done', 'done', 'active'];
+  [...$('sign-guide').children].forEach((li, i) => {
+    li.dataset.state = states[i];
+    li.querySelector('.sign-guide-n').textContent = states[i] === 'done' ? '✓' : String(i + 1);
+  });
+  const last = signed ? GUIDE_LAST.signed : GUIDE_LAST.unsigned;
+  if ($('sign-guide-3').innerHTML !== last) $('sign-guide-3').innerHTML = last;
+  $('btn-sign-text').textContent = signed ? 'Sign again' : 'Start signing';
+  $('sig-pad').setAttribute('aria-label', signed
+    ? 'Signature, signed. Press Control D, or click here, to sign again.'
+    : 'Signature, not signed yet. Press Control D, or click here, to sign.');
+}
+
+function openSigning() {
+  if (signing.on || state.step !== SIGN_STEP) return;
+  signing.on = true;
+  document.body.classList.add('signing');
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+  $('sign-sheet-who').textContent = printedName().trim() || 'the new hire';
+  $('sign-sheet').hidden = false;
+  board.setValue(null);                 // a fresh board: Esc keeps the signature there was
+  renderBoardStatus(null);
+  // A pen tablet covers every screen unless told otherwise, and full screen
+  // covers only this one.
+  $('sign-sheet-note').hidden = !(Desktop.available && window.screen.isExtended && (pens.tablets.length || pens.seen));
+  $('sign-cursor').hidden = true;
+  $('sign-sheet').focus({ preventScroll: true });
+  // the window fills the screen first; "resize" below then holds the
+  // cursor on the board where it ends up
+  Desktop.fullScreen(true).then(holdOnBoard);
+}
+
+function closeSigning({ keep, refocus = true }) {
+  if (!signing.on) return;
+  if (keep) {
+    // kept in the board's own pixels; the card and the pad each fit it
+    state.signature = board.value();
+    state.example = false; touch('signature'); state.side = 'front';
+    pad.setValue(state.signature);
+  }
+  signing.on = false;
+  $('sign-sheet').hidden = true;
+  document.body.classList.remove('signing');
+  Desktop.holdCursor(null);
+  Desktop.fullScreen(false);
+  render();
+  // for the keyboard: on Next once signed (Enter moves on), else on Start signing
+  if (refocus && state.step === SIGN_STEP) $(hasInk(state.signature) ? 'btn-next' : 'btn-sign').focus({ preventScroll: true });
+}
+
+function keepSigning() {
+  if (!board.value()) { renderBoardStatus(null, { warn: 'Nothing signed yet. Sign in the box, or press Esc to cancel.' }); return; }
+  closeSigning({ keep: true });
+  nextStep();
+}
+function clearBoard() {
+  if (!board.value()) return;
+  board.clear();
+  renderBoardStatus(null, { note: 'Cleared. Press Ctrl + Z to bring it back.' });
+}
+
 function clearSignature() {
   if (state.signature?.kind === 'image') { state.signature = null; touch('signature'); render(); }
   pad.clear();
 }
 $('btn-clear-sig').addEventListener('click', clearSignature);
-
-/* ---- signing: the pointer stays on the pad ------------------------
-   Putting a pen or the mouse down on the pad starts signing. Until it
-   ends, only the pad answers the pointer — a pen drifting over Next or
-   the step bar cannot click it — and in the desktop app the mouse cursor
-   cannot leave the pad at all. The keyboard ends it:
-     Enter      finished: move on to Check
-     Backspace  start the signature again
-     Esc        stop, and stay on this step
-   The cursor is let go whenever signing ends, the window loses focus,
-   or the app closes (app/src-tauri/src/desktop.rs).
-   ------------------------------------------------------------------ */
-
-function renderSignKeys() {
-  $('sign-keys').innerHTML = signing.on
-    ? 'Signing. Press <kbd>Enter</kbd> when finished · <kbd>Backspace</kbd> to start again · <kbd>Esc</kbd> to stop.'
-    : 'Touch the pad to start. While you sign, the pointer stays on the pad; press <kbd>Enter</kbd> when finished.';
-}
-
-function startSigning() {
-  if (signing.on || state.step !== SIGN_STEP) return;
-  signing.on = true;
-  document.body.classList.add('signing');
-  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
-  renderSignKeys();
-  Desktop.holdCursor($('f-signature'));
-}
-
-function stopSigning() {
-  if (!signing.on) return;
-  signing.on = false;
-  document.body.classList.remove('signing');
-  renderSignKeys();
-  Desktop.holdCursor(null);
-}
-
-$('f-signature').addEventListener('pointerdown', (e) => {
-  if (e.pointerType !== 'mouse' || e.button === 0) startSigning();
+$('btn-sign').addEventListener('click', openSigning);
+$('sheet-keep').addEventListener('click', keepSigning);
+$('sheet-undo').addEventListener('click', () => board.undo());
+$('sheet-clear').addEventListener('click', clearBoard);
+$('sheet-cancel').addEventListener('click', () => closeSigning({ keep: false }));
+$('sig-pad').addEventListener('click', openSigning);
+$('sig-pad').addEventListener('keydown', (e) => {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); openSigning(); }
 });
 
-// Clicks anywhere but the pad do nothing while signing. The stylesheet
-// already makes the page ignore the pointer; this catches the rest.
-for (const type of ['pointerdown', 'mousedown', 'click', 'dblclick', 'auxclick', 'contextmenu']) {
-  window.addEventListener(type, (e) => {
-    if (!signing.on || e.target.closest?.('.sig-pad')) return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-  }, true);
-}
-window.addEventListener('wheel', (e) => { if (signing.on) e.preventDefault(); }, { passive: false, capture: true });
-
-// Before every other key handler: while signing, only these keys count.
+// While signing, these keys and no others — before any other handler.
 window.addEventListener('keydown', (e) => {
   if (!signing.on) return;
   e.preventDefault();
   e.stopImmediatePropagation();
-  if (e.key === 'Enter') { stopSigning(); nextStep(); }
-  else if (e.key === 'Escape') stopSigning();
-  else if (e.key === 'Backspace' || e.key === 'Delete') clearSignature();
+  const ctrl = e.ctrlKey || e.metaKey;
+  if (e.key === 'Enter') keepSigning();
+  else if (e.key === 'Escape') closeSigning({ keep: false });
+  else if (e.key === 'Backspace' || e.key === 'Delete') clearBoard();
+  else if (ctrl && (e.code === 'KeyZ' || e.key.toLowerCase() === 'z')) board.undo();
 }, true);
 
-// The window gives the cursor back when it loses focus; take it again on return.
-window.addEventListener('focus', () => { if (signing.on) Desktop.holdCursor($('f-signature')); });
-window.addEventListener('resize', () => { if (signing.on) Desktop.holdCursor($('f-signature')); });
+// On the signature step: Ctrl+D starts signing from anywhere, and so does
+// Enter while nothing is signed. Once it is signed, Enter moves on.
+window.addEventListener('keydown', (e) => {
+  if (signing.on || state.step !== SIGN_STEP) return;
+  const t = e.target;
+  const typing = t.closest?.('input, textarea, select, [contenteditable="true"]');
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.code === 'KeyD' || e.key.toLowerCase() === 'd')) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    openSigning();
+  } else if (e.key === 'Enter' && !typing && !t.closest?.('a, label')) {
+    const signed = hasInk(state.signature);
+    const onSign = t === $('btn-sign') || t === $('sig-pad');
+    if (signed && !onSign && t.tagName !== 'BUTTON') { e.preventDefault(); e.stopImmediatePropagation(); nextStep(); }
+    else if (!signed && t.tagName !== 'BUTTON') { e.preventDefault(); e.stopImmediatePropagation(); openSigning(); }
+    // a button (Sign again, Next, Clear…) does what it says
+  }
+}, true);
+
+window.addEventListener('wheel', (e) => { if (signing.on) e.preventDefault(); }, { passive: false, capture: true });
+window.addEventListener('contextmenu', (e) => { if (signing.on) e.preventDefault(); }, true);
+
+// The window lets the mouse go when it loses focus; hold it again on return,
+// and again whenever the board moves or grows (going full screen does both,
+// in more than one step).
+const holdOnBoard = () => { if (signing.on) Desktop.holdCursor($('sign-board')); };
+window.addEventListener('focus', holdOnBoard);
+window.addEventListener('resize', holdOnBoard);
+new ResizeObserver(holdOnBoard).observe($('sign-board'));
 
 /* ---- is there a pen tablet? ---------------------------------------
    The desktop app asks Windows for the pens it has registered, and asks
@@ -6965,12 +7239,15 @@ const pens = { tablets: [], seen: false };
 function renderPenStatus() {
   const found = pens.tablets.length > 0 || pens.seen;
   const name = (pens.tablets.find((t) => !t.built_in) || pens.tablets[0])?.name;
-  $('pen-status').dataset.state = found ? 'found' : 'none';
-  $('pen-status-text').textContent = found
+  const text = found
     ? `Pen tablet detected${name ? ` · ${name}` : ''}`
     : Desktop.available
       ? 'No pen tablet detected · sign with the mouse'
-      : 'No pen tablet detected yet · touch the pad with the pen to check';
+      : 'No pen tablet detected yet · move the pen over the tablet to check';
+  for (const [box, label] of [['pen-status', 'pen-status-text'], ['sheet-pen-status', 'sheet-pen-text']]) {
+    $(box).dataset.state = found ? 'found' : 'none';
+    $(label).textContent = text;
+  }
 }
 
 async function refreshPens() {
@@ -7896,7 +8173,7 @@ $('btn-update').addEventListener('click', () => (update.state === 'available' ? 
 new ResizeObserver(drawPreview).observe(previewBox);
 
 $('app-version').textContent = `${APP_NAME} ${APP_VERSION}`;
-renderSignKeys();
+renderSignGuide();
 renderPenStatus();
 refreshPens();
 renderUpdate();

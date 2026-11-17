@@ -172,6 +172,24 @@ pub fn clip_cursor(window: WebviewWindow, rect: Option<CssRect>) -> Result<(), S
     Ok(())
 }
 
+/// Fill the screen while signing, and give the window back after.
+///
+/// A pen tablet is mapped to the whole screen and Windows moves its cursor
+/// itself, ignoring `ClipCursor`. With the window filling the screen a pen
+/// tap can only land on the signing board, never on another program. The
+/// window returns to its size and place when this is turned off.
+#[tauri::command]
+pub fn full_screen(window: WebviewWindow, on: bool) -> Result<(), String> {
+    if window.is_fullscreen().map_err(|e| e.to_string())? != on {
+        window.set_fullscreen(on).map_err(|e| e.to_string())?;
+    }
+    if on {
+        // keep the keyboard here through the change, so Enter and Esc work
+        let _ = window.set_focus();
+    }
+    Ok(())
+}
+
 /// Let the cursor go anywhere again. Safe to call when it is not held.
 pub fn release_cursor() {
     #[cfg(windows)]

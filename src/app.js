@@ -44,8 +44,8 @@ const STEPS = [
 const LAST_STEP = STEPS.length - 1;
 const SIGN_STEP = STEPS.findIndex((s) => s.id === 'sign');
 
-// Signing holds the pointer on the pad and turns clicks elsewhere off
-// until Enter (finish) or Esc (stop) — see "signing" below.
+// Signing mode: the signing board over the whole window, until Enter
+// (keep it) or Esc (cancel) — see "signing mode" below.
 const signing = { on: false };
 
 const state = {
@@ -181,7 +181,7 @@ function problems() {
        : state.dupShared === 'pending' ? 'Checking the shared register for this number…'
        : '',
     photo: state.photoError || (state.photo ? '' : 'Upload the new hire’s photo.'),
-    signature: hasInk(state.signature) ? '' : 'Ask the new hire to sign in the box.',
+    signature: hasInk(state.signature) ? '' : 'Ask the new hire to sign: press Ctrl + D.',
   };
 }
 
@@ -287,7 +287,7 @@ function furthestStep(p = problems()) {
  * already queued. Everything else is capped.
  */
 function goStep(i, { focus = true, force = false } = {}) {
-  if (signing.on) stopSigning();
+  if (signing.on) closeSigning({ keep: false, refocus: false });
   const want = Math.max(0, Math.min(LAST_STEP, i));
   state.step = force ? want : Math.min(want, furthestStep());
   if (state.step === LAST_STEP) buildReview();
@@ -547,16 +547,17 @@ function render() {
   const sigImage = state.signature?.kind === 'image';
   $('sig').classList.toggle('sig-invalid', !!shown('signature'));
   $('sig-hint').hidden = hasInk(state.signature);
-  $('f-signature').hidden = sigImage;
+  $('f-signature').style.visibility = sigImage ? 'hidden' : '';   // keeps the box its height
   $('sig-image').hidden = !sigImage;
   if (sigImage && $('sig-image').dataset.for !== state.signature.fileName) {
     $('sig-image').src = state.signature.mask.toDataURL('image/png');
     $('sig-image').dataset.for = state.signature.fileName ?? 'scan';
   }
   $('sig-help').textContent = sigImage
-    ? `Scanned: ${state.signature.fileName ?? 'signature'}. Clear to sign on screen instead.`
+    ? `Scanned: ${state.signature.fileName ?? 'signature'}. Press Ctrl + D to sign on screen instead.`
     : 'It prints in white on the card.';
   $('btn-clear-sig').disabled = !hasInk(state.signature);
+  renderSignGuide();
   $('sig-msg').hidden = !shown('signature');
   $('sig-msg').textContent = shown('signature');
 
@@ -848,79 +849,180 @@ $('btn-copy-prompt').addEventListener('click', async () => {
   catch { $('photo-prompt').focus(); $('photo-prompt').select(); $('copy-status').textContent = 'Selected. Press Ctrl+C or ⌘C to copy.'; }
 });
 
-// signature pad
+// The pad on the step shows the signature; signing itself happens on the
+// signing board (below), so the pad takes no strokes of its own.
 const pad = createSignaturePad($('f-signature'), (sig) => {
   state.example = false; touch('signature'); state.signature = sig; state.side = 'front'; render();
+}, { input: false });
+
+/* ---- signing mode ------------------------------------------------
+   A pen tablet is mapped to the whole screen, so the small pad on the
+   step was a few centimetres of the tablet, and the pen's cursor — which
+   Windows moves itself, ignoring any hold on the mouse — wandered off it
+   and clicked whatever was there. So signing has a mode of its own:
+
+     start   Ctrl+D, or Enter with nothing signed yet, or a click on the
+             pad or on "Start signing"
+     sign    the signing board fills the window and takes the pen from
+             anywhere on it; points past its edge are pinned to the edge,
+             the system cursor is hidden and a dot that cannot leave the
+             board shows where the pen is. In the desktop app the mouse
+             is also held on the board (ClipCursor), and the window fills
+             the screen, because a pen ignores that hold: with nothing
+             else on screen, a pen tap cannot land on another program.
+             Nothing behind the board can be clicked.
+     Enter      keep it and go on to Check
+     Ctrl+Z     undo the last stroke (or the Clear)
+     Backspace  clear and start again
+     Esc        cancel: the signature from before stays
+   The same four are buttons under the board, for a tablet PC with the
+   keyboard taken off. The board opens empty every time: signing again
+   replaces the signature rather than drawing over it.
+   The cursor is let go when the mode ends, when the window loses focus
+   and when the app closes (app/src-tauri/src/desktop.rs).
+   ------------------------------------------------------------------ */
+
+const board = createSignaturePad($('sign-board-canvas'), (sig) => renderBoardStatus(sig), {
+  surface: $('sign-sheet'), clamp: true, cursor: $('sign-cursor'),
 });
+
+function renderBoardStatus(sig, { warn = '', note = '' } = {}) {
+  const strokes = sig?.strokes?.length || 0;
+  $('sign-board-hint').hidden = strokes > 0;
+  $('sheet-keep').disabled = !strokes;
+  $('sheet-clear').disabled = !strokes;
+  $('sheet-undo').disabled = !board.canUndo();
+  const el = $('sign-sheet-status');
+  el.dataset.tone = warn ? 'warn' : '';
+  el.textContent = warn || note
+    || (strokes ? `${strokes} stroke${strokes === 1 ? '' : 's'}. Press Enter to keep it, or keep signing.` : 'Waiting for the pen… sign anywhere in the box.');
+}
+
+const GUIDE_LAST = {
+  unsigned: 'Press <kbd>Enter</kbd> to keep it and go to Check. <kbd>Esc</kbd> cancels.',
+  signed: 'Signed. Press <kbd>Enter</kbd> to go on to Check, or <kbd>Ctrl</kbd> + <kbd>D</kbd> to sign again.',
+};
+
+function renderSignGuide() {
+  const signed = hasInk(state.signature);
+  const scanned = state.signature?.kind === 'image';
+  const states = !signed ? ['active', '', ''] : scanned ? ['', '', 'active'] : ['done', 'done', 'active'];
+  [...$('sign-guide').children].forEach((li, i) => {
+    li.dataset.state = states[i];
+    li.querySelector('.sign-guide-n').textContent = states[i] === 'done' ? '✓' : String(i + 1);
+  });
+  const last = signed ? GUIDE_LAST.signed : GUIDE_LAST.unsigned;
+  if ($('sign-guide-3').innerHTML !== last) $('sign-guide-3').innerHTML = last;
+  $('btn-sign-text').textContent = signed ? 'Sign again' : 'Start signing';
+  $('sig-pad').setAttribute('aria-label', signed
+    ? 'Signature, signed. Press Control D, or click here, to sign again.'
+    : 'Signature, not signed yet. Press Control D, or click here, to sign.');
+}
+
+function openSigning() {
+  if (signing.on || state.step !== SIGN_STEP) return;
+  signing.on = true;
+  document.body.classList.add('signing');
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+  $('sign-sheet-who').textContent = printedName().trim() || 'the new hire';
+  $('sign-sheet').hidden = false;
+  board.setValue(null);                 // a fresh board: Esc keeps the signature there was
+  renderBoardStatus(null);
+  // A pen tablet covers every screen unless told otherwise, and full screen
+  // covers only this one.
+  $('sign-sheet-note').hidden = !(Desktop.available && window.screen.isExtended && (pens.tablets.length || pens.seen));
+  $('sign-cursor').hidden = true;
+  $('sign-sheet').focus({ preventScroll: true });
+  // the window fills the screen first; "resize" below then holds the
+  // cursor on the board where it ends up
+  Desktop.fullScreen(true).then(holdOnBoard);
+}
+
+function closeSigning({ keep, refocus = true }) {
+  if (!signing.on) return;
+  if (keep) {
+    // kept in the board's own pixels; the card and the pad each fit it
+    state.signature = board.value();
+    state.example = false; touch('signature'); state.side = 'front';
+    pad.setValue(state.signature);
+  }
+  signing.on = false;
+  $('sign-sheet').hidden = true;
+  document.body.classList.remove('signing');
+  Desktop.holdCursor(null);
+  Desktop.fullScreen(false);
+  render();
+  // for the keyboard: on Next once signed (Enter moves on), else on Start signing
+  if (refocus && state.step === SIGN_STEP) $(hasInk(state.signature) ? 'btn-next' : 'btn-sign').focus({ preventScroll: true });
+}
+
+function keepSigning() {
+  if (!board.value()) { renderBoardStatus(null, { warn: 'Nothing signed yet. Sign in the box, or press Esc to cancel.' }); return; }
+  closeSigning({ keep: true });
+  nextStep();
+}
+function clearBoard() {
+  if (!board.value()) return;
+  board.clear();
+  renderBoardStatus(null, { note: 'Cleared. Press Ctrl + Z to bring it back.' });
+}
+
 function clearSignature() {
   if (state.signature?.kind === 'image') { state.signature = null; touch('signature'); render(); }
   pad.clear();
 }
 $('btn-clear-sig').addEventListener('click', clearSignature);
-
-/* ---- signing: the pointer stays on the pad ------------------------
-   Putting a pen or the mouse down on the pad starts signing. Until it
-   ends, only the pad answers the pointer — a pen drifting over Next or
-   the step bar cannot click it — and in the desktop app the mouse cursor
-   cannot leave the pad at all. The keyboard ends it:
-     Enter      finished: move on to Check
-     Backspace  start the signature again
-     Esc        stop, and stay on this step
-   The cursor is let go whenever signing ends, the window loses focus,
-   or the app closes (app/src-tauri/src/desktop.rs).
-   ------------------------------------------------------------------ */
-
-function renderSignKeys() {
-  $('sign-keys').innerHTML = signing.on
-    ? 'Signing. Press <kbd>Enter</kbd> when finished · <kbd>Backspace</kbd> to start again · <kbd>Esc</kbd> to stop.'
-    : 'Touch the pad to start. While you sign, the pointer stays on the pad; press <kbd>Enter</kbd> when finished.';
-}
-
-function startSigning() {
-  if (signing.on || state.step !== SIGN_STEP) return;
-  signing.on = true;
-  document.body.classList.add('signing');
-  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
-  renderSignKeys();
-  Desktop.holdCursor($('f-signature'));
-}
-
-function stopSigning() {
-  if (!signing.on) return;
-  signing.on = false;
-  document.body.classList.remove('signing');
-  renderSignKeys();
-  Desktop.holdCursor(null);
-}
-
-$('f-signature').addEventListener('pointerdown', (e) => {
-  if (e.pointerType !== 'mouse' || e.button === 0) startSigning();
+$('btn-sign').addEventListener('click', openSigning);
+$('sheet-keep').addEventListener('click', keepSigning);
+$('sheet-undo').addEventListener('click', () => board.undo());
+$('sheet-clear').addEventListener('click', clearBoard);
+$('sheet-cancel').addEventListener('click', () => closeSigning({ keep: false }));
+$('sig-pad').addEventListener('click', openSigning);
+$('sig-pad').addEventListener('keydown', (e) => {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); openSigning(); }
 });
 
-// Clicks anywhere but the pad do nothing while signing. The stylesheet
-// already makes the page ignore the pointer; this catches the rest.
-for (const type of ['pointerdown', 'mousedown', 'click', 'dblclick', 'auxclick', 'contextmenu']) {
-  window.addEventListener(type, (e) => {
-    if (!signing.on || e.target.closest?.('.sig-pad')) return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-  }, true);
-}
-window.addEventListener('wheel', (e) => { if (signing.on) e.preventDefault(); }, { passive: false, capture: true });
-
-// Before every other key handler: while signing, only these keys count.
+// While signing, these keys and no others — before any other handler.
 window.addEventListener('keydown', (e) => {
   if (!signing.on) return;
   e.preventDefault();
   e.stopImmediatePropagation();
-  if (e.key === 'Enter') { stopSigning(); nextStep(); }
-  else if (e.key === 'Escape') stopSigning();
-  else if (e.key === 'Backspace' || e.key === 'Delete') clearSignature();
+  const ctrl = e.ctrlKey || e.metaKey;
+  if (e.key === 'Enter') keepSigning();
+  else if (e.key === 'Escape') closeSigning({ keep: false });
+  else if (e.key === 'Backspace' || e.key === 'Delete') clearBoard();
+  else if (ctrl && (e.code === 'KeyZ' || e.key.toLowerCase() === 'z')) board.undo();
 }, true);
 
-// The window gives the cursor back when it loses focus; take it again on return.
-window.addEventListener('focus', () => { if (signing.on) Desktop.holdCursor($('f-signature')); });
-window.addEventListener('resize', () => { if (signing.on) Desktop.holdCursor($('f-signature')); });
+// On the signature step: Ctrl+D starts signing from anywhere, and so does
+// Enter while nothing is signed. Once it is signed, Enter moves on.
+window.addEventListener('keydown', (e) => {
+  if (signing.on || state.step !== SIGN_STEP) return;
+  const t = e.target;
+  const typing = t.closest?.('input, textarea, select, [contenteditable="true"]');
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.code === 'KeyD' || e.key.toLowerCase() === 'd')) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    openSigning();
+  } else if (e.key === 'Enter' && !typing && !t.closest?.('a, label')) {
+    const signed = hasInk(state.signature);
+    const onSign = t === $('btn-sign') || t === $('sig-pad');
+    if (signed && !onSign && t.tagName !== 'BUTTON') { e.preventDefault(); e.stopImmediatePropagation(); nextStep(); }
+    else if (!signed && t.tagName !== 'BUTTON') { e.preventDefault(); e.stopImmediatePropagation(); openSigning(); }
+    // a button (Sign again, Next, Clear…) does what it says
+  }
+}, true);
+
+window.addEventListener('wheel', (e) => { if (signing.on) e.preventDefault(); }, { passive: false, capture: true });
+window.addEventListener('contextmenu', (e) => { if (signing.on) e.preventDefault(); }, true);
+
+// The window lets the mouse go when it loses focus; hold it again on return,
+// and again whenever the board moves or grows (going full screen does both,
+// in more than one step).
+const holdOnBoard = () => { if (signing.on) Desktop.holdCursor($('sign-board')); };
+window.addEventListener('focus', holdOnBoard);
+window.addEventListener('resize', holdOnBoard);
+new ResizeObserver(holdOnBoard).observe($('sign-board'));
 
 /* ---- is there a pen tablet? ---------------------------------------
    The desktop app asks Windows for the pens it has registered, and asks
@@ -935,12 +1037,15 @@ const pens = { tablets: [], seen: false };
 function renderPenStatus() {
   const found = pens.tablets.length > 0 || pens.seen;
   const name = (pens.tablets.find((t) => !t.built_in) || pens.tablets[0])?.name;
-  $('pen-status').dataset.state = found ? 'found' : 'none';
-  $('pen-status-text').textContent = found
+  const text = found
     ? `Pen tablet detected${name ? ` · ${name}` : ''}`
     : Desktop.available
       ? 'No pen tablet detected · sign with the mouse'
-      : 'No pen tablet detected yet · touch the pad with the pen to check';
+      : 'No pen tablet detected yet · move the pen over the tablet to check';
+  for (const [box, label] of [['pen-status', 'pen-status-text'], ['sheet-pen-status', 'sheet-pen-text']]) {
+    $(box).dataset.state = found ? 'found' : 'none';
+    $(label).textContent = text;
+  }
 }
 
 async function refreshPens() {
@@ -1866,7 +1971,7 @@ $('btn-update').addEventListener('click', () => (update.state === 'available' ? 
 new ResizeObserver(drawPreview).observe(previewBox);
 
 $('app-version').textContent = `${APP_NAME} ${APP_VERSION}`;
-renderSignKeys();
+renderSignGuide();
 renderPenStatus();
 refreshPens();
 renderUpdate();
