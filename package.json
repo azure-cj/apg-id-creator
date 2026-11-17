@@ -1,6 +1,6 @@
 {
   "name": "alpha-premier-id-maker",
-  "version": "1.20.0",
+  "version": "1.21.0",
   "private": true,
   "description": "Employee ID card maker for Alpha Premier Group of Companies — single-file offline web app",
   "type": "module",
@@ -14,7 +14,8 @@
     "test:steps": "node test/steps.mjs",
     "test:duplicate": "node test/duplicate.mjs",
     "test:photo": "node test/photo.mjs",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "test:signing": "node test/signing.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.24.2",

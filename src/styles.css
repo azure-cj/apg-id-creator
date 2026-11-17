@@ -13,6 +13,7 @@
   --on-gold: #141412;
   --focus: #2f6fd6;
   --danger: #b3261e;
+  --ok: #2e7d32;
   --field: #fff;
   --font-display: "Plus Jakarta Sans", "Montserrat", "Segoe UI", system-ui, sans-serif;
   --font-body: "Plus Jakarta Sans", "Source Sans 3", "Segoe UI", system-ui, sans-serif;
@@ -23,13 +24,13 @@
   :root:not([data-theme="light"]) {
     --bg: #141412; --surface: #1c1b19; --ink: #ece8de; --muted: #a39e92; --line: #2e2c28;
     --tray: #000; --tray-ink: #e0e0e0; --gold: #d4af37; --gold-strong: #d4af37; --on-gold: #141412;
-    --focus: #79a8ff; --danger: #ff8a80; --field: #141412; color-scheme: dark;
+    --focus: #79a8ff; --danger: #ff8a80; --ok: #81c784; --field: #141412; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #141412; --surface: #1c1b19; --ink: #ece8de; --muted: #a39e92; --line: #2e2c28;
   --tray: #000; --tray-ink: #e0e0e0; --gold: #d4af37; --gold-strong: #d4af37; --on-gold: #141412;
-  --focus: #79a8ff; --danger: #ff8a80; --field: #141412; color-scheme: dark;
+  --focus: #79a8ff; --danger: #ff8a80; --ok: #81c784; --field: #141412; color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -408,6 +409,22 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .batch-report strong { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500; }
 
 .colophon { color: var(--muted); font-size: 0.8rem; font-family: var(--font-mono); text-align: center; }
+.linklike { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.linklike:disabled { text-decoration: none; cursor: default; }
+.update[data-state="available"] #btn-update { color: var(--gold); font-weight: 700; }
+.update[data-state="error"] #update-status { color: var(--danger); }
+
+/* ---- pen tablet, and signing with the pointer held on the pad ---- */
+.pen-status { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--muted); font-size: 0.85rem; }
+.pen-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); box-shadow: 0 0 0 1px var(--muted) inset; }
+.pen-status[data-state="found"] { color: var(--ink); }
+.pen-status[data-state="found"] .pen-dot { background: var(--ok); box-shadow: none; }
+.sign-keys { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.sign-keys kbd { padding: 0 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; font: 500 0.8rem var(--font-mono); color: var(--ink); background: var(--surface); }
+/* While signing, nothing but the pad answers the pointer: Enter finishes. */
+body.signing { pointer-events: none; }
+body.signing .sig-pad { pointer-events: auto; border-color: var(--gold-strong); box-shadow: 0 0 0 3px var(--gold-strong); }
+body.signing .sign-keys { color: var(--ink); font-weight: 600; }
 
 /* ---- the sheet preview, in the stage ---- */
 .sheet-box { display: grid; justify-items: center; gap: 8px; margin: 0; width: 100%; }

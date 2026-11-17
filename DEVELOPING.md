@@ -269,7 +269,7 @@ the template artwork, and `npm test` fails if a single pixel of it moves.
 
 ## Shipping it
 
-The app ships in a **Tauri** window (`app/`): 79 lines of Rust, rendering
+The app ships in a **Tauri** window (`app/`): a small Rust program, rendering
 in **WebView2** — Microsoft Edge's engine — so the printed card is what
 `npm test` checks. `npm run build` in `app/` produces an NSIS installer
 (`app/src-tauri/target/release/bundle/nsis/`) that installs for the

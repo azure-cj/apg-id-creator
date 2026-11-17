@@ -338,12 +338,16 @@
             <h3 class="step-h" id="step-sign-h">Their signature</h3>
 <div class="field">
             <div class="sig" id="sig">
+              <p class="pen-status" id="pen-status" data-state="none" role="status" aria-live="polite">
+                <span class="pen-dot" aria-hidden="true"></span><span id="pen-status-text">No pen tablet detected</span>
+              </p>
               <div class="sig-pad">
                 <canvas id="f-signature" aria-label="Signature pad. Draw the signature with a finger, pen or mouse."></canvas>
                 <img id="sig-image" class="sig-image" alt="Scanned signature" hidden />
                 <span class="sig-hint" id="sig-hint" aria-hidden="true">Sign here</span>
                 <span class="sig-line" aria-hidden="true"></span>
               </div>
+              <p class="sign-keys" id="sign-keys" aria-live="polite"></p>
               <div class="sig-actions">
                 <button type="button" id="btn-clear-sig" class="ghost" disabled>Clear</button>
                 <input id="f-sig-image" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" class="visually-hidden" />
@@ -418,7 +422,13 @@
       </aside>
     </main>
 
-    <footer class="colophon"><span id="app-version"></span></footer>
+    <footer class="colophon">
+      <span id="app-version"></span>
+      <span class="update" id="update" data-state="idle" hidden>
+        · <button type="button" id="btn-update" class="linklike">Check for updates</button>
+        <span id="update-status" role="status" aria-live="polite"></span>
+      </span>
+    </footer>
   </div>
 
   <script src="vendor/qrcode-generator.js"></script>
@@ -436,6 +446,7 @@
   <script src="photo.ts"></script>
   <script src="pdf.ts"></script>
   <script src="batch.ts"></script>
+  <script src="desktop.ts"></script>
   <script src="app.js"></script>
 </body>
 </html>

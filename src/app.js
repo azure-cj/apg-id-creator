@@ -42,6 +42,11 @@ const STEPS = [
   { id: 'check',  label: 'Check',     fields: [] },
 ];
 const LAST_STEP = STEPS.length - 1;
+const SIGN_STEP = STEPS.findIndex((s) => s.id === 'sign');
+
+// Signing holds the pointer on the pad and turns clicks elsewhere off
+// until Enter (finish) or Esc (stop) — see "signing" below.
+const signing = { on: false };
 
 const state = {
   templates: null,
@@ -282,6 +287,7 @@ function furthestStep(p = problems()) {
  * already queued. Everything else is capped.
  */
 function goStep(i, { focus = true, force = false } = {}) {
+  if (signing.on) stopSigning();
   const want = Math.max(0, Math.min(LAST_STEP, i));
   state.step = force ? want : Math.min(want, furthestStep());
   if (state.step === LAST_STEP) buildReview();
@@ -846,10 +852,110 @@ $('btn-copy-prompt').addEventListener('click', async () => {
 const pad = createSignaturePad($('f-signature'), (sig) => {
   state.example = false; touch('signature'); state.signature = sig; state.side = 'front'; render();
 });
-$('btn-clear-sig').addEventListener('click', () => {
+function clearSignature() {
   if (state.signature?.kind === 'image') { state.signature = null; touch('signature'); render(); }
   pad.clear();
+}
+$('btn-clear-sig').addEventListener('click', clearSignature);
+
+/* ---- signing: the pointer stays on the pad ------------------------
+   Putting a pen or the mouse down on the pad starts signing. Until it
+   ends, only the pad answers the pointer — a pen drifting over Next or
+   the step bar cannot click it — and in the desktop app the mouse cursor
+   cannot leave the pad at all. The keyboard ends it:
+     Enter      finished: move on to Check
+     Backspace  start the signature again
+     Esc        stop, and stay on this step
+   The cursor is let go whenever signing ends, the window loses focus,
+   or the app closes (app/src-tauri/src/desktop.rs).
+   ------------------------------------------------------------------ */
+
+function renderSignKeys() {
+  $('sign-keys').innerHTML = signing.on
+    ? 'Signing. Press <kbd>Enter</kbd> when finished · <kbd>Backspace</kbd> to start again · <kbd>Esc</kbd> to stop.'
+    : 'Touch the pad to start. While you sign, the pointer stays on the pad; press <kbd>Enter</kbd> when finished.';
+}
+
+function startSigning() {
+  if (signing.on || state.step !== SIGN_STEP) return;
+  signing.on = true;
+  document.body.classList.add('signing');
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+  renderSignKeys();
+  Desktop.holdCursor($('f-signature'));
+}
+
+function stopSigning() {
+  if (!signing.on) return;
+  signing.on = false;
+  document.body.classList.remove('signing');
+  renderSignKeys();
+  Desktop.holdCursor(null);
+}
+
+$('f-signature').addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'mouse' || e.button === 0) startSigning();
 });
+
+// Clicks anywhere but the pad do nothing while signing. The stylesheet
+// already makes the page ignore the pointer; this catches the rest.
+for (const type of ['pointerdown', 'mousedown', 'click', 'dblclick', 'auxclick', 'contextmenu']) {
+  window.addEventListener(type, (e) => {
+    if (!signing.on || e.target.closest?.('.sig-pad')) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }, true);
+}
+window.addEventListener('wheel', (e) => { if (signing.on) e.preventDefault(); }, { passive: false, capture: true });
+
+// Before every other key handler: while signing, only these keys count.
+window.addEventListener('keydown', (e) => {
+  if (!signing.on) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  if (e.key === 'Enter') { stopSigning(); nextStep(); }
+  else if (e.key === 'Escape') stopSigning();
+  else if (e.key === 'Backspace' || e.key === 'Delete') clearSignature();
+}, true);
+
+// The window gives the cursor back when it loses focus; take it again on return.
+window.addEventListener('focus', () => { if (signing.on) Desktop.holdCursor($('f-signature')); });
+window.addEventListener('resize', () => { if (signing.on) Desktop.holdCursor($('f-signature')); });
+
+/* ---- is there a pen tablet? ---------------------------------------
+   The desktop app asks Windows for the pens it has registered, and asks
+   again every few seconds while the signature step is open, so plugging
+   one in shows up without a restart. A browser cannot ask; there, and
+   for a tablet whose driver poses as a mouse, the first pen stroke or
+   hover over the page counts too.
+   ------------------------------------------------------------------ */
+
+const pens = { tablets: [], seen: false };
+
+function renderPenStatus() {
+  const found = pens.tablets.length > 0 || pens.seen;
+  const name = (pens.tablets.find((t) => !t.built_in) || pens.tablets[0])?.name;
+  $('pen-status').dataset.state = found ? 'found' : 'none';
+  $('pen-status-text').textContent = found
+    ? `Pen tablet detected${name ? ` · ${name}` : ''}`
+    : Desktop.available
+      ? 'No pen tablet detected · sign with the mouse'
+      : 'No pen tablet detected yet · touch the pad with the pen to check';
+}
+
+async function refreshPens() {
+  const before = pens.tablets.map((t) => t.name).join('|');
+  pens.tablets = await Desktop.penTablets();
+  if (pens.tablets.map((t) => t.name).join('|') !== before) renderPenStatus();
+}
+
+window.addEventListener('pointerover', (e) => {
+  if (e.pointerType === 'pen' && !pens.seen) { pens.seen = true; renderPenStatus(); }
+}, { passive: true, capture: true });
+
+if (Desktop.available) {
+  setInterval(() => { if (state.step === SIGN_STEP && !document.hidden) refreshPens(); }, 3000);
+}
 $('f-sig-image').addEventListener('change', async (e) => {
   const file = e.target.files?.[0];
   e.target.value = '';
@@ -1690,11 +1796,82 @@ $('btn-tpl-defaults').addEventListener('click', () => { TemplateStore.resetBoxes
 $('btn-tpl-reset').addEventListener('click', resetDesign);
 for (const id of ['f-tpl-front', 'f-tpl-back']) $(id).addEventListener('change', render);
 
+/* ---- updates (desktop app only) -----------------------------------
+   The desktop app looks for a newer release on GitHub once at start-up
+   and whenever "Check for updates" is pressed. Installing closes the app
+   and opens the new version, so a card in progress is asked about first.
+   Releases are signed; the app refuses an installer that is not.
+   ------------------------------------------------------------------ */
+
+const update = { state: 'idle', info: null, error: '', percent: 0 };
+
+function renderUpdate() {
+  const box = $('update');
+  box.hidden = !Desktop.available;
+  if (!Desktop.available) return;
+  box.dataset.state = update.state;
+  const btn = $('btn-update'), status = $('update-status');
+  btn.disabled = update.state === 'checking' || update.state === 'installing';
+  const v = update.info?.version;
+  btn.textContent = {
+    idle: 'Check for updates',
+    checking: 'Checking for updates…',
+    current: 'Check for updates',
+    available: `Install version ${v} and restart`,
+    installing: `Installing version ${v}… ${update.percent}%`,
+    error: 'Check for updates',
+  }[update.state];
+  status.textContent = {
+    idle: '',
+    checking: '',
+    current: 'Up to date.',
+    available: `Version ${v} is available.`,
+    installing: 'The app will close and reopen.',
+    error: update.error,
+  }[update.state];
+}
+
+async function checkForUpdate({ quiet = false } = {}) {
+  if (update.state === 'checking' || update.state === 'installing') return;
+  update.state = 'checking'; renderUpdate();
+  try {
+    update.info = await Desktop.checkUpdate();
+    update.state = update.info ? 'available' : 'current';
+  } catch (err) {
+    update.state = quiet ? 'idle' : 'error';
+    update.error = 'Could not reach GitHub to check. Check the internet connection and try again.';
+    console.warn('update check failed:', err);
+  }
+  renderUpdate();
+}
+
+async function installUpdate() {
+  if (startedCard() || state.queue.length) {
+    if (!confirm(`Install version ${update.info.version} now? The app will close and reopen, and the ID you are working on will be lost. Download it first if you need it.`)) return;
+  }
+  update.state = 'installing'; update.percent = 0; renderUpdate();
+  try {
+    await Desktop.installUpdate((p) => { update.percent = p; renderUpdate(); });
+  } catch (err) {
+    update.state = 'error';
+    update.error = `The update could not be installed: ${String(err)}`;
+    renderUpdate();
+  }
+}
+
+$('btn-update').addEventListener('click', () => (update.state === 'available' ? installUpdate() : checkForUpdate()));
+
 /* ---- boot -------------------------------------------------------- */
 
 new ResizeObserver(drawPreview).observe(previewBox);
 
 $('app-version').textContent = `${APP_NAME} ${APP_VERSION}`;
+renderSignKeys();
+renderPenStatus();
+refreshPens();
+renderUpdate();
+// look once at start-up, quietly: no network is not worth a red line
+if (Desktop.available) setTimeout(() => checkForUpdate({ quiet: true }), 4000);
 $('brand-logo').src = ASSETS.logo;
 buildPrintControls();
 const restored = restoreDraft();

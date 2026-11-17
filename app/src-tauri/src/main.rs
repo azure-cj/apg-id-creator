@@ -11,8 +11,10 @@
 //! C#. On Windows, Tauri renders in WebView2 too, so the engine under
 //! the card has not changed — only the window around it.
 
+mod desktop;
+
 use tauri::webview::{DownloadEvent, WebviewWindowBuilder};
-use tauri::{Url, WebviewUrl};
+use tauri::{RunEvent, Url, WebviewUrl, WindowEvent};
 use tauri_plugin_opener::OpenerExt;
 
 /// Is this somewhere the app window is allowed to go?
@@ -36,6 +38,20 @@ fn is_ours(url: &Url) -> bool {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .invoke_handler(tauri::generate_handler![
+            desktop::check_update,
+            desktop::install_update,
+            desktop::pen_tablets,
+            desktop::clip_cursor,
+        ])
+        // The cursor is everybody's: never keep it held once this window
+        // is not the one being used.
+        .on_window_event(|_window, event| {
+            if matches!(event, WindowEvent::Focused(false) | WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed) {
+                desktop::release_cursor();
+            }
+        })
         .setup(|app| {
             let for_links = app.handle().clone();
             let for_saves = app.handle().clone();
@@ -74,6 +90,11 @@ fn main() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("the ID Maker window could not be created");
+        .build(tauri::generate_context!())
+        .expect("the ID Maker window could not be created")
+        .run(|_app, event| {
+            if matches!(event, RunEvent::Exit | RunEvent::ExitRequested { .. }) {
+                desktop::release_cursor();
+            }
+        });
 }

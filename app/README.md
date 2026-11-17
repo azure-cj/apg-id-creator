@@ -42,37 +42,70 @@ Node is already installed — it is what builds the HTML file.
 
 ---
 
-## Building it
+## Building a release
 
-From the folder above this one, build the app itself first, then the
-window around it:
+Releases are **signed**, so installed copies can update themselves and
+refuse anything that is not genuinely from us. Once, on the machine that
+builds releases, make the signing key (it asks for a password; choose
+one and keep it):
 
 ```
-node build.mjs
 cd app
 npm install
-npm run build
+npx tauri signer generate -w "%USERPROFILE%\.tauri\apg-id-maker.key"
 ```
 
-`npm install` is only needed the first time, and the first `npm run build`
-is slow — Rust compiles Tauri from source, which takes several minutes.
-Later builds take seconds.
+It prints a **public key**. That goes in `src-tauri/tauri.conf.json`
+under `plugins.updater.pubkey`. The private key and its password stay
+on this machine — **back both up somewhere else**. Lose them and every
+installed copy has to be reinstalled by hand.
 
-The installer comes out at:
+Then, for every release (set the password in the same terminal first):
 
 ```
-app\src-tauri\target\release\bundle\nsis\Alpha Premier ID Maker_1.17.0_x64-setup.exe
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<the key's password>"
+npm run release
 ```
 
-That one file is what HR runs. It installs for the current user only, so
-it never asks for an administrator password, and it puts the app in the
-Start menu.
+`npm run release` builds the app, builds and signs the installer, and
+leaves two files in `app\release\`:
 
-To run it without building an installer:
+| File | What it is |
+| --- | --- |
+| `Alpha.Premier.ID.Maker_<version>_x64-setup.exe` | The installer HR runs |
+| `latest.json` | What installed copies read to learn there is a new version |
+
+Publish both on GitHub as a release tagged `v<version>`, **not** ticked as
+a pre-release. Installed copies look at the repository's *Latest*
+release when they start, and when "Check for updates" is pressed at the
+bottom of the window.
+
+The first `npm run release` is slow — Rust compiles Tauri from source,
+which takes several minutes. Later builds take seconds. Plain
+`npm run build` no longer works on its own: the build signs the
+installer, so it needs the key that `npm run release` passes it.
+
+To run the window without building an installer:
 
 ```
 npm run dev
 ```
+
+---
+
+## Updates
+
+At start-up the window asks GitHub for
+`releases/latest/download/latest.json`. If it names a newer version,
+the footer says so and offers **Install version … and restart**.
+Installing downloads the installer, checks its signature against the
+public key built into the app, and runs it without questions
+(`installMode: passive`). The app closes and the new version opens; the
+issued-ID list, printer setting and card design are kept. A card in
+progress is asked about first.
+
+Offline, the start-up check says nothing. Pressing **Check for updates**
+offline says it could not reach GitHub.
 
 ---
 
@@ -116,8 +149,10 @@ What this does and does not cost:
 
 | Path | What it is |
 | --- | --- |
-| `src-tauri/src/main.rs` | The whole window: 79 lines. |
-| `src-tauri/tauri.conf.json` | Window size, icon, installer settings. Keep `version` in step with `APP_VERSION` in `src/config.js`. |
+| `src-tauri/src/main.rs` | The window: where the app may navigate, where downloads go, and letting the cursor go on focus loss and exit. |
+| `src-tauri/src/desktop.rs` | What the page can ask of the window: update check and install, the list of pen tablets, holding the cursor in the signature pad. |
+| `release.mjs` | `npm run release`: the signed installer and `latest.json`. |
+| `src-tauri/tauri.conf.json` | Window size, icon, installer settings. Keep `version` in step with `APP_VERSION` in `src/config.ts` (`npm run release` refuses if they differ). `plugins.updater` holds the update address and the public key. |
 | `src-tauri/Cargo.toml` | Rust dependencies. Also carries a version to keep in step. |
 | `sync-web.mjs` | Copies the built HTML into `web/index.html`. Runs automatically before every dev run and build, so the window can never show a stale copy. |
 | `web/` | That copy. Generated, not committed. |
