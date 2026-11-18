@@ -36,6 +36,7 @@ and does not do is in **PHOTO-SPEC.md**.
 | `test/steps.mjs` | `npm run test:steps` — walks every way forward through the six steps and checks none of them opens a step over an unfinished one, that a refusal names the step and the reason, and that the cursor lands on the field the step is about. |
 | `test/duplicate.mjs` | `npm run test:duplicate` — stubs the register and checks the four answers it can give: taken refuses and names who has it, free opens with no network call, not-yet-known refuses and says it is asking, unreachable warns but lets work carry on. |
 | `test/photo.mjs` | `npm run test:photo` — drawn silhouettes, including one with a spike of hair, checking the head is measured and scaled to `headWidth` whatever the outline does, that a closely cropped photo is not enlarged without limit, and that the built-in example still places exactly where the golden card expects. |
+| `test/photo-adjust.mjs` | `npm run test:photo-adjust` — moving the photo on the card: drag, scroll, double-click, Reset and the keys work on the Photo step, and on every other step (and the back) a drag or scroll leaves the photo alone. |
 | `package.json` | `npm run build`, `npm test`, `npm run dev`. |
 
 ## How the app is built
@@ -111,7 +112,7 @@ Common edits:
 | Stop capitalising names typed in lower case | `CONFIG.name.autoCapitalise` → `false` |
 | Add or remove the job titles everyone sees | `CONFIG.titles.list` |
 | How two roles are merged on the card | `CONFIG.titles.mergeJoiner` / `pairJoiner` |
-| Change where the photo sits or how big the head is | `CONFIG.photo` — `headTop`, `headCenterX`, `headWidth`, `reachY`; manual-adjust limits `nudgeStepMm`, `zoomMin/Max` |
+| Change where the photo sits or how big the head is | `CONFIG.photo` — `headTop`, `headCenterX`, `headWidth`, `reachY`; limits for moving it on the card: `nudgeStepMm` (an arrow key), `zoomMin/Max`, `zoomStep` |
 | Change the QR link | `CONFIG.qr.content` |
 | Move a zone, just for this computer | Nothing here: **Card design → Show the map** in the tool rail. It edits the built-in card's zones as readily as uploaded artwork's |
 | New card artwork, just for this computer | Nothing here: **Card design → Use different artwork** takes the two PNGs. See `TEMPLATE-SPEC.md` |

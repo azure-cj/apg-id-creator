@@ -56,8 +56,11 @@ produce one for you.
 > Use the **company account**, never your own personal one.
 
 Upload the result. The app cuts out the person and places them on the
-card. If something is wrong — too blurry, or clothing the same colour as
-the background — it tells you and asks for a different photo.
+card. If something is wrong — no plain background, clothing the same
+colour as the background, or the head cut off — it tells you and asks for
+a different photo. A blurry or small photo is let through with a warning.
+To move or resize the photo, drag it or scroll over it on the card while
+on the Photo step.
 
 **5. Signature** — the new hire signs in the box with the mouse, or you
 upload a photo of their signature on white paper.
@@ -145,7 +148,8 @@ lets you carry on — it still checks against this computer.
 
 **It says the photo is no good.** Common reasons: the background is not
 plain green, the person is wearing something the same colour as the
-background, or the photo is blurry. Take or request another one.
+background, or the top of the head is cut off. Take or request another
+one. (A blurry photo is only warned about, never refused.)
 
 **The back of the card prints upside down.** Click **Printer setting** on
 the left and tick *Turn the back 180°*.

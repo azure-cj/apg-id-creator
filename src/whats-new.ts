@@ -21,6 +21,7 @@ const WHATS_NEW = [
       'Signing has a mode of its own. Press Ctrl + D on the signature step and the screen becomes the signing board. Enter keeps the signature and goes on to Check, Esc cancels, Ctrl + Z undoes a stroke and Backspace clears.',
       'With a pen tablet, the pen can only draw on the board while signing. It can no longer press buttons or reach other programs.',
       'The signature step says whether a pen tablet is plugged in.',
+      'The photo is moved on the card itself, on the Photo step: drag it to move it, scroll to resize it, double-click to put it back. The "Move or resize it" panel is gone, and on the other steps a stray drag no longer moves the photo.',
       'The list on the left stays in view while the page scrolls.',
       'This page, so you can see what changed in each version.',
       'Batch from CSV has been removed.',

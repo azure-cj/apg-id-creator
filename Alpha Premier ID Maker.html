@@ -4,8 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Alpha Premier ID Maker</title>
-  
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Montserrat:wght@700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Source+Sans+3:wght@400;600&display=swap" />
   <style>
@@ -372,28 +371,59 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 }
 .guide-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 
-/* ---- photo adjustment ---- */
-.adjust { margin-top: 10px; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: none; }
-.adjust > summary { padding: 9px 12px; color: var(--gold); font: 600 0.85rem var(--font-body); cursor: pointer; list-style: none; }
-.adjust > summary::-webkit-details-marker { display: none; }
-.adjust > summary::before { content: "\25B8  "; }
-.adjust[open] > summary::before { content: "\25BE  "; }
-.adjust > *:not(summary) { margin-inline: 12px; }
-.adjust-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 10px; }
-.adjust-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.95rem; font-weight: 600; }
-.adjust-head .link:disabled { opacity: 0.5; cursor: default; }
-.adjust-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
-.adjust-pad { display: grid; grid-template-columns: repeat(3, 36px); grid-template-rows: repeat(3, 36px); gap: 4px; }
-.adjust-pad .nudge { min-height: 0; padding: 0; font-size: 1rem; }
-.adjust-pad .nudge[data-dy="-1"] { grid-column: 2; grid-row: 1; }
-.adjust-pad .nudge[data-dx="-1"] { grid-column: 1; grid-row: 2; }
-.adjust-pad .nudge[data-dx="1"]  { grid-column: 3; grid-row: 2; }
-.adjust-pad .nudge[data-dy="1"]  { grid-column: 2; grid-row: 3; }
-.adjust-zoom { display: grid; gap: 4px; flex: 1; min-width: 160px; font-size: 0.9rem; }
-.adjust-zoom output { font-family: var(--font-mono); color: var(--muted); }
-.adjust-zoom input { width: 100%; accent-color: var(--gold-strong); }
+/* ---- moving the photo on the card (the photo step only) ---- */
 .card-canvas.draggable { cursor: grab; }
 .card-canvas.dragging { cursor: grabbing; }
+.card-canvas.draggable:focus-visible { outline: 2px solid var(--gold-strong); outline-offset: 4px; }
+.card-canvas.draggable:hover:not(.dragging) { outline: 2px dashed rgb(212 175 55 / 0.75); outline-offset: 4px; }
+/* What can be done to the photo, under the card: three gestures, each an
+   icon over a word, in a gold-edged bar the eye lands on after the card. */
+.photo-tools {
+  position: relative; width: 100%; box-sizing: border-box; padding: 11px 2px 6px;
+  border: 1px solid rgb(212 175 55 / 0.55); border-radius: 12px; background: rgb(212 175 55 / 0.1);
+  color: var(--tray-ink);
+}
+/* sits in the top border, like a legend, so it costs no height */
+.photo-tools-title {
+  position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); margin: 0; padding: 0 8px;
+  background: var(--tray); color: var(--gold-strong); font: 700 0.68rem/1.4 var(--font-body);
+  letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
+}
+.photo-tools-row { display: flex; justify-content: space-evenly; }
+.photo-tool, .photo-tool-idle, .photo-tool-on {
+  display: grid; grid-template-columns: auto auto; align-items: center; column-gap: 6px;
+  font-size: 0.75rem; line-height: 1.15; text-align: left;
+}
+.photo-tool { min-width: 0; padding: 2px 6px; }
+.photo-tool + .photo-tool { border-left: 1px solid rgb(255 255 255 / 0.14); }
+.photo-tool svg { grid-row: span 2; width: 20px; height: 20px; color: var(--gold-strong); }
+.photo-tool b { color: #fff; font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+.photo-tool span:not([class]) { color: #cfcac0; white-space: nowrap; }
+/* The third gesture turns into a Reset button once the photo has moved. */
+.photo-tool-reset { margin: 0; border: 0; border-left: 1px solid rgb(255 255 255 / 0.14); border-radius: 0; background: none; color: inherit; font-family: inherit; cursor: default; }
+.photo-tool-reset:disabled .photo-tool-on, .photo-tool-reset:enabled .photo-tool-idle { display: none; }
+.photo-tool-reset:enabled { border-radius: 8px; background: rgb(212 175 55 / 0.16); box-shadow: inset 0 0 0 1px var(--gold-strong); cursor: pointer; }
+.photo-tool-reset:enabled:hover { background: rgb(212 175 55 / 0.28); }
+.photo-tool-reset:enabled b { color: var(--gold-strong); }
+.photo-tool-reset:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.photo-zoom-badge { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); padding: 6px 14px; border-radius: 999px; background: rgb(0 0 0 / 0.72); color: #fff; font: 700 1.05rem var(--font-mono); white-space: nowrap; pointer-events: none; }
+/* The first time: a hand on the card showing the drag, gone on first use. */
+.photo-coach {
+  position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%);
+  display: grid; justify-items: center; gap: 2px; width: max-content; max-width: 86%;
+  padding: 12px 16px 12px; border-radius: 14px; background: rgb(0 0 0 / 0.78);
+  box-shadow: 0 0 0 1px rgb(212 175 55 / 0.6), 0 10px 30px rgb(0 0 0 / 0.5);
+  color: #fff; font-size: 0.8rem; line-height: 1.3; text-align: center; pointer-events: none;
+  animation: coach-in 240ms ease-out;
+}
+.photo-coach strong { font-size: 0.95rem; }
+.photo-coach > span:last-child { color: #d8d3c8; }
+.photo-coach-hand { display: block; width: 34px; height: 34px; margin-bottom: 4px; color: var(--gold-strong); animation: coach-drag 1.6s ease-in-out infinite; }
+.photo-coach-hand svg { width: 100%; height: 100%; }
+.photo-coach.is-leaving { opacity: 0; transition: opacity 300ms ease; }
+@keyframes coach-in { from { opacity: 0; transform: translate(-50%, -40%); } }
+@keyframes coach-drag { 0%, 100% { transform: translateX(-16px); } 50% { transform: translateX(16px); } }
+.caption:empty { display: none; }
 
 /* ---- signature ---- */
 .sig { display: grid; gap: 6px; }
@@ -450,11 +480,22 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
 .sign-sheet-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 20px; }
 .sign-sheet-status { min-height: 1.4em; margin: 0; color: #d9d4c7; font-size: 0.95rem; }
 .sign-sheet-status[data-tone="warn"] { color: #ffb74d; font-weight: 600; }
-.sign-keys { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; padding: 0; list-style: none; color: #cfc9bb; font-size: 0.9rem; }
-.sign-keys li { display: flex; align-items: center; gap: 5px; }
+.sign-keys { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 0; padding: 0; list-style: none; color: #e4dfd3; font-size: 0.95rem; }
+.sign-keys li { display: flex; align-items: center; gap: 6px; }
 .sign-keys li[data-off] { opacity: 0.4; }
-.sign-keys li.is-primary { color: var(--gold-strong); font-weight: 700; }
-.sign-keys kbd { border-color: #ffffff33; background: #ffffff14; color: #fff; }
+.sign-keys kbd { padding: 1px 7px; border-color: #ffffff40; background: #ffffff1a; color: #fff; font-size: 0.82rem; }
+.sign-keys li.is-cancel { padding-right: 18px; border-right: 1px solid #ffffff26; }
+/* Enter, the way on: a gold pill, filled and glowing once there is
+   something to keep, outlined while the board is still empty. */
+.sign-keys li.is-primary {
+  padding: 6px 14px 6px 8px; border-radius: 999px; background: var(--gold-strong); color: var(--on-gold);
+  font-weight: 700; box-shadow: 0 0 0 1px var(--gold-strong);
+}
+.sign-keys li.is-primary kbd { border-color: #00000040; background: #141412; color: #fff; }
+.sign-keys li.is-primary:not([data-off]) { animation: keep-glow 1.6s ease-in-out 3; }
+.sign-keys li.is-primary[data-off] { opacity: 0.55; background: none; color: var(--gold-strong); }
+.sign-keys li.is-primary[data-off] kbd { border-color: #d4af3766; background: #ffffff1a; }
+@keyframes keep-glow { 50% { box-shadow: 0 0 0 1px var(--gold-strong), 0 0 0 7px rgb(212 175 55 / 0.28), 0 0 22px rgb(212 175 55 / 0.45); } }
 .sig-upload { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; cursor: pointer; }
 #f-sig-image:focus-visible + .sig-upload { outline: 2px solid var(--focus); outline-offset: 2px; }
 
@@ -773,6 +814,25 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
         <div class="card-box" id="card-box" hidden>
           <canvas class="card-canvas" id="card-canvas" role="img" aria-label="Front of the ID card"></canvas>
           <div class="tpl-overlay" id="tpl-overlay" hidden></div>
+          <span class="photo-zoom-badge" id="photo-zoom-badge" hidden aria-hidden="true"></span>
+          <!-- shown on the photo step until the photo has been moved once -->
+          <div class="photo-coach" id="photo-coach" hidden aria-hidden="true">
+            <span class="photo-coach-hand"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11m0-1.5a1.5 1.5 0 0 1 3 0V11m0-.5a1.5 1.5 0 0 1 3 0V12m0-.5a1.5 1.5 0 0 1 3 0V16a6 6 0 0 1-6 6h-1.2a6 6 0 0 1-4.8-2.4L4.4 16.6a1.6 1.6 0 0 1 2.4-2.1L8 15.8"/></g></svg></span>
+            <strong>Drag the photo to move it</strong>
+            <span>Scroll over it to make it bigger or smaller</span>
+          </div>
+        </div>
+        <!-- the photo step only: the photo is moved on the card itself -->
+        <div class="photo-tools" id="photo-tools" role="group" aria-label="Adjust the photo on the card" hidden>
+          <p class="photo-tools-title">Adjust the photo on the card</p>
+          <div class="photo-tools-row">
+            <span class="photo-tool"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></g></svg><b>Drag</b><span>to move</span></span>
+            <span class="photo-tool"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="3" width="11" height="18" rx="5.5"/><path d="M12 7v4"/></g></svg><b>Scroll</b><span>to resize</span></span>
+            <button type="button" class="photo-tool photo-tool-reset" id="btn-photo-reset" disabled>
+              <span class="photo-tool-idle"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 10l9 3.6-3.9 1.5-1.5 3.9z"/><path d="M6.5 3.5v2.2M3.5 6.5h2.2M4.3 4.3l1.5 1.5M9.6 4.4L8.5 6"/></g></svg><b>Double-click</b><span>to reset</span></span>
+              <span class="photo-tool-on"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5"/></g></svg><b>Reset</b><span>or double-click</span></span>
+            </button>
+          </div>
         </div>
         <div class="card-box card-loading" id="card-loading">Loading the card template…</div>
 
@@ -893,26 +953,6 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
                 </div>
               </div>
               <p class="msg msg-hint" id="photo-msg">A cut-out PNG, or a photo on a solid green background.</p>
-
-              <details class="adjust" id="adjust" hidden>
-                <summary>Move or resize it</summary>
-                <div class="adjust-row">
-                  <div class="adjust-pad" role="group" aria-label="Move the photo">
-                    <button type="button" class="ghost nudge" data-dx="0" data-dy="-1" aria-label="Move up">↑</button>
-                    <button type="button" class="ghost nudge" data-dx="-1" data-dy="0" aria-label="Move left">←</button>
-                    <button type="button" class="ghost nudge" data-dx="1" data-dy="0" aria-label="Move right">→</button>
-                    <button type="button" class="ghost nudge" data-dx="0" data-dy="1" aria-label="Move down">↓</button>
-                  </div>
-                  <label class="adjust-zoom">
-                    <span>Size <output id="zoom-out">100 %</output></span>
-                    <input id="f-zoom" type="range" min="70" max="150" step="5" value="100" />
-                  </label>
-                </div>
-                <div class="adjust-foot">
-                  <span class="msg">Or drag it on the card; scroll to resize.</span>
-                  <button type="button" id="btn-adjust-reset" class="link" disabled>Reset</button>
-                </div>
-              </details>
 
               <div class="guide" id="guide">
                 <button type="button" id="btn-guide" class="guide-toggle" aria-expanded="false" aria-controls="guide-body">
@@ -1060,11 +1100,13 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 0.8rem; font-weight
           <p class="sign-sheet-status" id="sign-sheet-status" role="status" aria-live="polite">Waiting for the pen…</p>
           <!-- Keys, not buttons: a pen's pointer is not held on the board the
                way the mouse is, and must find nothing to press out here. -->
+          <!-- Esc first, Enter last and lit: the way out on the left, the
+               way on at the far right where the eye ends up. -->
           <ul class="sign-keys" id="sign-keys" aria-label="Keys">
-            <li class="is-primary" id="sheet-keep" data-act="keep"><kbd>Enter</kbd> Keep it and continue</li>
+            <li class="is-cancel" id="sheet-cancel" data-act="cancel"><kbd>Esc</kbd> Cancel</li>
             <li id="sheet-undo" data-act="undo"><kbd>Ctrl</kbd><kbd>Z</kbd> Undo</li>
             <li id="sheet-clear" data-act="clear"><kbd>Backspace</kbd> Clear</li>
-            <li id="sheet-cancel" data-act="cancel"><kbd>Esc</kbd> Cancel</li>
+            <li class="is-primary" id="sheet-keep" data-act="keep"><kbd>Enter</kbd> Keep it and continue</li>
           </ul>
         </footer>
       </div>
@@ -3581,7 +3623,7 @@ const CONFIG = {
     // the bottom edge of a photo that stops short, softened over this much
     // manual adjustment after automatic placement
     nudgeStepMm: 0.5,
-    // arrow buttons move this much
+    // an arrow key moves the photo this much (Shift: 4x)
     zoomMin: 0.5,
     // 50 % … 150 % of the automatic size
     zoomMax: 1.5,
@@ -3685,6 +3727,7 @@ const WHATS_NEW = [
       "Signing has a mode of its own. Press Ctrl + D on the signature step and the screen becomes the signing board. Enter keeps the signature and goes on to Check, Esc cancels, Ctrl + Z undoes a stroke and Backspace clears.",
       "With a pen tablet, the pen can only draw on the board while signing. It can no longer press buttons or reach other programs.",
       "The signature step says whether a pen tablet is plugged in.",
+      'The photo is moved on the card itself, on the Photo step: drag it to move it, scroll to resize it, double-click to put it back. The "Move or resize it" panel is gone, and on the other steps a stray drag no longer moves the photo.',
       "The list on the left stays in view while the page scrolls.",
       "This page, so you can see what changed in each version.",
       "Batch from CSV has been removed."
@@ -6268,6 +6311,7 @@ const STEPS = [
 ];
 const LAST_STEP = STEPS.length - 1;
 const SIGN_STEP = STEPS.findIndex((s) => s.id === 'sign');
+const PHOTO_STEP = STEPS.findIndex((s) => s.id === 'photo');
 
 // Signing mode: the signing board over the whole window, until Enter
 // (keep it) or Esc (cancel) — see "signing mode" below.
@@ -6753,11 +6797,13 @@ function render() {
   $('photo-name').hidden = !ph;
   $('photo-name').textContent = ph ? ph.fileName : '';
   const adjusted = state.adjust.dx !== 0 || state.adjust.dy !== 0 || state.adjust.zoom !== 1;
-  $('adjust').hidden = !ph;
-  $('btn-adjust-reset').disabled = !adjusted;
-  $('f-zoom').value = String(Math.round(state.adjust.zoom * 100));
-  $('zoom-out').textContent = `${Math.round(state.adjust.zoom * 100)} %`;
-  previewCanvas.classList.toggle('draggable', !!ph && state.side === 'front');
+  const adjustable = canAdjustPhoto();
+  $('photo-tools').hidden = !adjustable;
+  $('btn-photo-reset').disabled = !adjusted;
+  showPhotoCoach(adjustable);
+  previewCanvas.classList.toggle('draggable', adjustable);
+  previewCanvas.tabIndex = adjustable ? 0 : -1;
+  previewCanvas.title = adjustable ? 'Drag to move the photo, scroll to resize it, double-click to put it back. Arrow keys and + / − work too.' : '';
   const thumb = $('photo-thumb');
   if (ph) {
     if (!thumb.querySelector('img') || thumb.querySelector('img').src !== ph.url) {
@@ -7011,27 +7057,93 @@ photoZone.addEventListener('dragover', (e) => { e.preventDefault(); photoZone.cl
 photoZone.addEventListener('dragleave', () => photoZone.classList.remove('dragging'));
 photoZone.addEventListener('drop', (e) => { e.preventDefault(); photoZone.classList.remove('dragging'); acceptPhoto(e.dataTransfer.files[0]); });
 
-// manual photo adjustment: buttons, slider, drag and wheel on the preview
+/* ---- moving the photo ---------------------------------------------
+   On the card itself, and only on the photo step: drag to move, scroll
+   to resize, double-click to put it back where it was placed. With the
+   card focused, the arrow keys move it (Shift: further), + and − resize
+   it and 0 puts it back. On any other step the card is only looked at,
+   so a stray drag while checking a name cannot shift the photo.
+   ------------------------------------------------------------------ */
+const canAdjustPhoto = () => !!state.photo && state.step === PHOTO_STEP && state.side === 'front';
 const clampZoom = (z) => Math.min(CONFIG.photo.zoomMax, Math.max(CONFIG.photo.zoomMin, z));
 function nudge(dxMm, dyMm) {
-  if (!state.photo) return;
+  if (!canAdjustPhoto()) return;
   state.adjust = { ...state.adjust, dx: +(state.adjust.dx + dxMm).toFixed(3), dy: +(state.adjust.dy + dyMm).toFixed(3) };
-  state.side = 'front'; render();
+  render();
 }
+let sizeFlash = 0;
 function setZoom(z) {
-  if (!state.photo) return;
+  if (!canAdjustPhoto()) return;
   state.adjust = { ...state.adjust, zoom: +clampZoom(z).toFixed(3) };
-  state.side = 'front'; render();
+  render();
+  // the size, big on the card for a moment, while it changes
+  const badge = $('photo-zoom-badge');
+  const zoom = state.adjust.zoom;
+  badge.textContent = `${Math.round(zoom * 100)} %${zoom >= CONFIG.photo.zoomMax ? ' · largest' : zoom <= CONFIG.photo.zoomMin ? ' · smallest' : ''}`;
+  badge.hidden = false;
+  clearTimeout(sizeFlash);
+  sizeFlash = setTimeout(() => { badge.hidden = true; }, 800);
 }
-for (const b of document.querySelectorAll('.nudge')) {
-  b.addEventListener('click', () => nudge(Number(b.dataset.dx) * CONFIG.photo.nudgeStepMm, Number(b.dataset.dy) * CONFIG.photo.nudgeStepMm));
+function resetPhoto() {
+  if (!canAdjustPhoto()) return;
+  state.adjust = { dx: 0, dy: 0, zoom: 1 };
+  render();
 }
-$('f-zoom').addEventListener('input', (e) => setZoom(Number(e.target.value) / 100));
-$('btn-adjust-reset').addEventListener('click', () => { state.adjust = { dx: 0, dy: 0, zoom: 1 }; render(); });
+$('btn-photo-reset').addEventListener('click', resetPhoto);
+
+/* The first time the photo can be moved, a hand on the card shows the
+   drag for a few seconds. It comes back each time the photo step opens
+   with a photo, until the photo has once been moved or resized; after
+   that the bar under the card is enough. pointer-events: none, so a
+   drag that starts on it moves the photo as usual. */
+const COACH_KEY = 'apg-id-photo-hint-done';
+const coach = { done: (() => { try { return localStorage.getItem(COACH_KEY) === '1'; } catch { return false; } })(), was: false, timer: 0 };
+function hideCoach(fade = true) {
+  const el = $('photo-coach');
+  clearTimeout(coach.timer);
+  if (el.hidden) return;
+  if (!fade) { el.hidden = true; el.classList.remove('is-leaving'); return; }
+  el.classList.add('is-leaving');
+  coach.timer = setTimeout(() => { el.hidden = true; el.classList.remove('is-leaving'); }, 300);
+}
+function showPhotoCoach(adjustable) {
+  const start = adjustable && !coach.was;
+  coach.was = adjustable;
+  if (!adjustable || coach.done) { hideCoach(false); return; }
+  if (!start) return;
+  const el = $('photo-coach');
+  clearTimeout(coach.timer);
+  el.classList.remove('is-leaving');
+  el.hidden = false;
+  coach.timer = setTimeout(() => hideCoach(), 6000);
+}
+function coachDone() {
+  if (!coach.done) {
+    coach.done = true;
+    try { localStorage.setItem(COACH_KEY, '1'); } catch { /* private mode */ }
+  }
+  hideCoach();
+}
+for (const type of ['pointerdown', 'wheel', 'keydown', 'dblclick']) {
+  previewCanvas.addEventListener(type, () => { if (canAdjustPhoto()) coachDone(); }, { passive: true });
+}
+previewCanvas.addEventListener('dblclick', resetPhoto);
+previewCanvas.addEventListener('keydown', (e) => {
+  if (!canAdjustPhoto() || e.ctrlKey || e.metaKey || e.altKey) return;
+  const step = CONFIG.photo.nudgeStepMm * (e.shiftKey ? 4 : 1);
+  const move = { ArrowUp: [0, -step], ArrowDown: [0, step], ArrowLeft: [-step, 0], ArrowRight: [step, 0] }[e.key];
+  if (move) nudge(...move);
+  else if (e.key === '+' || e.key === '=') setZoom(state.adjust.zoom + CONFIG.photo.zoomStep);
+  else if (e.key === '-' || e.key === '_') setZoom(state.adjust.zoom - CONFIG.photo.zoomStep);
+  else if (e.key === '0') resetPhoto();
+  else return;
+  e.preventDefault();
+  e.stopPropagation();
+});
 
 let drag = null;
 previewCanvas.addEventListener('pointerdown', (e) => {
-  if (!state.photo || state.side !== 'front' || (e.button !== undefined && e.button !== 0)) return;
+  if (!canAdjustPhoto() || (e.button !== undefined && e.button !== 0)) return;
   e.preventDefault();
   previewCanvas.setPointerCapture?.(e.pointerId);
   drag = { x: e.clientX, y: e.clientY, dx: state.adjust.dx, dy: state.adjust.dy };
@@ -7047,7 +7159,7 @@ const endDrag = () => { if (drag) { drag = null; previewCanvas.classList.remove(
 previewCanvas.addEventListener('pointerup', endDrag);
 previewCanvas.addEventListener('pointercancel', endDrag);
 previewCanvas.addEventListener('wheel', (e) => {
-  if (!state.photo || state.side !== 'front') return;
+  if (!canAdjustPhoto()) return;
   e.preventDefault();
   setZoom(state.adjust.zoom * (e.deltaY < 0 ? 1 + CONFIG.photo.zoomStep : 1 - CONFIG.photo.zoomStep));
 }, { passive: false });

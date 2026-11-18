@@ -117,6 +117,8 @@ const stroke = async (x0, y0, dx, dy, n = 12) => {
 await stroke(bd.x + 60, bd.y + bd.height * 0.6, 20, 12);
 s = await look();
 check(s.strokes === 1 && /1 stroke/.test(s.status), `a stroke shows on the board: "${s.status}"`);
+check(await page.evaluate(() => getComputedStyle(document.getElementById('sheet-keep')).backgroundColor) === 'rgb(212, 175, 55)',
+  'with ink on the board, Enter (keep it and continue) is lit gold');
 check(await page.isVisible('#sign-cursor'), 'the pen dot shows where the pen is');
 
 // a stroke that runs off the right and the bottom of the board stays on it
@@ -220,6 +222,10 @@ await page.evaluate(() => { goStep(SIGN_STEP, { force: true }); clearSignature()
 await page.click('#btn-sign');
 const off = (id) => page.evaluate((i) => document.getElementById(i).hasAttribute('data-off'), id);
 check(await off('sheet-keep') && await off('sheet-clear') && await off('sheet-undo'), 'on an empty board, Keep, Clear and Undo are greyed');
+check(await page.evaluate(() => [...document.querySelectorAll('#sign-keys li')].map((li) => li.dataset.act).join(' ')) === 'cancel undo clear keep',
+  'Esc is first and Enter last, at the far right');
+check(await page.evaluate(() => getComputedStyle(document.getElementById('sheet-keep')).backgroundColor) === 'rgba(0, 0, 0, 0)',
+  'and Enter is only outlined until there is something to keep');
 const area = await page.evaluate(() => {
   const r = document.getElementById('sign-board').getBoundingClientRect();
   return (r.width * r.height) / (innerWidth * innerHeight);

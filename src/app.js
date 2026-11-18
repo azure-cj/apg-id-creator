@@ -43,6 +43,7 @@ const STEPS = [
 ];
 const LAST_STEP = STEPS.length - 1;
 const SIGN_STEP = STEPS.findIndex((s) => s.id === 'sign');
+const PHOTO_STEP = STEPS.findIndex((s) => s.id === 'photo');
 
 // Signing mode: the signing board over the whole window, until Enter
 // (keep it) or Esc (cancel) — see "signing mode" below.
@@ -528,11 +529,13 @@ function render() {
   $('photo-name').hidden = !ph;
   $('photo-name').textContent = ph ? ph.fileName : '';
   const adjusted = state.adjust.dx !== 0 || state.adjust.dy !== 0 || state.adjust.zoom !== 1;
-  $('adjust').hidden = !ph;
-  $('btn-adjust-reset').disabled = !adjusted;
-  $('f-zoom').value = String(Math.round(state.adjust.zoom * 100));
-  $('zoom-out').textContent = `${Math.round(state.adjust.zoom * 100)} %`;
-  previewCanvas.classList.toggle('draggable', !!ph && state.side === 'front');
+  const adjustable = canAdjustPhoto();
+  $('photo-tools').hidden = !adjustable;
+  $('btn-photo-reset').disabled = !adjusted;
+  showPhotoCoach(adjustable);
+  previewCanvas.classList.toggle('draggable', adjustable);
+  previewCanvas.tabIndex = adjustable ? 0 : -1;
+  previewCanvas.title = adjustable ? 'Drag to move the photo, scroll to resize it, double-click to put it back. Arrow keys and + / − work too.' : '';
   const thumb = $('photo-thumb');
   if (ph) {
     if (!thumb.querySelector('img') || thumb.querySelector('img').src !== ph.url) {
@@ -786,27 +789,93 @@ photoZone.addEventListener('dragover', (e) => { e.preventDefault(); photoZone.cl
 photoZone.addEventListener('dragleave', () => photoZone.classList.remove('dragging'));
 photoZone.addEventListener('drop', (e) => { e.preventDefault(); photoZone.classList.remove('dragging'); acceptPhoto(e.dataTransfer.files[0]); });
 
-// manual photo adjustment: buttons, slider, drag and wheel on the preview
+/* ---- moving the photo ---------------------------------------------
+   On the card itself, and only on the photo step: drag to move, scroll
+   to resize, double-click to put it back where it was placed. With the
+   card focused, the arrow keys move it (Shift: further), + and − resize
+   it and 0 puts it back. On any other step the card is only looked at,
+   so a stray drag while checking a name cannot shift the photo.
+   ------------------------------------------------------------------ */
+const canAdjustPhoto = () => !!state.photo && state.step === PHOTO_STEP && state.side === 'front';
 const clampZoom = (z) => Math.min(CONFIG.photo.zoomMax, Math.max(CONFIG.photo.zoomMin, z));
 function nudge(dxMm, dyMm) {
-  if (!state.photo) return;
+  if (!canAdjustPhoto()) return;
   state.adjust = { ...state.adjust, dx: +(state.adjust.dx + dxMm).toFixed(3), dy: +(state.adjust.dy + dyMm).toFixed(3) };
-  state.side = 'front'; render();
+  render();
 }
+let sizeFlash = 0;
 function setZoom(z) {
-  if (!state.photo) return;
+  if (!canAdjustPhoto()) return;
   state.adjust = { ...state.adjust, zoom: +clampZoom(z).toFixed(3) };
-  state.side = 'front'; render();
+  render();
+  // the size, big on the card for a moment, while it changes
+  const badge = $('photo-zoom-badge');
+  const zoom = state.adjust.zoom;
+  badge.textContent = `${Math.round(zoom * 100)} %${zoom >= CONFIG.photo.zoomMax ? ' · largest' : zoom <= CONFIG.photo.zoomMin ? ' · smallest' : ''}`;
+  badge.hidden = false;
+  clearTimeout(sizeFlash);
+  sizeFlash = setTimeout(() => { badge.hidden = true; }, 800);
 }
-for (const b of document.querySelectorAll('.nudge')) {
-  b.addEventListener('click', () => nudge(Number(b.dataset.dx) * CONFIG.photo.nudgeStepMm, Number(b.dataset.dy) * CONFIG.photo.nudgeStepMm));
+function resetPhoto() {
+  if (!canAdjustPhoto()) return;
+  state.adjust = { dx: 0, dy: 0, zoom: 1 };
+  render();
 }
-$('f-zoom').addEventListener('input', (e) => setZoom(Number(e.target.value) / 100));
-$('btn-adjust-reset').addEventListener('click', () => { state.adjust = { dx: 0, dy: 0, zoom: 1 }; render(); });
+$('btn-photo-reset').addEventListener('click', resetPhoto);
+
+/* The first time the photo can be moved, a hand on the card shows the
+   drag for a few seconds. It comes back each time the photo step opens
+   with a photo, until the photo has once been moved or resized; after
+   that the bar under the card is enough. pointer-events: none, so a
+   drag that starts on it moves the photo as usual. */
+const COACH_KEY = 'apg-id-photo-hint-done';
+const coach = { done: (() => { try { return localStorage.getItem(COACH_KEY) === '1'; } catch { return false; } })(), was: false, timer: 0 };
+function hideCoach(fade = true) {
+  const el = $('photo-coach');
+  clearTimeout(coach.timer);
+  if (el.hidden) return;
+  if (!fade) { el.hidden = true; el.classList.remove('is-leaving'); return; }
+  el.classList.add('is-leaving');
+  coach.timer = setTimeout(() => { el.hidden = true; el.classList.remove('is-leaving'); }, 300);
+}
+function showPhotoCoach(adjustable) {
+  const start = adjustable && !coach.was;
+  coach.was = adjustable;
+  if (!adjustable || coach.done) { hideCoach(false); return; }
+  if (!start) return;
+  const el = $('photo-coach');
+  clearTimeout(coach.timer);
+  el.classList.remove('is-leaving');
+  el.hidden = false;
+  coach.timer = setTimeout(() => hideCoach(), 6000);
+}
+function coachDone() {
+  if (!coach.done) {
+    coach.done = true;
+    try { localStorage.setItem(COACH_KEY, '1'); } catch { /* private mode */ }
+  }
+  hideCoach();
+}
+for (const type of ['pointerdown', 'wheel', 'keydown', 'dblclick']) {
+  previewCanvas.addEventListener(type, () => { if (canAdjustPhoto()) coachDone(); }, { passive: true });
+}
+previewCanvas.addEventListener('dblclick', resetPhoto);
+previewCanvas.addEventListener('keydown', (e) => {
+  if (!canAdjustPhoto() || e.ctrlKey || e.metaKey || e.altKey) return;
+  const step = CONFIG.photo.nudgeStepMm * (e.shiftKey ? 4 : 1);
+  const move = { ArrowUp: [0, -step], ArrowDown: [0, step], ArrowLeft: [-step, 0], ArrowRight: [step, 0] }[e.key];
+  if (move) nudge(...move);
+  else if (e.key === '+' || e.key === '=') setZoom(state.adjust.zoom + CONFIG.photo.zoomStep);
+  else if (e.key === '-' || e.key === '_') setZoom(state.adjust.zoom - CONFIG.photo.zoomStep);
+  else if (e.key === '0') resetPhoto();
+  else return;
+  e.preventDefault();
+  e.stopPropagation();
+});
 
 let drag = null;
 previewCanvas.addEventListener('pointerdown', (e) => {
-  if (!state.photo || state.side !== 'front' || (e.button !== undefined && e.button !== 0)) return;
+  if (!canAdjustPhoto() || (e.button !== undefined && e.button !== 0)) return;
   e.preventDefault();
   previewCanvas.setPointerCapture?.(e.pointerId);
   drag = { x: e.clientX, y: e.clientY, dx: state.adjust.dx, dy: state.adjust.dy };
@@ -822,7 +891,7 @@ const endDrag = () => { if (drag) { drag = null; previewCanvas.classList.remove(
 previewCanvas.addEventListener('pointerup', endDrag);
 previewCanvas.addEventListener('pointercancel', endDrag);
 previewCanvas.addEventListener('wheel', (e) => {
-  if (!state.photo || state.side !== 'front') return;
+  if (!canAdjustPhoto()) return;
   e.preventDefault();
   setZoom(state.adjust.zoom * (e.deltaY < 0 ? 1 + CONFIG.photo.zoomStep : 1 - CONFIG.photo.zoomStep));
 }, { passive: false });

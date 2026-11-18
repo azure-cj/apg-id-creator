@@ -187,7 +187,7 @@ const CONFIG = {
     maxEnlarge: 1.15,
     fadeMm: 7,        // the bottom edge of a photo that stops short, softened over this much
     // manual adjustment after automatic placement
-    nudgeStepMm: 0.5,     // arrow buttons move this much
+    nudgeStepMm: 0.5,     // an arrow key moves the photo this much (Shift: 4x)
     zoomMin: 0.5,         // 50 % … 150 % of the automatic size
     zoomMax: 1.5,
     zoomStep: 0.05,

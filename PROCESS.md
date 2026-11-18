@@ -120,12 +120,15 @@ The messages themselves:
   as JPEG.)
 
 If the automatic placement is not quite right — tilted head, hat, big hair
-— open **Move or resize it** under the photo. It is closed by default,
-because the placement is usually right and the controls are only in the
-way until they are wanted. Arrow buttons move the photo in ½ mm steps, the
-**Size** slider scales it 70–150 % around the face, or simply drag the
-photo on the card preview and use the mouse wheel. **Reset** undoes
-everything. The face normally sits on the gold diagonal with the top of
+— move the photo on the card itself (the gold-edged bar under the card,
+*Adjust the photo on the card*, says how, and the first time a hand on
+the card shows the drag): **drag** it to move it and **scroll**
+over it to make it bigger or smaller (50–150 %). **Double-click** the card,
+or click **Reset** under it, to put it back where the app placed it. With
+the card clicked, the arrow keys move it ½ mm (Shift: 2 mm), + and −
+resize it and 0 resets it. This works on the Photo step only: on every
+other step the card is just looked at, so a stray drag while checking the
+name cannot move the photo. The face normally sits on the gold diagonal with the top of
 the head about 15 mm from the card top.
 
 ### 5. Signature
