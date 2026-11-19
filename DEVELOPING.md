@@ -24,7 +24,7 @@ and does not do is in **PHOTO-SPEC.md**.
 | `TEMPLATE-SPEC.md` | The brief for whoever designs a new card: canvas size, the zones the app draws into, and the rules that break it. Hand this to the designer. |
 | `assets/template-guide.png` | 638 × 1011 transparent overlay of those zones, to lock as a layer in Canva and design underneath. |
 | `assets/template-guide-annotated.png` | The same zones over the current card, labelled, at 2×. |
-| `assets/logo.png` | The peacock mark in the app's header — lifted from the card artwork, so the screen and the print agree. |
+| `assets/logo.png` | The peacock mark in the app's header, cut from the Alpha Premier Group logo (gold on black, with the black made see-through). The desktop app's icon is the same mark; see `app/app-icon.png`. |
 | `assets/fonts/` | Poppins 700 (name), Montserrat 800 (title), Arimo 400 (employee number) as latin + latin-ext WOFF2 subsets. |
 | `src/` | The readable source code. See "How the app is built" below. |
 | `build.mjs` | Rebuilds `Alpha Premier ID Maker.html` from `src/` + `assets/`. |

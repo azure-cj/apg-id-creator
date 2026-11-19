@@ -64,8 +64,9 @@ img { max-width: 100%; }
 /* centred over a centred layout, or it floats off at the left edge */
 .masthead { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 14px; }
 @media (width <= 1100px) { .masthead { justify-content: flex-start; } }
-/* the peacock mark, lifted from the card artwork so it matches what is printed.
-   It is fine gold linework, so it sits on black the way it does on the website. */
+/* the peacock mark from the Alpha Premier Group logo. It is fine gold
+   linework with the black made see-through, so it sits on black here, the
+   way it does in the logo and on the website. */
 .brand-mark {
   flex: none; width: 40px; height: 40px; padding: 4px; box-sizing: border-box;
   object-fit: contain; border-radius: 11px; background: #000;

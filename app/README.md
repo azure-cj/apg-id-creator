@@ -162,5 +162,6 @@ What this does and does not cost:
 | `release.mjs` | `npm run release`: the signed installer and `latest.json`. |
 | `src-tauri/tauri.conf.json` | Window size, icon, installer settings. Keep `version` in step with `APP_VERSION` in `src/config.ts` (`npm run release` refuses if they differ). `plugins.updater` holds the update address and the public key. |
 | `src-tauri/Cargo.toml` | Rust dependencies. Also carries a version to keep in step. |
+| `app-icon.png` | The app's icon at 1024 px: the peacock mark from the Alpha Premier Group logo on a black rounded square. The files in `src-tauri/icons/` (window, taskbar, installer, shortcut) are made from it: run `npx tauri icon app-icon.png -o icons-out`, then copy `32x32.png`, `128x128.png`, `128x128@2x.png`, `icon.png` and `icon.ico` into `src-tauri/icons/`. |
 | `sync-web.mjs` | Copies the built HTML into `web/index.html`. Runs automatically before every dev run and build, so the window can never show a stale copy. |
 | `web/` | That copy. Generated, not committed. |

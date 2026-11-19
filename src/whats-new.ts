@@ -22,6 +22,7 @@ const WHATS_NEW = [
       'With a pen tablet, the pen can only draw on the board while signing. It can no longer press buttons or reach other programs.',
       'The signature step says whether a pen tablet is plugged in.',
       'The photo is moved on the card itself, on the Photo step: drag it to move it, scroll to resize it, double-click to put it back. The "Move or resize it" panel is gone, and on the other steps a stray drag no longer moves the photo.',
+      'The new Alpha Premier Group logo, at the top of the app and as its icon on the taskbar, the desktop and the installer.',
       'The list on the left stays in view while the page scrolls.',
       'This page, so you can see what changed in each version.',
       'Batch from CSV has been removed.',
