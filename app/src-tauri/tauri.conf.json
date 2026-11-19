@@ -43,7 +43,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "PUBLIC-KEY-GOES-HERE",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM0REQxQjY1REM1NTA1QUQKUldTdEJWWGNaUnZkTkJVREIvNGxaWjRIalFmeEVaV0xPUVBSNXBXR3VxdHlVUWlIcjAyaVJoS2UK",
       "endpoints": [
         "https://github.com/azure-cj/apg-id-creator/releases/latest/download/latest.json"
       ],
