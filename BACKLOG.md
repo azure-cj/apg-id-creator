@@ -3,6 +3,24 @@
 Ideas considered and deliberately not built yet, with enough detail to pick
 them up later. Shipped work is described in `README.md` and `windows/README.md`.
 
+## Left on `release/1.21`: web-app work not yet in the native app
+
+Pull request #1 (the Windows and Mac native apps) was merged into `main`
+on 2026-11-23. It branched before the 1.21 work, which was built on the
+web/Tauri app that #1 removes, so none of `release/1.21` came with it.
+That branch stays on GitHub (tag `v.1.21.0`) as the reference for porting.
+What it holds, against what the native app does today:
+
+| 1.21 change (commit) | In the native app? | To do |
+|---|---|---|
+| Auto-update: check, download, "Install version … and restart", signed `latest.json` via `npm run release` (76d14c5, 594d223, a43a0a6) | No | Pick a Windows updater (e.g. the Inno Setup installer from a GitHub release, or Velopack) and sign updates. The Tauri public key in a43a0a6 does not carry over; the private key at `%USERPROFILE%\.tauri\apg-id-maker.key` is only useful if the new updater uses minisign. "No answer" from the check must not blame the connection (594d223). |
+| What's new tool, opens once after an update, "New" badge, version and "Check for updates" under the tools (6ead03d) | No | Port `src/whats-new.ts` notes and the panel; needs the updater first for the update-waiting part. |
+| Signing mode: full screen, pointer held, strokes pinned to the board edge (54d1721, ff3f2dd) | Yes (`SignWindow`, `PenTablet.cs`) | Check against a pen tablet. |
+| Signing keys: Ctrl+D (or Enter while unsigned) opens signing; Enter keeps it, Ctrl+Z undoes, Backspace clears, Esc cancels; key line a pen cannot press; Enter shown as a gold pill that glows once there is ink (54d1721, ff3f2dd, 3779086) | Partly: Backspace/Delete clear and Esc cancel | Add Ctrl+D, Enter to keep, Ctrl+Z undo, the key line and the Enter highlight. Note on the board when more than one screen is attached. |
+| Batch from CSV removed from the tool rail; tools pinned while the Check step scrolls (ff3f2dd) | No: the native app still has batch | Decide whether batch stays in the native app. |
+| Photo moved on the card: drag, wheel resize 50–150 % (3779086) | Yes | Not ported: double-click to reset, arrow keys 0.5 mm (Shift 2 mm), + / − / 0, the "Adjust the photo on the card" bar, the first-time hand hint, the size readout. |
+| New Alpha Premier Group peacock logo for the header and the app icon (150bac7) | No: #1 brings its own `assets/logo.png` and `AppIcon.ico` | Agree which logo is current; if 1.21's, take `assets/logo.png` and `app/app-icon.png` from `release/1.21` and remake `windows/IdMaker.App/AppIcon.ico`. |
+
 ## On-device background removal (done, in the Windows app)
 
 Built into the native app (`windows/IdMaker.Vision`): an ordinary photo
