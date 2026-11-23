@@ -25,7 +25,7 @@
     <Color x:Key="Palette.Ink">#1D1C1A</Color>
     <Color x:Key="Palette.InkMuted">#66625A</Color>
     <Color x:Key="Palette.Rule">#E2DFD6</Color>
-    <Color x:Key="Palette.RuleStrong">#857F73</Color>
+    <Color x:Key="Palette.RuleStrong">#8D753E</Color>
     <Color x:Key="Palette.Black">#000000</Color>
     <Color x:Key="Palette.Charcoal">#1F1F1F</Color>
     <Color x:Key="Palette.Smoke">#E0E0E0</Color>
@@ -44,6 +44,13 @@
     <Color x:Key="Palette.StageMuted">#5F5B53</Color>
     <Color x:Key="Palette.CardEdge">#BDB9AE</Color>
     <Color x:Key="Palette.Thumb">#857F73</Color>
+    <Color x:Key="Palette.GoldTint">#FBF4DC</Color>
+    <Color x:Key="Palette.GoldRule">#D9BC5C</Color>
+    <Color x:Key="Palette.FocusRing">#7A6124</Color>
+    <Color x:Key="Palette.GoldText">#7A6124</Color>
+    <Color x:Key="Palette.GoldLink">#7A6124</Color>
+    <Color x:Key="Palette.GlassEdge">#E3D7B9</Color>
+    <Color x:Key="Palette.Success">#2E6B3A</Color>
     <Color x:Key="Palette.ThumbHover">#66625A</Color>
 
     <SolidColorBrush x:Key="Color.Bg" Color="{StaticResource Palette.Page}" />
@@ -65,7 +72,7 @@
     <SolidColorBrush x:Key="Color.Strong" Color="{StaticResource Palette.Ink}" />  <!-- a chosen option, a ticked box: the text colour as a fill -->
     <SolidColorBrush x:Key="Color.StrongHover" Color="{StaticResource Palette.InkHover}" />
     <SolidColorBrush x:Key="Color.OnStrong" Color="{StaticResource Palette.OnInk}" />
-    <SolidColorBrush x:Key="Color.Focus" Color="{StaticResource Palette.Ink}" />  <!-- the focus ring: the text colour, so gold stays the only hue -->
+    <SolidColorBrush x:Key="Color.Focus" Color="{StaticResource Palette.FocusRing}" />  <!-- the focus ring: bright gold (company design system) -->
     <SolidColorBrush x:Key="Color.Stage" Color="{StaticResource Palette.Stage}" />  <!-- what the card preview sits on: one step from the page -->
     <SolidColorBrush x:Key="Color.StageRaised" Color="{StaticResource Palette.StageRaised}" />
     <SolidColorBrush x:Key="Color.StageInk" Color="{StaticResource Palette.Ink}" />
@@ -75,4 +82,14 @@
     <SolidColorBrush x:Key="Color.Warning" Color="{StaticResource Palette.Amber}" />
     <SolidColorBrush x:Key="Color.ScrollThumb" Color="{StaticResource Palette.Thumb}" />
     <SolidColorBrush x:Key="Color.ScrollThumbHover" Color="{StaticResource Palette.ThumbHover}" />
+    <!-- the box an "i" note opens in: a pale wash of the brand gold, never a fill you press -->
+    <SolidColorBrush x:Key="Color.NoteGold" Color="{StaticResource Palette.GoldTint}" />
+    <SolidColorBrush x:Key="Color.NoteGoldLine" Color="{StaticResource Palette.GoldRule}" />
+    <!-- done and ready: the company design system's success green -->
+    <SolidColorBrush x:Key="Color.Success" Color="{StaticResource Palette.Success}" />
+    <!-- gold in words: section labels and table headings (Kicker), links and other active words (Link) -->
+    <SolidColorBrush x:Key="Color.Kicker" Color="{StaticResource Palette.GoldText}" />
+    <SolidColorBrush x:Key="Color.Link" Color="{StaticResource Palette.GoldLink}" />
+    <!-- the edge of a raised (glass) panel: gold at a fifth of its strength over the panel -->
+    <SolidColorBrush x:Key="Color.GlassEdge" Color="{StaticResource Palette.GlassEdge}" />
 </ResourceDictionary>

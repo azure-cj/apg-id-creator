@@ -42,6 +42,7 @@ exposed personal data, or a broken release), **Nit**, or **Pre-existing**
 | A cast, or a `catch` | The cast has `// SAFETY:`. The catch names a type and tells the operator what to do next | AGENTS.md |
 | `Theme.xaml`, `Colors.*.xaml`, `MainWindow.xaml` | `ThemeTests` pass; gold only on the forward button and the current step; no `StaticResource Color.` | windows/README.md |
 | Any test | No test was skipped, given a sleep, or retried until it passed. A fixed wait is a finding; wait for the thing itself | AGENTS.md, Verification |
+| `Keyboard.ClearFocus`, `Focusable = false`, or a test that raises a key event on a window | Something still has the keyboard focus when the key matters, and the test sends the key to `Keyboard.FocusedElement`, the way Windows does. With nothing focused a key reaches no one | The signing screen: Backspace and Esc did nothing once the pen was down, while a test that sent keys to the window said they worked |
 | `docs/STATE-MACHINES.md` territory (a state or transition changed) | The document changed with it | AGENTS.md |
 
 ## How the change was verified

@@ -73,7 +73,7 @@ public class RulesTests
         var s = Make.Session();
         Assert.Equal("1234", s.SetSeq("123456"));
         s.SetSeq("0");
-        Assert.Equal("Use 1 to 4 digits, such as 124.", s.Problems()[Field.Seq]);
+        Assert.Equal("Invalid. Use 1 to 4 digits, such as 124.", s.Problems()[Field.Seq]);
     }
 
     [Fact]

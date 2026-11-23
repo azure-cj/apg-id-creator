@@ -13,7 +13,7 @@ mac/
   IdMaker.Mac/
     Main.cs               start, and the flags below
     AppDelegate.cs        opens the window
-    MainWindow.cs         the six steps, the preview, Issued IDs, the printer setting
+    MainWindow.cs         the five steps, the preview, Issued IDs, the printer setting
     MainWindow.Tools.cs   batch from a list, card design, moving the photo, the pen driver
     CardViews.cs          what takes the mouse on the card: photo drag, the design's boxes, file drop
     SignWindow.cs         the full-screen signing pad (pen pressure from tablet events)

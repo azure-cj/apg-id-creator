@@ -11,7 +11,9 @@ using System.Text.RegularExpressions;
 
 namespace IdMaker.Core;
 
-public enum Step { Name = 0, Title = 1, Number = 2, Photo = 3, Sign = 4, Check = 5 }
+// The job and the employee number share a step: on its own the number left a
+// page nearly empty. The number is still checked on its own (Problems, the register).
+public enum Step { Name = 0, Title = 1, Photo = 2, Sign = 3, Check = 4 }
 
 public enum Field { Last, First, Middle, Suffix, NameFit, Title, Title2, TitleFit, Seq, Photo, Signature, Kind }
 
@@ -70,14 +72,15 @@ public sealed partial class Session
 {
     public const int LastStep = (int)Step.Check;
 
-    public static readonly (Step Id, string Label, Field[] Fields)[] Steps =
+    // Label is the step's name wherever it is said; Short is what fits in an
+    // equal fifth of the step bar, with room for its lock.
+    public static readonly (Step Id, string Label, string Short, Field[] Fields)[] Steps =
     {
-        (Step.Name, "Name", new[] { Field.Last, Field.First, Field.Middle, Field.Suffix, Field.NameFit }),
-        (Step.Title, "Job title", new[] { Field.Kind, Field.Title, Field.Title2, Field.TitleFit }),
-        (Step.Number, "Number", new[] { Field.Seq }),
-        (Step.Photo, "Photo", new[] { Field.Photo }),
-        (Step.Sign, "Signature", new[] { Field.Signature }),
-        (Step.Check, "Check", Array.Empty<Field>()),
+        (Step.Name, "Name", "Name", new[] { Field.Last, Field.First, Field.Middle, Field.Suffix, Field.NameFit }),
+        (Step.Title, "Job & number", "Job & no.", new[] { Field.Kind, Field.Title, Field.Title2, Field.TitleFit, Field.Seq }),
+        (Step.Photo, "Photo", "Photo", new[] { Field.Photo }),
+        (Step.Sign, "Signature", "Signature", new[] { Field.Signature }),
+        (Step.Check, "Check", "Check", Array.Empty<Field>()),
     };
 
     public static string FieldLabel(Field f) => f switch
@@ -196,42 +199,48 @@ public sealed partial class Session
     public Dictionary<Field, string> Problems()
     {
         var layout = TextLayout();
-        const string badChars = "Use letters, spaces, periods, hyphens and apostrophes only.";
-        const string badTitle = "Use letters, numbers, spaces and . , & ( ) / - only.";
+        // An empty field says one word under its outlined box: the label above
+        // it already names what goes there. A field filled in wrongly says
+        // what is invalid and what would do instead.
+        const string badChars = "Invalid characters. Use letters, spaces, periods, hyphens and apostrophes.";
+        const string badTitle = "Invalid characters. Use letters, numbers, spaces and . , & ( ) / -";
         string last = Naming.CollapseSpaces(Last), first = Naming.CollapseSpaces(First);
         string middle = Naming.CollapseSpaces(Middle), suffix = Naming.CollapseSpaces(Suffix);
         var dup = Duplicate();
         return new Dictionary<Field, string>
         {
-            [Field.Last] = last.Length == 0 ? "Enter the last name." : !CardRules.NamePrints(last) ? badChars : "",
-            [Field.First] = first.Length == 0 ? "Enter the first name." : !CardRules.NamePrints(first) ? badChars : "",
+            [Field.Last] = last.Length == 0 ? Required : !CardRules.NamePrints(last) ? badChars : "",
+            [Field.First] = first.Length == 0 ? Required : !CardRules.NamePrints(first) ? badChars : "",
             [Field.Middle] = middle.Length > 0 && !CardRules.NamePrints(middle) ? badChars : "",
-            [Field.Suffix] = suffix.Length > 0 && !CardRules.SuffixPrints(suffix) ? "Use something like Jr., Sr., II or III." : "",
+            [Field.Suffix] = suffix.Length > 0 && !CardRules.SuffixPrints(suffix) ? "Invalid. Use Jr., Sr., II or III." : "",
             [Field.NameFit] = last.Length > 0 && first.Length > 0 && layout is { Name.Fits: false }
                 ? "This name is too long for the card, even at the smallest size. Try a shorter first name." : "",
             // never guessed: the attendance system takes interns, and only interns, from this
-            [Field.Kind] = Kind.Length == 0 ? "Choose whether this ID is for an employee or an intern." : "",
-            [Field.Title] = Role1.Pick.Length == 0 ? "Choose the job title."
-                : Role1.IsOther && Role1.Value.Length == 0 ? "Type the job title."
+            [Field.Kind] = Kind.Length == 0 ? Required : "",
+            [Field.Title] = Role1.Pick.Length == 0 ? Required
+                : Role1.IsOther && Role1.Value.Length == 0 ? Required
                 : Role1.IsOther && !CardRules.TitlePrints(Role1.Value) ? badTitle
                 : "",
             [Field.Title2] = !ShowRole2 ? ""
-                : Role2.Value.Length > 0 && Naming.SameText(Role2.Value, Role1.Value) ? "This is the same as the job title above. Pick a different role, or remove it."
-                : Role2.IsOther && Role2.Value.Length == 0 ? "Type the second role, or remove it."
+                : Role2.Value.Length > 0 && Naming.SameText(Role2.Value, Role1.Value) ? "Same as the position above. Pick another, or remove it."
+                : Role2.IsOther && Role2.Value.Length == 0 ? "Required, or remove the second position."
                 : Role2.IsOther && !CardRules.TitlePrints(Role2.Value) ? badTitle
-                : Role2.Pick.Length == 0 ? "Choose the second role, or remove it."
+                : Role2.Pick.Length == 0 ? "Required, or remove the second position."
                 : "",
             [Field.TitleFit] = JobTitle.Length > 0 && layout is { Title.Fits: false }
                 ? "This job title is too long for the card, even at the smallest size. Try a shorter wording." : "",
-            [Field.Seq] = Seq.Length == 0 ? "Enter the employee number HR assigned, such as 124."
-                : SeqNumber is null ? $"Use 1 to {CardRules.MostSeqDigits} digits, such as 124."
+            [Field.Seq] = Seq.Length == 0 ? Required
+                : SeqNumber is null ? $"Invalid. Use 1 to {CardRules.MostSeqDigits} digits, such as 124."
                 : dup is not null && !Reissue ? DuplicateMessage(dup.Value)
                 : DupShared == SharedAnswer.Pending ? "Checking the shared register for this number…"
                 : "",
-            [Field.Photo] = PhotoError.Length > 0 ? PhotoError : Photo is null ? "Add the new hire’s photo." : "",
-            [Field.Signature] = Signature is { HasInk: true } ? "" : "Ask the new hire to sign.",
+            [Field.Photo] = PhotoError.Length > 0 ? PhotoError : Photo is null ? Required : "",
+            [Field.Signature] = Signature is { HasInk: true } ? "" : Required,
         };
     }
+
+    /// <summary>What an empty field that must be filled in says.</summary>
+    public const string Required = "Required.";
 
     public bool Ready(Dictionary<Field, string>? p = null) => (p ?? Problems()).Values.All(v => v.Length == 0);
 
@@ -358,11 +367,13 @@ public sealed partial class Session
     private void SayBlocked(int i, Dictionary<Field, string> p)
     {
         BlockedAbout = i;
-        var first = StepProblems(i, p).FirstOrDefault();
-        var reason = StepProblems(i, p).Count > 0 ? p[first] : $"Finish {Steps[i].Label.ToLowerInvariant()}.";
-        BlockedText = i == StepIndex
-            ? $"Can’t continue yet. {reason}"
-            : $"Can’t continue yet. Step {i + 1}, {Steps[i].Label}, needs fixing first.";
+        // The same short line on every step. The fields themselves are
+        // outlined and say what is wrong, so this does not repeat them.
+        var problems = StepProblems(i, p);
+        var many = problems.Count > 1 ? "s" : "";
+        BlockedText = i != StepIndex ? $"Step {i + 1}, {Steps[i].Label}, needs attention first."
+            : problems.All(f => p[f] == Required) ? $"Please complete the highlighted field{many}."
+            : $"Please check the highlighted field{many}.";
     }
 
     /// <summary>

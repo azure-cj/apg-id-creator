@@ -1,4 +1,5 @@
-// Light or dark, as Windows is set.
+// Light or dark: as Windows is set, unless the operator picked one in the
+// rail ("Appearance"), which is remembered on this computer.
 //
 // Windows keeps the choice under Settings -> Personalisation -> Colours ->
 // "Choose your app mode". The window reads it when it opens and follows it
@@ -30,6 +31,25 @@ public static class ThemeManager
 
     /// <summary>The mode the window is drawn in now.</summary>
     public static AppTheme Current { get; private set; } = AppTheme.Light;
+
+    /// <summary>The three answers to "Appearance" in the rail, as they are stored.</summary>
+    public const string MatchWindows = "system", AlwaysLight = "light", AlwaysDark = "dark";
+
+    /// <summary>The key the operator's choice is kept under in the app's settings.</summary>
+    public const string ChoiceKey = "appearance";
+
+    /// <summary>What the operator chose: follow Windows (the default), or always light, or always dark.</summary>
+    public static string Choice { get; private set; } = MatchWindows;
+
+    /// <summary>
+    /// Take the operator's choice and draw the window in it. Anything that is
+    /// not one of the three is taken as following Windows.
+    /// </summary>
+    public static void Choose(string? choice)
+    {
+        Choice = choice is AlwaysLight or AlwaysDark ? choice : MatchWindows;
+        Apply(Choice switch { AlwaysLight => AppTheme.Light, AlwaysDark => AppTheme.Dark, _ => SystemTheme() });
+    }
 
     /// <summary>Raised after the colours change.</summary>
     public static event Action? Changed;
@@ -100,7 +120,8 @@ public static class ThemeManager
         var source = HwndSource.FromHwnd(new WindowInteropHelper(window).Handle);
         source?.AddHook((IntPtr _, int msg, IntPtr _, IntPtr lParam, ref bool _) =>
         {
-            if (msg == WM_SETTINGCHANGE && lParam != IntPtr.Zero && Marshal.PtrToStringUni(lParam) == "ImmersiveColorSet")
+            // a mode chosen in the app stays put when Windows changes its own
+            if (Choice == MatchWindows && msg == WM_SETTINGCHANGE && lParam != IntPtr.Zero && Marshal.PtrToStringUni(lParam) == "ImmersiveColorSet")
             {
                 var now = SystemTheme();
                 if (now != Current) Apply(now);

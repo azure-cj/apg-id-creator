@@ -38,11 +38,17 @@ public partial class MainWindow
             SetText(SumTitle, v.SummaryTitle);
             SetText(SumNumber, v.SummaryNumber);
         }
+        // the warning is a mark with a few words; the whole of it opens on hover or focus
         Show(ReviewWarning, v.WarningShown);
-        SetText(ReviewWarning, v.Warning);
+        if (v.WarningShown && !Equals(System.Windows.Automation.AutomationProperties.GetHelpText(ReviewWarning), v.Warning))
+        {
+            ReviewWarning.ToolTip = Note(v.Warning);
+            System.Windows.Automation.AutomationProperties.SetHelpText(ReviewWarning, v.Warning);
+        }
 
         LayPairs.IsChecked = s.Layout == SheetMode.Pairs;
         LayDuplex.IsChecked = s.Layout == SheetMode.Duplex;
+        SlideThumb(LayoutThumb, LayoutChoices, s.Layout == SheetMode.Duplex ? 1 : 0, glide: true);
         // SAFETY: CmbPaper's items are made in the constructor, each with its paper's key as a string Tag.
         foreach (var item in CmbPaper.Items.OfType<ComboBoxItem>()) if ((string)item.Tag == s.Paper && !item.IsSelected) item.IsSelected = true;
 
@@ -56,8 +62,10 @@ public partial class MainWindow
         }
         SetText(ReviewFile, v.FileLine);
         BtnDownload.IsEnabled = v.SaveEnabled;
-        BtnDownload.Content = v.SaveTitle;
-        BtnPng.IsEnabled = v.PicturesEnabled;
+        // "Save" and a small arrow, as a menu button; while the PDF is written, Core's words ("Saving the PDF…")
+        BtnDownload.Content = _saving ? v.SaveTitle : SaveLabel;
+        MenuPdf.IsEnabled = v.SaveEnabled;
+        MenuPng.IsEnabled = v.PicturesEnabled;
         BtnAddAnother.IsEnabled = v.AddAnotherEnabled;
     }
 
@@ -67,7 +75,9 @@ public partial class MainWindow
     private void Layout_Click(object sender, RoutedEventArgs e)
     {
         if (_syncing) return;
-        _session.SetLayout(LayDuplex.IsChecked == true ? SheetMode.Duplex : SheetMode.Pairs);
+        var layout = LayDuplex.IsChecked == true ? SheetMode.Duplex : SheetMode.Pairs;
+        _sheetChanged = layout != _session.Layout;
+        _session.SetLayout(layout);
         Render();
     }
 
@@ -152,6 +162,32 @@ public partial class MainWindow
     private string _jobShown = "";
 
     private static string DocumentsFolder => Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+
+    private StackPanel? _saveLabel;
+    private StackPanel SaveLabel => _saveLabel ??= MakeSaveLabel();
+
+    private static StackPanel MakeSaveLabel()
+    {
+        var label = new StackPanel { Orientation = Orientation.Horizontal };
+        label.Children.Add(new TextBlock { Text = "Save", VerticalAlignment = VerticalAlignment.Center });
+        var arrow = new System.Windows.Shapes.Path
+        {
+            Data = System.Windows.Media.Geometry.Parse("M0,5 L5,0 L10,5"), StrokeThickness = 1.6, Width = 10, Height = 6,
+            Margin = new Thickness(10, 1, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+        };
+        // the arrow points up: the choices open above the button, at the foot of the form
+        arrow.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "Color.OnAccent");
+        label.Children.Add(arrow);
+        return label;
+    }
+
+    // Save opens its two choices just above itself, as wide as it at least
+    private void BtnSave_Click(object sender, RoutedEventArgs e)
+    {
+        SaveMenu.PlacementTarget = BtnDownload;
+        SaveMenu.MinWidth = BtnDownload.ActualWidth;
+        SaveMenu.IsOpen = true;
+    }
 
     private void BtnDownload_Click(object sender, RoutedEventArgs e)
     {
@@ -265,6 +301,13 @@ public partial class MainWindow
         Render();
     }
 
+    // a click on the dimmed card puts the tool away
+    private void Veil_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        CloseTool();
+    }
+
     private void DrawerClose_Click(object sender, RoutedEventArgs e) => CloseTool();
 
     private void CloseTool()
@@ -291,12 +334,17 @@ public partial class MainWindow
         // leave the boxes on the card with no button anywhere to finish with.
         if (EditingMap && _tool != ToolKey.Design) StopAdjusting();
 
-        Show(Drawer, _tool is not null);
+        var opening = _tool is not null && (Drawer.Visibility != Visibility.Visible || _toolShown != _tool || _closingTool);
+        // A tool that was just put away slides out still showing what it showed,
+        // and only then leaves the page (Motion.SlideOut); the rail lets go of it at once.
+        var closing = _tool is null && Drawer.Visibility == Visibility.Visible;
+        var panel = _tool ?? (closing ? _toolShown : null);
+        if (_tool is not null) { _toolShown = _tool; _closingTool = false; Show(Drawer, true); }
         if (_tool is not null) SetText(DrawerTitle, m.Tools.DrawerTitle);
-        Show(ToolRegister, _tool == ToolKey.Register);
-        Show(ToolBatch, _tool == ToolKey.Batch);
-        Show(ToolPrinter, _tool == ToolKey.Printer);
-        Show(ToolDesign, _tool == ToolKey.Design);
+        Show(ToolRegister, panel == ToolKey.Register);
+        Show(ToolBatch, panel == ToolKey.Batch);
+        Show(ToolPrinter, panel == ToolKey.Printer);
+        Show(ToolDesign, panel == ToolKey.Design);
         RailRegister.IsChecked = _tool == ToolKey.Register;
         RailBatch.IsChecked = _tool == ToolKey.Batch;
         RailPrinter.IsChecked = _tool == ToolKey.Printer;
@@ -318,26 +366,69 @@ public partial class MainWindow
         // the form stands down while the boxes are being dragged
         FormPanel.IsEnabled = !EditingMap;
         FitColumns();
+        // a tool that has just opened slides in from the rail's side, and the card dims behind it
+        if (opening)
+        {
+            Motion.SlideIn(Drawer, -24);
+            if (Veil.Visibility == Visibility.Visible) { Veil.Opacity = 0; Motion.Fade(Veil, VeilOpacity); }
+        }
+        if (closing && !_closingTool) PutToolAway();
     }
 
-    // What the four columns need side by side: the rail, an open tool, the
-    // least the card can be shown in, and the form, with the gaps between.
-    private const double RoomForAllFour = 176 + 12 + 320 + 12 + 300 + 12 + 440;
+    private string? _toolShown;
+    private bool _closingTool;                  // the drawer is sliding out
+    private const double VeilOpacity = 0.72;
+
+    private void PutToolAway()
+    {
+        // beside the card (while the map was dragged) it simply goes: sliding there would cross the card
+        if (Grid.GetColumn(Drawer) == 1) { Show(Drawer, false); Show(Veil, false); return; }
+        _closingTool = true;
+        Motion.Fade(Veil, 0, 150, () => { if (_tool is null) Show(Veil, false); });
+        Motion.SlideOut(Drawer, -24, () =>
+        {
+            // a tool opened again meanwhile keeps the drawer
+            if (_tool is not null || !_closingTool) return;
+            _closingTool = false;
+            Show(Drawer, false);
+        });
+    }
+
+    // What the four columns need side by side while the map is dragged: the
+    // rail, the tool, the least the card can be shown in, and the form.
+    private const double RoomForAllFour = 176 + 12 + 340 + 12 + 300 + 12 + 440;
 
     /// <summary>
-    /// In a window too narrow for all four columns, an open tool takes the
-    /// form's place, and closing it brings the form back. The card is never
-    /// the one to give way: every tool is used while looking at it.
+    /// A tool opens over the card, on a veil that dims it, so nothing else on
+    /// the page moves or changes size. While the map is being dragged the
+    /// tool stands beside the card instead, so every box can be reached;
+    /// then, in a window too narrow for all four columns, it takes the form's
+    /// place until it is closed. The card is never the one to give way.
     /// </summary>
     private void FitColumns()
     {
-        var crowded = _tool is not null && Columns.ActualWidth > 0 && Columns.ActualWidth < RoomForAllFour;
+        var beside = _tool is not null && EditingMap;
+        Grid.SetColumn(Drawer, beside ? 1 : 2);
+        Drawer.Margin = beside ? new Thickness(0, 0, 12, 0) : new Thickness(12);
+        Drawer.HorizontalAlignment = beside ? HorizontalAlignment.Stretch : HorizontalAlignment.Left;
+        // the veil goes with the tool; while the tool slides out, PutToolAway fades it
+        if (_tool is not null) Show(Veil, !beside);
+        else if (!_closingTool && Drawer.Visibility != Visibility.Visible) Show(Veil, false);
+        var crowded = beside && Columns.ActualWidth > 0 && Columns.ActualWidth < RoomForAllFour;
         Show(FormPanel, !crowded);
     }
 
     /* ---- issued IDs ----------------------------------------------- */
 
     private string _registerShown = "\u0000";
+    private bool _registerOpen;                 // Issued IDs shows every row, not only the latest three
+
+    private void BtnRegisterFold_Click(object sender, RoutedEventArgs e)
+    {
+        _registerOpen = !_registerOpen;
+        Render();
+        if (!_registerOpen) RegisterScroll.ScrollToTop();
+    }
 
     /// <summary>The issued IDs, who is signed in to the shared register on this computer, and what the register has refused.</summary>
     private void RenderRegister(RegisterView v)
@@ -349,22 +440,41 @@ public partial class MainWindow
         Show(RefusedPanel, v.RefusedShown);
         SetText(RefusedNote, v.RefusedNote);
         SetText(RegisterNote, v.Note);
-        if (v.Key == _registerShown) return;
-        _registerShown = v.Key;
+        // Core says how many show and what the button under them says (Screen.IssuedFold)
+        var (shown, toggle) = Screen.IssuedFold(v.Rows.Count, _registerOpen);
+        var key = v.Key + "|" + shown;
+        if (key == _registerShown) return;
+        _registerShown = key;
         RegisterList.Children.Clear();
-        foreach (var e in v.Rows)
+        BtnRegisterFold.Content = toggle;
+        Show(BtnRegisterFold, toggle.Length > 0);
+        RegisterScroll.MaxHeight = _registerOpen ? 300 : double.PositiveInfinity;
+        RegisterScroll.Margin = new Thickness(0, 0, _registerOpen ? -10 : 0, 0);
+        // a table on the gold wash (RegisterTable): the number and its day, then who it is for
+        Show(RegisterTable, v.Rows.Count > 0);
+        for (var i = 0; i < shown; i++)
         {
-            var row = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
-            var head = new DockPanel();
-            var when = new TextBlock { Text = e.When, Style = Theme.Style("Text.Note") };
-            DockPanel.SetDock(when, Dock.Right);
-            head.Children.Add(when);
-            head.Children.Add(new TextBlock { Text = e.Head, Style = Theme.Style("Text.Body"), FontWeight = FontWeights.SemiBold });
-            row.Children.Add(head);
-            row.Children.Add(new TextBlock { Text = e.Detail, Style = Theme.Style("Text.Note") });
-            RegisterList.Children.Add(row);
+            var e = v.Rows[i];
+            var row = new Grid();
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(128) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var number = new StackPanel { Margin = new Thickness(0, 0, 8, 0) };
+            number.Children.Add(new TextBlock { Text = e.Head, Style = Theme.Style("Text.Body"), FontWeight = FontWeights.SemiBold });
+            number.Children.Add(new TextBlock { Text = e.When, Style = Theme.Style("Text.Note") });
+            // the name, and the position under it in the quieter colour: one line each reads at a glance
+            var who = new StackPanel();
+            var split = e.Detail.IndexOf(" · ", StringComparison.Ordinal);
+            who.Children.Add(new TextBlock { Text = split < 0 ? e.Detail : e.Detail[..split], Style = Theme.Style("Text.Body") });
+            if (split >= 0) who.Children.Add(new TextBlock { Text = e.Detail[(split + 3)..], Style = Theme.Style("Text.Note") });
+            Grid.SetColumn(who, 1);
+            row.Children.Add(number);
+            row.Children.Add(who);
+            // a white rule between rows on the wash, as in the Batch list; none under the last
+            var line = new Border { BorderThickness = new Thickness(0, 0, 0, i < shown - 1 ? 2 : 0), Padding = new Thickness(0, 8, 0, 8), Child = row };
+            Theme.Paint(line, Border.BorderBrushProperty, "Color.Surface");
+            RegisterList.Children.Add(line);
         }
-        if (v.More.Length > 0) RegisterList.Children.Add(new TextBlock { Text = v.More, Style = Theme.Style("Text.Note") });
+        if (_registerOpen && v.More.Length > 0) RegisterList.Children.Add(new TextBlock { Text = v.More, Style = Theme.Style("Text.Note"), Margin = new Thickness(0, 0, 0, 8) });
     }
 
     private void BtnRegisterCsv_Click(object sender, RoutedEventArgs e)
@@ -479,7 +589,49 @@ public partial class MainWindow
         var chosen = Screen.BatchChosen(_batchCsv, _batchPhotos.Length, _batchSigs.Length);
         SetText(CsvMsg, chosen.List);
         SetText(PhotosMsg, chosen.Photos);
-        SetText(SigsMsg, chosen.Signatures);
+        // "Optional" stands out in gold at the start of the line; the rest stays quiet
+        const string optional = "Optional";
+        if (chosen.Signatures.StartsWith(optional, StringComparison.Ordinal) && SigsMsg.Text != chosen.Signatures)
+        {
+            SigsMsg.Inlines.Clear();
+            var word = new System.Windows.Documents.Run(optional) { FontWeight = FontWeights.SemiBold };
+            word.SetResourceReference(System.Windows.Documents.TextElement.ForegroundProperty, "Color.Kicker");
+            SigsMsg.Inlines.Add(word);
+            SigsMsg.Inlines.Add(new System.Windows.Documents.Run(chosen.Signatures[optional.Length..]));
+        }
+        else if (!chosen.Signatures.StartsWith(optional, StringComparison.Ordinal)) SetText(SigsMsg, chosen.Signatures);
+        // once a file is chosen its number becomes a tick, and its button offers to change it
+        BatchMark(CsvMark, BtnPickCsv, _batchCsv is not null);
+        BatchMark(PhotosMark, BtnPickPhotos, _batchPhotos.Length > 0);
+        BatchMark(SigsMark, BtnPickSigs, _batchSigs.Length > 0);
+    }
+
+    private static void BatchMark(Border mark, Button pick, bool chosen)
+    {
+        var say = chosen ? "Change" : "Choose";
+        if (mark.Child is not null && Equals(pick.Content, say)) return;        // drawn already
+        // a white ring with its number, or a disc of the text colour with a tick
+        Theme.Paint(mark, Border.BackgroundProperty, chosen ? "Color.Strong" : "Color.Surface");
+        Theme.Paint(mark, Border.BorderBrushProperty, chosen ? "Color.Strong" : "Color.ControlBorder");
+        if (chosen)
+        {
+            var tick = new System.Windows.Shapes.Path
+            {
+                Data = System.Windows.Media.Geometry.Parse("M1,6 L5,10 L12,2"), StrokeThickness = 2,
+                Width = 13, Height = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            };
+            tick.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "Color.OnStrong");
+            mark.Child = tick;
+        }
+        else
+        {
+            // SAFETY: each mark carries its row's number as a string Tag in the markup.
+            var number = new TextBlock { Text = (string)mark.Tag, FontSize = 13, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            Theme.Paint(number, TextBlock.ForegroundProperty, "Color.TextMuted");
+            mark.Child = number;
+        }
+        pick.Content = say;
+        Motion.FadeIn(mark, 0.3);
     }
 
     private void BtnPickCsv_Click(object sender, RoutedEventArgs e)
@@ -537,6 +689,7 @@ public partial class MainWindow
         _batchRunning = true;
         UpdateBatchButton();
         BatchReport.Children.Clear();
+        Show(BatchResult, false);
         BatchStatus.Text = "Reading the list…";
         try
         {
@@ -602,16 +755,61 @@ public partial class MainWindow
 
     private void RenderBatchReport(IReadOnlyList<BatchRowResult> results)
     {
+        // Core counts and orders them (Screen.BatchSummary); this lays them out
+        var sum = Screen.BatchSummary(results);
+        BatchCounts.Children.Clear();
+        BatchCounts.Children.Add(CountChip($"{sum.Made} made", "Color.Success"));
+        if (sum.ToCheck > 0) BatchCounts.Children.Add(CountChip($"{sum.ToCheck} to check", "Color.Warning"));
+        if (sum.Skipped > 0) BatchCounts.Children.Add(CountChip($"{sum.Skipped} skipped", "Color.Danger"));
+        BatchDetailsLabel.Text = $"Each row ({results.Count})";
+        BatchDetails.IsExpanded = false;          // folded: the counts say enough until a row is wanted
+
         BatchReport.Children.Clear();
-        foreach (var r in results)
+        for (var i = 0; i < sum.Rows.Count; i++)
         {
-            var (tone, head, text) = Screen.BatchRow(r);
-            var row = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
+            var (tone, head, text) = Screen.BatchRow(sum.Rows[i]);
+            var row = new StackPanel();
             row.Children.Add(new TextBlock { Text = head, Style = Theme.Style("Text.Body"), FontWeight = FontWeights.SemiBold });
-            // the words say which it is; the colour only agrees with them
-            row.Children.Add(new TextBlock { Text = text, Style = Theme.Style(TextStyle(tone)) });
-            BatchReport.Children.Add(row);
+            // a coloured dot and the words: the words say which it is; the colour only agrees with them
+            var status = new DockPanel();
+            var dot = StatusDot(tone == Tone.Note ? "Color.Success" : tone == Tone.Warning ? "Color.Warning" : "Color.Danger");
+            dot.Margin = new Thickness(0, 6, 8, 0);
+            dot.VerticalAlignment = VerticalAlignment.Top;
+            DockPanel.SetDock(dot, Dock.Left);
+            status.Children.Add(dot);
+            status.Children.Add(new TextBlock { Text = text, Style = Theme.Style(TextStyle(tone)) });
+            row.Children.Add(status);
+            var line = new Border { BorderThickness = new Thickness(0, 0, 0, i < sum.Rows.Count - 1 ? 2 : 0), Padding = new Thickness(0, 8, 0, 8), Child = row };
+            Theme.Paint(line, Border.BorderBrushProperty, "Color.Surface");
+            BatchReport.Children.Add(line);
         }
+        Show(BatchResult, results.Count > 0);
+    }
+
+    // the rows just opened are brought into the panel's view, rather than left below its edge
+    private void BatchDetails_Expanded(object sender, RoutedEventArgs e) =>
+        Dispatcher.BeginInvoke(() => BatchDetails.BringIntoView(), DispatcherPriority.Loaded);
+
+    // One count in the batch's outcome: a mark and a few words in a rounded outline, in the colour the words already say.
+    // one count: a coloured dot and the words (a status is a dot and a word, never a capsule), counts in even-width figures
+    private static FrameworkElement CountChip(string words, string colour)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 16, 6) };
+        var dot = StatusDot(colour);
+        dot.Margin = new Thickness(0, 0, 7, 0);
+        row.Children.Add(dot);
+        var text = new TextBlock { Text = words, FontSize = 13, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        System.Windows.Documents.Typography.SetNumeralAlignment(text, FontNumeralAlignment.Tabular);
+        Theme.Paint(text, TextBlock.ForegroundProperty, colour);
+        row.Children.Add(text);
+        return row;
+    }
+
+    private static System.Windows.Shapes.Ellipse StatusDot(string colour)
+    {
+        var dot = new System.Windows.Shapes.Ellipse { Width = 8, Height = 8, VerticalAlignment = VerticalAlignment.Center };
+        dot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, colour);
+        return dot;
     }
 
     /* ---- the card design -------------------------------------------

@@ -81,6 +81,12 @@ public partial class MainWindow : Window
 
         InitializeComponent();
         _built = true;
+        FitScreen();
+        GiveInfoMarksTheirWords(this);
+        // the operator's own choice of light or dark, if one was made on this computer;
+        // otherwise the window stays as Windows is set (App.OnStartup)
+        if (files.Get(ThemeManager.ChoiceKey) is (ThemeManager.AlwaysLight or ThemeManager.AlwaysDark) and var chosen) ThemeManager.Choose(chosen);
+        ShowAppearanceChoice();
         MapOverlay.Store = _templates;
         MapOverlay.Changed += moved => { if (moved) { ApplyGeometry(); DrawPreview(); } DesignReadout.Text = MapOverlay.Readout(); };
         // Still needed: Render runs on every keystroke and every change of the window's size, and a
@@ -113,6 +119,84 @@ public partial class MainWindow : Window
         Closed += (_, _) => ThemeManager.Changed -= OnThemeChanged;
         Closed += (_, _) => _remover?.Dispose();
         Render();
+    }
+
+    /// <summary>
+    /// Each information mark ("i") shows its words in a note box (ToolTip.Note);
+    /// a screen reader gets the same words as its help text, so they are
+    /// written once, in the markup.
+    /// </summary>
+    private static void GiveInfoMarksTheirWords(DependencyObject root)
+    {
+        foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+        {
+            if (child is Button { ToolTip: string words } info && ReferenceEquals(info.Style, Theme.Style("Button.Info")))
+            {
+                AutomationProperties.SetHelpText(info, words);
+                info.ToolTip = Note(words);
+            }
+            GiveInfoMarksTheirWords(child);
+        }
+    }
+
+    /// <summary>Words for an "i" or a warning mark, in the note box they open in.</summary>
+    private static ToolTip Note(string words) => new() { Style = Theme.Style("ToolTip.Note"), Content = words };
+
+    /// <summary>
+    /// Open no bigger than the screen's working area, so the whole window shows
+    /// on a 1920 × 1080 laptop at 150% (about 1280 × 672 left once the taskbar
+    /// is counted); the card shrinks to fit, the form keeps its size.
+    /// </summary>
+    private void FitScreen()
+    {
+        var work = SystemParameters.WorkArea;
+        if (work.Width <= 0 || work.Height <= 0) return;
+        MinWidth = Math.Min(MinWidth, work.Width);
+        MinHeight = Math.Min(MinHeight, work.Height);
+        Width = Math.Min(Width, work.Width);
+        Height = Math.Min(Height, work.Height);
+    }
+
+    /* ---- light or dark ------------------------------------------- */
+
+    private RadioButton[] AppearanceOptions => new[] { AppearSystem, AppearLight, AppearDark };
+
+    private void ShowAppearanceChoice(bool glide = false)
+    {
+        // SAFETY: each option carries "system", "light" or "dark" as a string Tag in the markup.
+        var chosen = Array.FindIndex(AppearanceOptions, o => (string)o.Tag == ThemeManager.Choice);
+        for (var i = 0; i < AppearanceOptions.Length; i++) AppearanceOptions[i].IsChecked = i == chosen;
+        SlideThumb(AppearanceThumb, AppearanceChoices, chosen, glide);
+    }
+
+    private void AppearanceChoices_SizeChanged(object sender, SizeChangedEventArgs e) => ShowAppearanceChoice();
+
+    /// <summary>
+    /// Put a switch's gold thumb under the chosen option, an equal share of the
+    /// track wide: gliding there when asked (Motion), straight there otherwise.
+    /// </summary>
+    private static void SlideThumb(Border thumb, Panel options, int chosen, bool glide)
+    {
+        var share = options.ActualWidth / Math.Max(1, options.Children.Count);
+        if (share <= 0) return;                                   // not laid out yet: SizeChanged comes back here
+        thumb.Width = share;
+        Motion.Glide(thumb, Canvas.LeftProperty, Math.Max(0, chosen) * share, glide);
+    }
+
+    // a switch's track changed size (the window, or the panel it is in): its thumb follows, without gliding
+    private void SwitchChoices_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        SlideThumb(LayoutThumb, LayoutChoices, _session.Layout == SheetMode.Duplex ? 1 : 0, glide: false);
+    }
+
+    private void Appearance_Click(object sender, RoutedEventArgs e)
+    {
+        // SAFETY: only the three Appearance options use this handler, each with a string Tag.
+        var choice = (string)((FrameworkElement)sender).Tag;
+        ThemeManager.Choose(choice);
+        // following Windows is the default, and needs nothing kept
+        _files.Set(ThemeManager.ChoiceKey, choice == ThemeManager.MatchWindows ? null : choice);
+        ShowAppearanceChoice(glide: true);
     }
 
     /* ---- starting up ---------------------------------------------- */
@@ -239,11 +323,18 @@ public partial class MainWindow : Window
             Show(SideTabs, m.Stage.SideTabsShown);
             SideFront.IsChecked = _front;
             SideBack.IsChecked = !_front;
+            // the flip switch: on for the back; its knob slides to the side shown
+            SideFlip.IsChecked = !_front;
+            AutomationProperties.SetName(SideFlip, _front ? "Show the back of the card" : "Show the front of the card");
+            Motion.Glide(SideKnob, Canvas.LeftProperty, _front ? 4 : 28, glide: true);
             Show(CardLoading, m.Stage.LoadingShown);
             SetText(CardLoading, m.Stage.LoadingText);
             Show(CardBox, m.Stage.CardShown);
             Show(SheetImage, m.Stage.SheetShown);
+            // the page buttons' row is kept from the moment the check step opens, so the sheet never
+            // appears at one size and then shrinks when the row arrives
             if (s.StepIndex != Session.LastStep) Show(SheetNav, false);
+            else if (SheetNav.Visibility == Visibility.Collapsed) SheetNav.Visibility = Visibility.Hidden;
             SetText(Caption, m.Stage.Caption);
 
             // name
@@ -257,6 +348,8 @@ public partial class MainWindow : Window
             SyncText(TxtSuffix, s.Suffix);
             NamePreview.Style = Theme.Style(m.Name.PreviewIsError ? "Text.Error" : "Text.Body");
             SetText(NamePreview, m.Name.Preview);
+            // the name as it prints is on the card, outlined; this line is only for one that will not fit
+            Show(NamePreview, m.Name.Preview.Length > 0);
 
             // who the ID is for
             // SAFETY: CmbKind's items are the two ComboBoxItems in the markup, each with its kind as a string Tag.
@@ -293,8 +386,7 @@ public partial class MainWindow : Window
             if (m.Check is { } check) RenderCheckStep(check);
 
             // one step at a time
-            var steps = new FrameworkElement[] { StepName, StepTitle, StepNumber, StepPhoto, StepSign, StepCheck };
-            for (var i = 0; i < steps.Length; i++) Show(steps[i], i == m.StepIndex);
+            for (var i = 0; i < StepPanels.Length; i++) Show(StepPanels[i], i == m.StepIndex);
             RenderStepChips(m.Chips);
 
             // the line under the buttons: a refusal while there is one,
@@ -308,14 +400,79 @@ public partial class MainWindow : Window
             Show(BtnNext, m.Footer.NextShown);
             BtnNext.Content = m.Footer.NextTitle;
             BtnNext.IsEnabled = m.Footer.NextEnabled;
+            // on the check step the gold button at the right edge is Save the PDF, then Start a new ID
+            var reviewing = m.Check is { Saved: false };
+            var saved = m.Check is { Saved: true };
+            Show(BtnDownload, reviewing);
+            Show(BtnNewId, saved);
+            Show(BtnOpenFolder, saved);
 
             RenderJob(m.Job);
             RenderTools(m);
             DrawPreview();
+            RenderCardFocus(m.Stage.CardShown);
             if (m.Stage.CardShown) AutomationProperties.SetName(CardImage, m.Stage.CardSays);
         }
         finally { _syncing = false; }
     }
+
+    /* ---- where the step prints on the card ------------------------ */
+
+    // The step's own box on the card and the words on its tag. The check
+    // step shows the whole sheet instead, so it has none. The job step holds
+    // two boxes: the job until it is settled, then the number.
+    private (BoxKey Box, string Label)? FocusFor(int step) => step switch
+    {
+        (int)Step.Name => (BoxKey.Name, "Name"),
+        (int)Step.Title => Screen.LandingFor(_session, step) == FocusTarget.Seq || TxtSeq.IsKeyboardFocusWithin || CmbYear.IsKeyboardFocusWithin
+            ? (BoxKey.EmployeeNo, "Employee number") : (BoxKey.Title, "Job position"),
+        (int)Step.Photo => (BoxKey.Photo, "Photo"),
+        (int)Step.Sign => (BoxKey.Signature, "Signature"),
+        _ => null,
+    };
+
+    /// <summary>
+    /// Outline where the step being filled in prints, so the card itself is
+    /// the preview of what is typed. Only on the front, and never while the
+    /// map is being dragged: then the map's own boxes are on the card.
+    /// </summary>
+    private void RenderCardFocus(bool cardShown)
+    {
+        var focus = FocusFor(_session.StepIndex);
+        var shown = cardShown && _front && !EditingMap && focus is not null;
+        // it glides from the last field to the next only when it was already on the card
+        var glide = shown && FocusLayer.Visibility == Visibility.Visible;
+        Show(FocusLayer, shown);
+        if (!shown || focus is not { } f) { _focusAt = null; return; }
+
+        // CardSurface is drawn at this many units to the millimetre (540 × 856 for 54 × 85.6 mm)
+        var unit = CardSurface.Width / CardConfig.CardWidthMm;
+        const double ring = 5;                       // the two rings sit just outside the box
+        var box = _templates.Box(f.Box);
+        var ringAt = new Rect(box.X * unit - ring, box.Y * unit - ring, box.W * unit + 2 * ring, box.H * unit + 2 * ring);
+        // Render runs on every keystroke: start a glide only when the place has changed
+        if (_focusAt == ringAt && CardFocusText.Text == f.Label) return;
+        _focusAt = ringAt;
+
+        Motion.Glide(CardFocus, Canvas.LeftProperty, ringAt.X, glide);
+        Motion.Glide(CardFocus, Canvas.TopProperty, ringAt.Y, glide);
+        Motion.Glide(CardFocus, WidthProperty, ringAt.Width, glide);
+        Motion.Glide(CardFocus, HeightProperty, ringAt.Height, glide);
+
+        if (CardFocusText.Text != f.Label && glide) Motion.FadeIn(CardFocusTag, 0.2, 240);
+        SetText(CardFocusText, f.Label);
+        CardFocusTag.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var tagHeight = CardFocusTag.DesiredSize.Height;
+        // the tag sits on the box's top edge, or inside it when the box is at the top of the card
+        var above = ringAt.Y - tagHeight - 4;
+        Motion.Glide(CardFocusTag, Canvas.LeftProperty, Math.Max(4, ringAt.X), glide);
+        Motion.Glide(CardFocusTag, Canvas.TopProperty, above >= 4 ? above : box.Y * unit + 4, glide);
+    }
+
+    private Rect? _focusAt;
+
+    // one panel per step, in Session.Steps order
+    private FrameworkElement[] StepPanels => new FrameworkElement[] { StepName, StepTitle, StepPhoto, StepSign, StepCheck };                     // where the outline was last sent, so a keystroke does not restart its glide
 
     private static void SyncText(TextBox box, string value)
     {
@@ -327,12 +484,16 @@ public partial class MainWindow : Window
 
     /* ---- the step chips ------------------------------------------- */
 
+    // Five equal shares of the bar, so the rules over the steps line up evenly;
+    // each step shows its short name (Session.Steps), which fits one share with its lock.
     private void BuildStepChips()
     {
         for (var i = 0; i < Session.Steps.Length; i++)
         {
             var index = i;
+            StepsBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             var chip = new Button { Style = Theme.Style("Step") };
+            Grid.SetColumn(chip, i);
             chip.Click += (_, _) => AfterMove(_session.StepIndex, _session.ChipPressed(index));
             StepsBar.Children.Add(chip);
             _stepChips.Add(chip);
@@ -346,7 +507,8 @@ public partial class MainWindow : Window
             var state = states[i];
             var (locked, current, done) = (state.Locked, state.Current, state.Done);
             var chip = _stepChips[i];
-            chip.Content = state.Label;
+            // the short name on the bar; the whole name is what a screen reader says (Says, below)
+            chip.Content = ChipContent(state.Short, locked);
             // The rule over the word carries the state in its thickness as well
             // as its colour: thick for finished and for the step you are on,
             // a hairline for the ones to come. Gold marks only where you are.
@@ -358,6 +520,24 @@ public partial class MainWindow : Window
             AutomationProperties.SetName(chip, state.Says);
             chip.ToolTip = state.ToolTip.Length > 0 ? state.ToolTip : null;
         }
+    }
+
+    // A step that cannot be opened yet carries a small lock before its name,
+    // so "not yet" shows in a shape and not only in a fainter grey.
+    private static object ChipContent(string label, bool locked)
+    {
+        if (!locked) return label;
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        var lockMark = new System.Windows.Shapes.Path
+        {
+            // a shackle and a body, drawn rather than taken from a font that may not be there
+            Data = System.Windows.Media.Geometry.Parse("M2.5,5 L2.5,3.5 A2.5,2.5 0 0 1 7.5,3.5 L7.5,5 M1,5 L9,5 L9,11 L1,11 Z"),
+            StrokeThickness = 1.3, Width = 10, Height = 12, Margin = new Thickness(0, 1, 5, 0), VerticalAlignment = VerticalAlignment.Center,
+        };
+        lockMark.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "Color.TextMuted");
+        row.Children.Add(lockMark);
+        row.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center });
+        return row;
     }
 
     /* ---- moving between steps ------------------------------------- */
@@ -393,6 +573,10 @@ public partial class MainWindow : Window
         _saved = after.Saved;
         if (after.StepChanged) StepScroll.ScrollToTop();
         Render();
+        // the new page comes in from the side you are heading: from the right going on, from the left going back
+        if (after.StepChanged) Motion.SlideIn(StepPanels[_session.StepIndex], _session.StepIndex > from ? 18 : -18);
+        // the card gives way to the sheet (or back): a short fade rather than a swap
+        if ((from == Session.LastStep) != (_session.StepIndex == Session.LastStep)) Motion.FadeIn(StageView, 0, 220);
         var target = after.Focus is { } focus ? ControlFor(focus) : null;
         // after the layout pass, so a control that has only just appeared can take the focus
         if (target is not null) Dispatcher.BeginInvoke(() => target.Focus(), DispatcherPriority.Input);
@@ -410,11 +594,13 @@ public partial class MainWindow : Window
 
     private void SummaryEdit_Click(object sender, RoutedEventArgs e)
     {
-        // SAFETY: the three Edit buttons carry "0", "1" and "2" in the markup.
+        // SAFETY: the three Edit buttons carry "0", "1" and "1" in the markup.
         var step = int.Parse((string)((FrameworkElement)sender).Tag, CultureInfo.InvariantCulture);
         var from = _session.StepIndex;
         _session.GoStep(step);
         AfterMove(from);
+        // the number shares the job's page: its Edit goes straight to the number
+        if (ReferenceEquals(sender, EditNumber) && _session.StepIndex == step) Dispatcher.BeginInvoke(() => TxtSeq.Focus(), DispatcherPriority.Input);
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -462,7 +648,7 @@ public partial class MainWindow : Window
         Render();
     }
 
-    /* ---- step 2: job title ---------------------------------------- */
+    /* ---- step 2: job and number ----------------------------------- */
 
     // The chip rows are rebuilt only when the list of titles changes — not
     // on every keystroke — so focus and the arrow keys' place in the row survive.
@@ -550,7 +736,7 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(() => BtnRoleAdd.Focus(), DispatcherPriority.Input);
     }
 
-    /* ---- step 3: number ------------------------------------------- */
+    /* ---- step 2, continued: the number ---------------------------- */
 
     private void TxtSeq_TextChanged(object sender, TextChangedEventArgs e)
     {
@@ -561,6 +747,9 @@ public partial class MainWindow : Window
 
     private void TxtSeq_LostFocus(object sender, RoutedEventArgs e) { _session.Touch(Field.Seq); Render(); }
 
+    // the outline on the card follows the cursor between the job and the number
+    private void Number_FocusMoved(object sender, KeyboardFocusChangedEventArgs e) { if (!_syncing) RenderCardFocus(CardBox.Visibility == Visibility.Visible); }
+
     private void CmbYear_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (_syncing || CmbYear.SelectedItem is not int year) return;
@@ -570,7 +759,7 @@ public partial class MainWindow : Window
 
     private void ChkReissue_Click(object sender, RoutedEventArgs e) { _session.SetReissue(ChkReissue.IsChecked == true); Render(); }
 
-    /* ---- step 4: photo -------------------------------------------- */
+    /* ---- step 3: photo -------------------------------------------- */
 
     private void RenderPhotoStep(PhotoView v)
     {
@@ -706,14 +895,24 @@ public partial class MainWindow : Window
         }
         catch (System.Runtime.InteropServices.ExternalException)
         {
-            // another program is holding the clipboard: select it so Ctrl+C still works
+            // another program is holding the clipboard: show and select it so Ctrl+C still works
+            ShowPrompt(true);
             TxtPrompt.Focus();
             TxtPrompt.SelectAll();
             CopyStatus.Text = "Selected. Press Ctrl+C to copy.";
         }
     }
 
-    /* ---- step 5: signature ---------------------------------------- */
+    // The prompt is for copying; reading it is the exception, one press away.
+    private void BtnShowPrompt_Click(object sender, RoutedEventArgs e) => ShowPrompt(TxtPrompt.Visibility != Visibility.Visible);
+
+    private void ShowPrompt(bool show)
+    {
+        Show(TxtPrompt, show);
+        BtnShowPrompt.Content = show ? "Hide the prompt" : "Show the prompt";
+    }
+
+    /* ---- step 4: signature ---------------------------------------- */
 
     private ScannedSignature? _scanShown;
 
@@ -791,7 +990,17 @@ public partial class MainWindow : Window
     private void DrawPreview()
     {
         if (_art is null || _renderer is null) return;
-        if (_session.StepIndex == Session.LastStep) { _sheetTimer.Stop(); _sheetTimer.Start(); return; }
+        if (_session.StepIndex == Session.LastStep)
+        {
+            _sheetTimer.Stop();
+            // Arriving at the check step, the sheet is drawn at once: waiting for the timer left
+            // the stage empty for a moment, then the sheet popped in. After that, a change
+            // (typing a number of copies, resizing) waits for the timer as before.
+            if (!_sheetShowing) { _sheetShowing = true; DrawSheetPreview(); }
+            else _sheetTimer.Start();
+            return;
+        }
+        _sheetShowing = false;
 
         // as many pixels as the card really occupies on this monitor
         var dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
@@ -803,6 +1012,8 @@ public partial class MainWindow : Window
     }
 
     private const double SheetPreviewPpm = 96 / 25.4;
+    private bool _sheetShowing;                 // the check step's sheet is on the stage (drawn once on arrival)
+    private bool _sheetChanged;                 // the print layout was just switched: the next sheet fades in
 
     private void DrawSheetPreview()
     {
@@ -820,7 +1031,10 @@ public partial class MainWindow : Window
 
         AutomationProperties.SetName(SheetImage, sheet.Says);
         SetText(PreviewCaption, sheet.Caption);
-        Show(SheetNav, sheet.NavShown);
+        // Hidden, not collapsed: the row is kept, so switching between one page and two
+        // does not make the sheet above it grow or shrink
+        SheetNav.Visibility = sheet.NavShown ? Visibility.Visible : Visibility.Hidden;
+        if (_sheetChanged) { _sheetChanged = false; Motion.FadeIn(SheetImage); }
         PrevPage.IsEnabled = sheet.PreviousEnabled;
         NextPage.IsEnabled = sheet.NextEnabled;
     }
@@ -828,8 +1042,22 @@ public partial class MainWindow : Window
     private void Side_Click(object sender, RoutedEventArgs e)
     {
         if (_syncing) return;
-        _front = SideFront.IsChecked == true;
-        Render();
+        FlipTo(SideFront.IsChecked == true);
+    }
+
+    // the flip switch itself: each press turns the card over
+    private void SideFlip_Click(object sender, RoutedEventArgs e)
+    {
+        if (_syncing) return;
+        FlipTo(SideFlip.IsChecked != true);
+    }
+
+    private void FlipTo(bool wantFront)
+    {
+        if (wantFront == _front) return;
+        // the knob moves at once; the card turns about its own centre, its size and place unchanged (Motion.Flip)
+        Motion.Glide(SideKnob, Canvas.LeftProperty, wantFront ? 4 : 28, glide: true);
+        Motion.Flip(CardBox, () => { _front = wantFront; Render(); });
     }
 
     private void PrevPage_Click(object sender, RoutedEventArgs e) { _session.TurnPreviewPage(-1); DrawSheetPreview(); }

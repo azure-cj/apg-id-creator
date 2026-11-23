@@ -107,7 +107,7 @@ public sealed partial class MainWindow
     private readonly NSButton _btnCancelAdd;
 
     private readonly List<NSButton> _stepChips = new();
-    private readonly NSStackView[] _steps = new NSStackView[6];
+    private readonly NSStackView[] _steps = new NSStackView[5];
     private readonly NSButton _btnBack;
     private readonly NSButton _btnNext;
     private readonly NSTextField _blocked = Ui.Error();
@@ -135,14 +135,14 @@ public sealed partial class MainWindow
     private readonly NSTextField _titlePreview = Ui.Error();
     private List<string> _titleValues = new();
     private List<string> _title2Values = new();
-    // step 3
+    // step 2, continued: the number
     private readonly NSPopUpButton _cmbYear;
     private readonly List<int> _years = new();
     private readonly NSTextField _txtSeq = Ui.Field("Number", 110);
     private readonly NSTextField _msgSeq = Ui.Note();
     private readonly NSStackView _reissueWrap;
     private readonly NSButton _chkReissue;
-    // step 4
+    // step 3
     private readonly NSImageView _photoThumb = Ui.Picture(138, 184);
     private readonly NSButton _btnPhoto;
     private readonly NSTextField _photoName = Ui.Note();
@@ -153,14 +153,14 @@ public sealed partial class MainWindow
     private readonly NSButton _btnAdjustReset;
     private readonly NSTextField _guideLabel = Ui.Label("If the cut-out looks wrong", bold: true);
     private readonly NSTextField _copyStatusLabel = Ui.Note();
-    // step 5
+    // step 4
     private readonly NSImageView _sigImage = Ui.Picture(400, 130);
     private readonly NSButton _btnSign;
     private readonly NSButton _btnClearSig;
     private readonly NSTextField _sigHelp = Ui.Note();
     private readonly NSTextField _sigMsg = Ui.Error();
     private readonly NSTextField _tabletNote = Ui.Note();
-    // step 6
+    // step 5
     private readonly NSTextField _checkHeading = Ui.Heading("Is everything correct?");
     private readonly NSTextField _reviewSub = Ui.Note();
     private readonly NSStackView _reviewStage;
@@ -299,7 +299,7 @@ public sealed partial class MainWindow
             Ui.Label("Suffix (Jr., III)", bold: true), _txtSuffix, _msgSuffix,
             _namePreview);
 
-        // step 2: who it is for, and the job title
+        // step 2: who it is for, the job title and, on the same page, the employee number
         _cmbKind = Ui.Popup("This ID is for", new[] { "Choose…", "An employee", "An intern" }, index =>
         {
             if (_syncing || index < 1) return;
@@ -329,13 +329,8 @@ public sealed partial class MainWindow
             Ui.Row(12, Ui.Label("Second role", bold: true, maxWidth: 160), Ui.Button("Remove the second role", () => { _session.RemoveSecondRole(); Render(); })),
             _cmbTitle2, _txtTitle2Custom, _msgTitle2);
         _btnRoleAdd = Ui.Button("Add a second role", () => { _session.AddSecondRole(); Render(); });
-        _steps[1] = Ui.Column(4,
-            Ui.Heading("What do they do?"),
-            Ui.Label("This ID is for", bold: true), _cmbKind, _msgKind,
-            Ui.Label("Job title", bold: true), _cmbTitle, _txtTitleCustom, _msgTitle, _btnForgetTitle,
-            _fieldTitle2, _btnRoleAdd, _titlePreview);
 
-        // step 3: number
+        // the number shares the job's step (Session.Steps): on its own it left a page nearly empty
         foreach (var year in _session.YearsOffered()) _years.Add(year);
         _cmbYear = Ui.Popup("Year of issue", _years.Select(y => y.ToString(CultureInfo.InvariantCulture)), index =>
         {
@@ -348,12 +343,18 @@ public sealed partial class MainWindow
         _chkReissue = Ui.Check("Replacement card", on => { _session.SetReissue(on); Render(); });
         _reissueWrap = Ui.Column(4, _chkReissue,
             Ui.Note("This number is already issued. Tick only if you are printing the same person’s card again (lost, damaged, name change)."));
-        _steps[2] = Ui.Column(6,
-            Ui.Heading("Which employee number?"),
+        var numberPart = Ui.Column(6,
+            Ui.Label("Which employee number?", 16, bold: true),
             Ui.Row(8, Ui.Label($"{CardConfig.EmployeePrefix} -", 16, bold: true, maxWidth: 80), _cmbYear, Ui.Label("-", 16, bold: true, maxWidth: 20), _txtSeq),
             _msgSeq, _reissueWrap);
+        _steps[1] = Ui.Column(4,
+            Ui.Heading("What do they do?"),
+            Ui.Label("This ID is for", bold: true), _cmbKind, _msgKind,
+            Ui.Label("Job title", bold: true), _cmbTitle, _txtTitleCustom, _msgTitle, _btnForgetTitle,
+            _fieldTitle2, _btnRoleAdd, _titlePreview,
+            numberPart);
 
-        // step 4: photo
+        // step 3: photo
         _btnPhoto = Ui.Button("Choose a photo", ChoosePhoto);
         _sldZoom.WidthAnchor.ConstraintEqualTo(220).Active = true;
         _sldZoom.Activated += (_, _) =>
@@ -381,7 +382,7 @@ public sealed partial class MainWindow
             Ui.Row(6, Move("Left", "Move the photo left", -1, 0), Move("Up", "Move the photo up", 0, -1), Move("Down", "Move the photo down", 0, 1), Move("Right", "Move the photo right", 1, 0)),
             Ui.Row(10, Ui.Label("Size", maxWidth: 40), _sldZoom, _zoomOut),
             _btnAdjustReset);
-        _steps[3] = Ui.Column(8,
+        _steps[2] = Ui.Column(8,
             Ui.Heading("Their photo"),
             new FileDropView(Ui.Row(14, _photoThumb, Ui.Column(6, _btnPhoto, Ui.Note("or drop a picture here"), _photoName))) { Dropped = path => _ = AcceptPhotoFile(path) },
             _photoMsg, _adjustBox,
@@ -390,10 +391,10 @@ public sealed partial class MainWindow
             Ui.Row(10, Ui.Button("Copy the prompt", CopyPrompt), _copyStatusLabel),
             Ui.Note("Employee photos are personal data. Use the company’s approved enterprise AI account, never a personal login, and check the face still looks like the person."));
 
-        // step 5: signature
+        // step 4: signature
         _btnSign = Ui.Button("Sign now", SignNow);
         _btnClearSig = Ui.Button("Clear", () => { _sigError = ""; _session.SetSignature(null); Render(); });
-        _steps[4] = Ui.Column(8,
+        _steps[3] = Ui.Column(8,
             Ui.Heading("Their signature"),
             _sigImage,
             Ui.Row(8, _btnSign, Ui.Button("Use a scan instead", ChooseSignatureScan), _btnClearSig),
@@ -401,11 +402,12 @@ public sealed partial class MainWindow
         _btnDriver.Activated += (_, _) => _ = RunDriverInstall();
         _driverMsg.PreferredMaxLayoutWidth = (nfloat)Ui.TextWidth;
 
-        // step 6: check and print
+        // step 5: check and print
         _summary = Ui.Row(14, _summaryImage, Ui.Column(2,
             Ui.Note("Name"), Ui.Row(8, _sumName, Ui.Button("Edit", () => EditStep(0))),
             Ui.Note("Job title"), Ui.Row(8, _sumTitle, Ui.Button("Edit", () => EditStep(1))),
-            Ui.Note("Employee number"), Ui.Row(8, _sumNumber, Ui.Button("Edit", () => EditStep(2)))));
+            // the number is on the job's page: its Edit goes straight to the number box
+            Ui.Note("Employee number"), Ui.Row(8, _sumNumber, Ui.Button("Edit", () => { EditStep((int)Step.Title); Window!.MakeFirstResponder(_txtSeq); }))));   // SAFETY: the window exists before anything in it can be pressed
         _layout.SetLabel("Side by side", 0);
         _layout.SetLabel("Both sides of the paper", 1);
         _layout.Activated += (_, _) =>
@@ -437,7 +439,7 @@ public sealed partial class MainWindow
             Ui.Row(10, _btnDownload, _btnPng), _reviewFile);
         _btnNewId = Ui.Button("Start a new ID", StartNewId, primary: true);
         _savedStage = Ui.Column(8, _savedLine, _savedNote, Ui.Row(10, _btnNewId, Ui.Button("Show the file", () => ShowInFinder(_savedPath))));
-        _steps[5] = Ui.Column(8, _checkHeading, _reviewSub, _reviewStage, _savedStage);
+        _steps[4] = Ui.Column(8, _checkHeading, _reviewSub, _reviewStage, _savedStage);
 
         _btnBack = Ui.Button("Back", () => { var from = _session.StepIndex; _session.Back(); AfterMove(from); });
         _btnNext = Ui.Button("Next", () => AfterMove(_session.StepIndex, _session.NextStep()), primary: true);

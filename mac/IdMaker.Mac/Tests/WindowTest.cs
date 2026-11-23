@@ -165,8 +165,9 @@ internal static class WindowTest
         window.KindBox.SelectItem(2);
         Press(window.KindBox);
         Check("choosing “An intern” is taken", s.Kind == PersonKind.Intern);
+        // the number is asked for on the same page as the job
         Press(window.NextButton);
-        Check("then Next opens the number", s.StepIndex == (int)Step.Number);
+        Check("without a number it stays on the job's page, which asks for one", s.StepIndex == (int)Step.Title);
 
         window.SeqBox.StringValue = "7";
         window.OnSeqChanged();
@@ -219,7 +220,7 @@ internal static class WindowTest
         window.OnSeqChanged();
         await s.DuplicateCheck;
         Press(window.NextButton);
-        Check("the number just issued is refused for somebody else", s.StepIndex == (int)Step.Number);
+        Check("the number just issued is refused for somebody else", s.StepIndex == (int)Step.Title);
         Check($"and the line says who has it (“{window.SeqLine}”)", window.SeqLine.Contains(id) && window.SeqLine.Contains("Reyes"));
         Shoot(window, "5-duplicate");
         window.Window.Close();

@@ -14,5 +14,5 @@ web app shipped and are identical, so a name breaks onto the same lines at
 the same size as before. `IdMaker.App.Tests` holds them to what that app
 measured.
 
-They style the printed card only. The window itself uses Segoe UI, which
-is already on every Windows computer.
+They style the printed card only. The window itself is set in Poppins and
+Orbitron, from `..\UiFonts` (see its README).

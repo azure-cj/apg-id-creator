@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
 
     <!--
       How the window's controls look. Every colour here is a DynamicResource
@@ -24,7 +25,14 @@
         </Setter>
     </Style>
 
-    <!-- Type: four sizes (13, 14, 16, 20), and nothing smaller than 13. -->
+    <!--
+      Type (company design system): Poppins for everything you read, Orbitron
+      only for the product's name and headings. Built into the program
+      (UiFonts), so nothing has to be installed. Four sizes (13, 14, 16, 20),
+      nothing smaller than 13.
+    -->
+    <FontFamily x:Key="Font.Ui">pack://application:,,,/AlphaPremierIdMaker;component/UiFonts/#Poppins</FontFamily>
+    <FontFamily x:Key="Font.Display">pack://application:,,,/AlphaPremierIdMaker;component/UiFonts/#Orbitron</FontFamily>
     <Style x:Key="Text.Body" TargetType="TextBlock">
         <Setter Property="FontSize" Value="14" />
         <Setter Property="Foreground" Value="{DynamicResource Color.Text}" />
@@ -55,16 +63,37 @@
         <Setter Property="Margin" Value="0,0,0,6" />
     </Style>
     <Style x:Key="Text.Heading" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Display}" />
         <Setter Property="FontSize" Value="20" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontWeight" Value="Normal" />
         <Setter Property="Foreground" Value="{DynamicResource Color.Text}" />
         <Setter Property="TextWrapping" Value="Wrap" />
         <Setter Property="Margin" Value="0,0,0,16" />
     </Style>
     <Style x:Key="Text.Title" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Display}" />
         <Setter Property="FontSize" Value="16" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontWeight" Value="Normal" />
         <Setter Property="Foreground" Value="{DynamicResource Color.Text}" />
+    </Style>
+    <!-- A section's label and a table's headings: small, in gold. -->
+    <Style x:Key="Text.Kicker" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource Color.Kicker}" />
+    </Style>
+    <!-- Closes a header standing on the page: one gold hairline that fades out to the right. -->
+    <Style x:Key="Rule.GoldFade" TargetType="Border">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#C6A254" Offset="0" />
+                    <GradientStop Color="#00C6A254" Offset="1" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- Buttons. Every one is at least 40 high, so it can be hit without aiming. -->
@@ -122,14 +151,20 @@
     </Style>
 
     <!-- The main action of a tool in the drawer (Make the batch, Keep this map): the text colour as a fill, so Next stays the only gold. -->
+    <!--
+      A step's or a tool's own main action (Choose a photo, Make the batch): a
+      gold outline, firmer than an ordinary button's, so the one gold fill on
+      screen stays the button that moves the job forward.
+    -->
     <Style x:Key="Button.Strong" TargetType="ButtonBase" BasedOn="{StaticResource Button.Base}">
-        <Setter Property="Background" Value="{DynamicResource Color.Strong}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Color.Strong}" />
-        <Setter Property="Foreground" Value="{DynamicResource Color.OnStrong}" />
+        <Setter Property="Background" Value="{DynamicResource Color.Surface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Color.Kicker}" />
+        <Setter Property="BorderThickness" Value="1.5" />
+        <Setter Property="Foreground" Value="{DynamicResource Color.Text}" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Background" Value="{DynamicResource Color.StrongHover}" />
-                <Setter Property="BorderBrush" Value="{DynamicResource Color.StrongHover}" />
+                <Setter Property="Background" Value="{DynamicResource Color.Hover}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Color.Link}" />
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -150,7 +185,7 @@
     <Style x:Key="Button.Link" TargetType="ButtonBase" BasedOn="{StaticResource Button.Base}">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="{DynamicResource Color.ControlBorder}" />
-        <Setter Property="Foreground" Value="{DynamicResource Color.Text}" />
+        <Setter Property="Foreground" Value="{DynamicResource Color.Link}" />
         <Setter Property="FontWeight" Value="Normal" />
         <Setter Property="Padding" Value="8,8" />
         <Setter Property="MinHeight" Value="36" />
@@ -166,13 +201,86 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Rule" Property="BorderBrush" Value="{DynamicResource Color.Text}" />
+                            <Setter TargetName="Rule" Property="BorderBrush" Value="{DynamicResource Color.Link}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Chrome" Property="Opacity" Value="0.78" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Chrome" Property="Opacity" Value="0.45" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The same link on black (a tool's header band): light words, a grey rule that turns light under the pointer. -->
+    <Style x:Key="Button.LinkOnTray" TargetType="ButtonBase" BasedOn="{StaticResource Button.Base}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Color.TrayMuted}" />
+        <Setter Property="Foreground" Value="{DynamicResource Color.TrayInk}" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="Padding" Value="8,8" />
+        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ButtonBase">
+                    <Border x:Name="Chrome" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="Rule" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,1" VerticalAlignment="Center">
+                            <ContentPresenter RecognizesAccessKey="True" />
+                        </Border>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Rule" Property="BorderBrush" Value="{DynamicResource Color.TrayInk}" />
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Color.TrayRaised}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.78" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      A small "i" beside a short line: the detail that is worth having but not
+      worth reading every time, shown on hover or when it has the keyboard.
+      Its words are its ToolTip, and the same words are its HelpText for a
+      screen reader. The ring is the text colour, like everything that is not
+      the one gold button; a 32-pixel square round it is what the pointer hits.
+    -->
+    <Style x:Key="Button.Info" TargetType="ButtonBase">
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Margin" Value="2,-8,0,-8" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Help" />
+        <Setter Property="Foreground" Value="{DynamicResource Color.TextMuted}" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        <Setter Property="ToolTipService.InitialShowDelay" Value="150" />
+        <Setter Property="ToolTipService.ShowDuration" Value="30000" />
+        <Setter Property="AutomationProperties.Name" Value="More information" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ButtonBase">
+                    <Grid Background="Transparent">
+                        <Border x:Name="Ring" Width="18" Height="18" CornerRadius="9" BorderThickness="1.5"
+                                BorderBrush="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Text="i" FontSize="13" FontWeight="Bold" FontStyle="Italic" FontFamily="Georgia"
+                                       Foreground="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,1,0" />
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource Color.Text}" />
+                            <Setter TargetName="Ring" Property="Background" Value="{DynamicResource Color.Hover}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource Color.Text}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -256,6 +364,129 @@
         </Setter>
     </Style>
 
+    <!-- One choice of a switch (Appearance in the rail): an icon, muted until chosen. The thumb behind it is drawn by the window. -->
+    <Style x:Key="Switch.Option" TargetType="RadioButton">
+        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{DynamicResource Color.TextMuted}" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        <Setter Property="ToolTipService.InitialShowDelay" Value="300" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid Background="Transparent">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource Color.Text}" />
+                        </Trigger>
+                        <!-- on the gold thumb: the dark of the gold button's own words -->
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource Color.OnAccent}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="Opacity" Value="0.78" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      An outlined switch (the print layout on the check step), in the manner of
+      the warning mark: a thin gold-soft outline round both choices, and the
+      chosen one marked by a gold outline over a faint gold wash, its words in
+      gold. No solid fill, so it does not compete with the gold button below.
+    -->
+    <Style x:Key="Switch.OptionOutline" TargetType="RadioButton">
+        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{DynamicResource Color.TextMuted}" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid Background="Transparent">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource Color.Text}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource Color.Link}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="Opacity" Value="0.78" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      A flip switch (Front / Back above the card): the whole thing is one
+      toggle, its track and knob drawn in the markup inside it. At least 40
+      high, so it is hit without aiming; the focus ring is the usual one.
+    -->
+    <Style x:Key="Switch.Flip" TargetType="ToggleButton">
+        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid Background="Transparent">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="Opacity" Value="0.78" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The track a switch's options sit in: a full pill, a tone step from what it sits on. -->
+    <Style x:Key="Switch.Track" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Color.Active}" />
+        <Setter Property="CornerRadius" Value="21" />
+        <Setter Property="Padding" Value="3" />
+    </Style>
+
+    <!--
+      The thumb that slides to the chosen option: gold, with a soft vertical
+      sheen and a thin light line along its top (Switch.ThumbSheen, inside it),
+      so it reads as slightly glassy rather than flat or bevelled.
+    -->
+    <Style x:Key="Switch.Thumb" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Color.AccentSolid}" />
+        <Setter Property="Height" Value="40" />
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+    <Style x:Key="Switch.ThumbSheen" TargetType="Border">
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="BorderBrush" Value="#8CFFFFFF" />
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#40FFFFFF" Offset="0" />
+                    <GradientStop Color="#00FFFFFF" Offset="0.55" />
+                    <GradientStop Color="#1A000000" Offset="1" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Front or Back, above the card. -->
     <Style x:Key="Chip.Side" TargetType="RadioButton" BasedOn="{StaticResource Chip}">
         <Setter Property="Margin" Value="3,0" />
@@ -263,7 +494,7 @@
     </Style>
 
     <!--
-      One step of the six, in the bar above the form: a rule and a word. The
+      One step of the five, in the bar above the form: a rule and a word. The
       window sets the rule's colour and thickness (thick ink for a finished
       step, thick gold for the one you are on, a hairline for those to come),
       so the state shows in shape as well as colour.
@@ -285,7 +516,8 @@
                         <Border Height="3" VerticalAlignment="Top">
                             <Border BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" VerticalAlignment="Top" />
                         </Border>
-                        <ContentPresenter Margin="0,11,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" RecognizesAccessKey="False" />
+                        <!-- centred under its rule, so the five names sit evenly along the bar -->
+                        <ContentPresenter Margin="0,11,0,0" HorizontalAlignment="Center" VerticalAlignment="Top" RecognizesAccessKey="False" />
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -321,6 +553,15 @@
                         <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
                     </Border>
                     <ControlTemplate.Triggers>
+                        <!-- under the pointer: one tone step, like every other control; a red edge stays red -->
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True" />
+                                <Condition Property="IsKeyboardFocused" Value="False" />
+                                <Condition Property="IsReadOnly" Value="False" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Color.Hover}" />
+                        </MultiTrigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Color.Focus}" />
                             <Setter TargetName="Chrome" Property="BorderThickness" Value="2" />
@@ -403,13 +644,26 @@
                         </ToggleButton>
                         <ContentPresenter IsHitTestVisible="False" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" HorizontalAlignment="Left"
                                           Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                          ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" />
+                                          ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}">
+                            <ContentPresenter.Resources>
+                                <!-- a choice longer than the box ends in "…" rather than being cut mid-word -->
+                                <DataTemplate DataType="{x:Type sys:String}">
+                                    <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" />
+                                </DataTemplate>
+                            </ContentPresenter.Resources>
+                        </ContentPresenter>
+                        <!--
+                          The list slides open the way Windows' own lists do, and not at all when
+                          Windows' animation effects are off. It is exactly as wide as the box it
+                          drops from, so a long choice wraps instead of running past the panel,
+                          and it sits on the page tone, a step from the white of the form.
+                        -->
                         <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True"
-                               Focusable="False" PopupAnimation="None">
-                            <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" MaxHeight="{TemplateBinding MaxDropDownHeight}"
-                                    Background="{DynamicResource Color.Surface}" BorderBrush="{DynamicResource Color.ControlBorder}"
+                               Focusable="False" PopupAnimation="{DynamicResource {x:Static SystemParameters.ComboBoxPopupAnimationKey}}">
+                            <Border Width="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                    Background="{DynamicResource Color.Bg}" BorderBrush="{DynamicResource Color.ControlBorder}"
                                     BorderThickness="1" CornerRadius="8" Margin="0,4,0,0" Padding="4">
-                                <ScrollViewer SnapsToDevicePixels="True">
+                                <ScrollViewer SnapsToDevicePixels="True" HorizontalScrollBarVisibility="Disabled">
                                     <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
                                 </ScrollViewer>
                             </Border>
@@ -435,15 +689,23 @@
             <Setter.Value>
                 <ControlTemplate TargetType="ComboBoxItem">
                     <Border x:Name="Row" Background="Transparent" CornerRadius="4" Padding="{TemplateBinding Padding}">
-                        <ContentPresenter VerticalAlignment="Center" />
+                        <!-- a long choice wraps inside the list rather than widening it -->
+                        <ContentPresenter VerticalAlignment="Center">
+                            <ContentPresenter.Resources>
+                                <DataTemplate DataType="{x:Type sys:String}">
+                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" LineHeight="18" />
+                                </DataTemplate>
+                            </ContentPresenter.Resources>
+                        </ContentPresenter>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <!-- the chosen row is lifted to the panel's white; the one under the pointer is a tone darker than the list -->
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource Color.Active}" />
+                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource Color.Surface}" />
                             <Setter Property="FontWeight" Value="SemiBold" />
                         </Trigger>
                         <Trigger Property="IsHighlighted" Value="True">
-                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource Color.Hover}" />
+                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource Color.Active}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -658,23 +920,104 @@
         </Style.Triggers>
     </Style>
 
-    <!-- Tooltips and the right-click menu on a remembered job title. -->
+    <!-- Tooltips and the right-click menu on a remembered job title. A tooltip's words wrap at a readable width. -->
     <Style TargetType="ToolTip">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Ui}" />
         <Setter Property="Foreground" Value="{DynamicResource Color.Text}" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ToolTip">
                     <Border Background="{DynamicResource Color.Surface}" BorderBrush="{DynamicResource Color.ControlBorder}" BorderThickness="1"
-                            CornerRadius="4" Padding="10,6">
-                        <ContentPresenter />
+                            CornerRadius="4" Padding="10,6" MaxWidth="320">
+                        <ContentPresenter>
+                            <ContentPresenter.Resources>
+                                <DataTemplate DataType="{x:Type sys:String}">
+                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" LineHeight="18" />
+                                </DataTemplate>
+                            </ContentPresenter.Resources>
+                        </ContentPresenter>
                     </Border>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
 
+    <!--
+      What an "i" mark (and a warning mark) opens: its words in a box of their
+      own, broken into short lines, on a pale wash of the brand gold with a
+      gold rule, so it reads as a note and not as part of the form. The wash
+      is the only gold outside Next and the current step, and it is never
+      something to press. MainWindow.GiveInfoMarksTheirWords puts it on.
+    -->
+    <Style x:Key="ToolTip.Note" TargetType="ToolTip">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Ui}" />
+        <Setter Property="Foreground" Value="{DynamicResource Color.Text}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="HasDropShadow" Value="False" />
+        <Setter Property="Placement" Value="Bottom" />
+        <Setter Property="VerticalOffset" Value="4" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToolTip">
+                    <Border Background="{DynamicResource Color.NoteGold}" BorderBrush="{DynamicResource Color.NoteGoldLine}" BorderThickness="1"
+                            CornerRadius="6" Padding="12,10" MaxWidth="300">
+                        <ContentPresenter>
+                            <ContentPresenter.Resources>
+                                <DataTemplate DataType="{x:Type sys:String}">
+                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" LineHeight="19" />
+                                </DataTemplate>
+                            </ContentPresenter.Resources>
+                        </ContentPresenter>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      A warning worth a look but not worth a paragraph: an amber triangle and
+      a few words, with the whole of it in a note box on hover or with the
+      keyboard. A real button, so Tab reaches it and a screen reader reads it.
+    -->
+    <Style x:Key="Button.Warn" TargetType="ButtonBase">
+        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="Cursor" Value="Help" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource Color.Warning}" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        <Setter Property="ToolTipService.InitialShowDelay" Value="150" />
+        <Setter Property="ToolTipService.ShowDuration" Value="30000" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ButtonBase">
+                    <Border x:Name="Chrome" Background="Transparent" BorderBrush="{DynamicResource Color.Warning}" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <StackPanel Orientation="Horizontal">
+                            <Grid Width="18" Height="16" VerticalAlignment="Center">
+                                <Path Data="M9,1.5 L17,15 L1,15 Z" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.6" StrokeLineJoin="Round" />
+                                <TextBlock Text="!" FontSize="11" FontWeight="Bold" Foreground="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,0" />
+                            </Grid>
+                            <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Color.Hover}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.78" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="ContextMenu">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Ui}" />
         <Setter Property="Foreground" Value="{DynamicResource Color.Text}" />
         <Setter Property="Template">
             <Setter.Value>
@@ -708,11 +1051,55 @@
         </Setter>
     </Style>
 
-    <!-- A panel on the page: the drawer and the form. Panels are 8 round, the controls in them 6, the marks in those 4. -->
+    <!--
+      The gold itself at low opacity: the ground of a list in a tool (the Batch
+      files and results, the Issued IDs table). A layer of its own, under the
+      list, so only the ground is see-through and the words stay solid. Faint
+      enough that it never reads as the gold button; ThemeTests holds both.
+    -->
+    <Style x:Key="Panel.GoldWash" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Color.AccentSolid}" />
+        <Setter Property="Opacity" Value="0.16" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+
+    <!--
+      A panel on the page: the drawer and the form. Raised like glass: a gold
+      edge at a fifth of its strength, a faint light line along the top
+      (Panel.Highlight, laid over it) and a deep soft shadow under it
+      (Panel.Shadow, a layer of its own behind it, so the words on the panel
+      keep their sharpest drawing). Panels are 8 round, the controls in them
+      6, the marks in those 4.
+    -->
     <Style x:Key="Panel" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource Color.Surface}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Color.Line}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Color.GlassEdge}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    <Style x:Key="Panel.Shadow" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Color.Surface}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="Black" BlurRadius="36" ShadowDepth="10" Direction="270" Opacity="0.3" RenderingBias="Performance" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="Panel.Highlight" TargetType="Border">
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+        <Setter Property="BorderBrush">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#00FFFFFF" Offset="0" />
+                    <GradientStop Color="#33FFFFFF" Offset="0.5" />
+                    <GradientStop Color="#00FFFFFF" Offset="1" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
     </Style>
 </ResourceDictionary>

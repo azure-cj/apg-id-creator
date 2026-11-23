@@ -279,29 +279,73 @@ pad (white, like paper).
 
 ### How the window is meant to look
 
-The rules `Theme.xaml` and `MainWindow.xaml` are held to, so the next
-change keeps them:
+The window follows the company's design system, the same as Alpha
+Premier Attendance's: gold, black and white, Poppins and Orbitron. The
+rules `Theme.xaml` and `MainWindow.xaml` are held to, so the next change
+keeps them:
 
-- **Gold means one thing.** It is spent on the button that moves the job
-  forward (`Button.Primary`: Next, Save the PDF) and on the rule over the
-  step you are on. Anything else that is chosen, ticked, hovered, open or
-  focused uses the text colour (`Color.Strong`, `Color.Focus`) or a tone
-  step of the page (`Color.Hover`, `Color.Active`). `ThemeTests` fails if
-  gold appears anywhere else.
-- **One gold button on screen.** A step's own main action (Choose a
+- **Type.** Poppins for everything you read; Orbitron only for the
+  product's name and headings (`Text.Heading`, `Text.Title`, the signing
+  screen's). Both are built into the program (`UiFonts/`), so nothing is
+  installed. Counts use even-width figures.
+- **Colour.** Dark mode is the design system's palette: warm black
+  surfaces, warm white text. Light mode keeps light surfaces and the same
+  gold rules, with gold words in a darker gold so they read on white.
+  Gold is the single accent: gold-soft outlines controls
+  (`Color.ControlBorder`); gold marks section labels and table headings
+  (`Text.Kicker`), links and the focus ring (`Color.Link`,
+  `Color.Focus`); coral is for errors, green for done. The window's
+  filled gold is the brand gold printed on the card (`HomeTests`).
+- **Gold as a fill** is the button that moves the job forward
+  (`Button.Primary`: Next, Save the PDF), the rule over the step you are
+  on, the thumb of a switch (`Switch.Thumb`), and, at low opacity, the
+  ground of a list in a tool (`Panel.GoldWash`) and the note an "i" opens
+  (`ToolTip.Note`). `ThemeTests` fails if gold fills anything else.
+- **One gold filled button on screen.** A step's own main action (Choose a
   photo, Sign now) and a tool's (Make the batch, Keep this map) are
-  `Button.Strong`, the text colour as a fill, and drop to `Button.Ghost`
-  once done.
+  `Button.Strong`, a firm gold outline, and drop to `Button.Ghost` (a
+  gold-soft outline) once done.
+- **Switches are full pills** (Front / Back, the print layout, Appearance)
+  whose gold thumb, with a soft sheen and a light top line, slides to the
+  chosen option.
+- **Status is a dot and a word**, never a capsule.
 - **The card is the biggest thing.** No title bar or footer of our own:
-  the product's name is at the top of the rail, the version at its foot.
+  the product's name is at the top of the rail, standing on the page and
+  closed by one fading gold hairline (`Rule.GoldFade`), the version at its foot.
   The card sits on `Color.Stage`, one step from the page, with a hairline
   round it so its edge shows in either mode.
-- **Flat.** A 1-pixel line or a tone step separates surfaces. No shadows,
-  no gradients, no animation; a press shows as a dip in opacity.
+- **Raised like glass.** The form and an open tool are panels with a
+  gold edge at a fifth of its strength (`Color.GlassEdge`), a faint light
+  line along the top and a deep soft shadow. The form's shadow is a layer
+  of its own (`Panel.Shadow`), so its words keep their sharpest drawing.
+  Inside a panel a 1-pixel line or a tone step separates things; a press
+  shows as a dip in opacity.
+- **Little motion, and only where it explains** (`Motion.cs`): a tool
+  slides in over the card and back out when closed, the card turns over
+  between Front and Back, the next step's page slides in from the side
+  you are heading, the outline on the card glides to the next field, a
+  list slides open, a new print layout fades in. Each is under a
+  quarter of a second and moves only by a render transform or opacity,
+  so nothing around it is laid out again. None runs when Windows'
+  *Animation effects* are off, and the window tests switch them off.
+- **A tool opens over the card**, on a veil that dims it, so neither the
+  card nor the form moves; a click on the veil closes it. Only while the
+  map is being dragged does it stand beside the card.
+- **The way forward is edge to edge**: Back at the left of the form's
+  foot, the gold button at the right. On the check step that button is
+  Save the PDF, then Start a new ID.
 - **One radius family:** panels 8, controls 6, small marks 4.
 - **Four type sizes:** 13, 14, 16, 20. Fields are 40 high and 20 apart.
-- **In a narrow window** (under 1296 wide) an open tool takes the form's
+- **It fits a 150% laptop.** The window opens no bigger than the screen's
+  working area (`FitScreen`): on a 1920 × 1080 laptop at 150% that is
+  about 1280 × 672, and every step and tool shows without the page
+  scrolling; the card shrinks, the form keeps its size.
+- **In a narrow window** a tool still opens over the card. Only while the
+  map is dragged, with the tool beside the card, does it take the form's
   place until it is closed (`FitColumns`); the card never gives way.
+- **Light or dark** follows Windows unless the operator picks one under
+  *Appearance* in the rail; the choice is kept in the app's settings
+  (`ThemeManager.Choose`).
 
 **Not done:** Windows' *contrast themes* (high contrast). The app keeps
 its own colours there rather than taking the contrast theme's.

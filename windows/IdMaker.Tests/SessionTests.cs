@@ -29,7 +29,7 @@ public class StepTests
         var s = Make.Session();
         var r = s.NextStep();
         Assert.Equal(Field.Last, r.FocusField);
-        Assert.Equal("Can’t continue yet. Enter the last name.", s.BlockedText);
+        Assert.Equal("Please complete the highlighted fields.", s.BlockedText);
         Assert.Equal(0, s.BlockedAbout);
 
         // pressing a locked chip from a finished step names the step in the way
@@ -41,13 +41,14 @@ public class StepTests
         Assert.Equal(1, s.StepIndex);
         // the first thing the step asks is who the ID is for
         Assert.Equal(Field.Kind, chip.FocusField);
-        Assert.StartsWith("Can’t continue yet.", s.BlockedText);
-        Assert.Contains("employee or an intern", s.BlockedText);
+        // one line on every step; the fields themselves are marked
+        Assert.Equal("Please complete the highlighted fields.", s.BlockedText);
         s.PickKind(PersonKind.Intern);
         Assert.Equal(Field.Title, s.ChipPressed(4).FocusField);
 
-        // and it clears once the thing it named is fixed
+        // and it clears once the thing it named is fixed: the job, and the number on the same step
         s.PickRole1("HR Associate");
+        s.SetSeq("124");
         s.ClearBlockedIfFixed(s.Problems());
         Assert.Null(s.BlockedAbout);
         Assert.Equal("", s.BlockedText);
@@ -64,7 +65,7 @@ public class StepTests
         // anything but the two choices is no choice, and the form does not go past the step without one
         s.PickKind("contractor");
         Assert.Equal("", s.Kind);
-        Assert.Contains("employee or an intern", s.Problems()[Field.Kind]);
+        Assert.Equal("Required.", s.Problems()[Field.Kind]);
         s.GoStep(Session.LastStep);
         Assert.Equal((int)Step.Title, s.StepIndex);
 
@@ -131,7 +132,7 @@ public class StepTests
         var p = s.Problems();
         Assert.Contains("letters", p[Field.Last]);
         Assert.Contains("Jr., Sr.", p[Field.Suffix]);
-        Assert.Equal("Type the job title.", p[Field.Title]);
+        Assert.Equal("Required.", p[Field.Title]);
         s.TypeRole1("R&D <lead>");
         Assert.Contains("letters, numbers", s.Problems()[Field.Title]);
         s.TypeRole1("R&D Lead (Acting)");
@@ -150,14 +151,14 @@ public class StepTests
         var s = Make.Session();
         s.PickRole1("IT Associate");
         s.AddSecondRole();
-        Assert.Contains("Choose the second role", s.Problems()[Field.Title2]);
+        Assert.Equal("Required, or remove the second position.", s.Problems()[Field.Title2]);
         s.PickRole2("HR Associate");
         Assert.Equal("IT/HR Associate", s.JobTitle);
         s.PickRole1("HR Associate");                 // now the same as the second: the second is cleared
         Assert.Equal("", s.Role2.Pick);
         s.PickRole2(RoleChoice.Other);
         s.TypeRole2("hr associate");
-        Assert.Contains("same as the job title", s.Problems()[Field.Title2]);
+        Assert.StartsWith("Same as the position above", s.Problems()[Field.Title2]);
         s.RemoveSecondRole();
         Assert.Equal("", s.Problems()[Field.Title2]);
         Assert.Equal("HR Associate", s.JobTitle);
@@ -279,15 +280,15 @@ public class DuplicateTests
         var (s, _, _, gate) = Slow(taken: false);
         Make.FillForm(s, "124");
         Assert.Equal("Checking the shared register for this number…", s.Problems()[Field.Seq]);
-        // a fast typist pressing Next cannot get past the number step
-        s.GoStep(5);
-        Assert.Equal(2, s.StepIndex);
+        // a fast typist pressing Next cannot get past the number's step
+        s.GoStep(Session.LastStep);
+        Assert.Equal((int)Step.Title, s.StepIndex);
 
         gate.SetResult();
         await s.DuplicateCheck;
         Assert.Equal("", s.Problems()[Field.Seq]);
-        s.GoStep(5);
-        Assert.Equal(5, s.StepIndex);
+        s.GoStep(Session.LastStep);
+        Assert.Equal(Session.LastStep, s.StepIndex);
     }
 
     [Fact]
@@ -325,7 +326,7 @@ public class DuplicateTests
         gate.SetResult();
         await first;
         Assert.Equal(SharedAnswer.Free, s.DupShared);       // an empty box has no duplicate
-        Assert.Contains("Enter the employee number", s.Problems()[Field.Seq]);
+        Assert.Equal("Required.", s.Problems()[Field.Seq]);
     }
 
     [Fact]
@@ -336,11 +337,11 @@ public class DuplicateTests
         Make.FillForm(s, "124");
         var changed = 0;
         s.Changed += () => changed++;
-        s.GoStep(4, force: true);
+        s.GoStep((int)Step.Sign, force: true);
         gate.SetResult();
         await s.DuplicateCheck;
-        Assert.Equal(2, s.StepIndex);
-        Assert.Equal(2, s.BlockedAbout);
+        Assert.Equal((int)Step.Title, s.StepIndex);
+        Assert.Equal((int)Step.Title, s.BlockedAbout);
         Assert.True(changed > 0);
         Assert.True(register.IndexLoaded);
     }
