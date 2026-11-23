@@ -1,0 +1,46 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdMaker.Core", "IdMaker.Core\IdMaker.Core.csproj", "{FB7DBA51-3CE1-4853-9BEF-6404F8396ACC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdMaker.Tests", "IdMaker.Tests\IdMaker.Tests.csproj", "{4BFD6311-AC73-4D11-88AD-0BEEE71DB1B3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdMaker.Vision", "IdMaker.Vision\IdMaker.Vision.csproj", "{23B9A474-FEF0-4ED1-95DE-0AE49866FDB8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdMaker.App", "IdMaker.App\IdMaker.App.csproj", "{6AD8E437-D024-414E-B7F2-88B74391EDAA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdMaker.App.Tests", "IdMaker.App.Tests\IdMaker.App.Tests.csproj", "{B0AF70A9-5F73-4279-9EB2-403F87E78BCC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FB7DBA51-3CE1-4853-9BEF-6404F8396ACC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB7DBA51-3CE1-4853-9BEF-6404F8396ACC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB7DBA51-3CE1-4853-9BEF-6404F8396ACC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB7DBA51-3CE1-4853-9BEF-6404F8396ACC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4BFD6311-AC73-4D11-88AD-0BEEE71DB1B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4BFD6311-AC73-4D11-88AD-0BEEE71DB1B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4BFD6311-AC73-4D11-88AD-0BEEE71DB1B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4BFD6311-AC73-4D11-88AD-0BEEE71DB1B3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{23B9A474-FEF0-4ED1-95DE-0AE49866FDB8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{23B9A474-FEF0-4ED1-95DE-0AE49866FDB8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{23B9A474-FEF0-4ED1-95DE-0AE49866FDB8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{23B9A474-FEF0-4ED1-95DE-0AE49866FDB8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6AD8E437-D024-414E-B7F2-88B74391EDAA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6AD8E437-D024-414E-B7F2-88B74391EDAA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6AD8E437-D024-414E-B7F2-88B74391EDAA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6AD8E437-D024-414E-B7F2-88B74391EDAA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B0AF70A9-5F73-4279-9EB2-403F87E78BCC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B0AF70A9-5F73-4279-9EB2-403F87E78BCC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B0AF70A9-5F73-4279-9EB2-403F87E78BCC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B0AF70A9-5F73-4279-9EB2-403F87E78BCC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

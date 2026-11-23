@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tests that need Windows itself: the real renderer and the real window. They run in CI on a Windows machine. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <ProjectReference Include="..\IdMaker.App\IdMaker.App.csproj" />
+    <Using Include="Xunit" />
+    <!-- the pretend Firebase project the Core tests use, so the real window can be driven against the same one -->
+    <Compile Include="..\IdMaker.Tests\FakeFirebase.cs" Link="FakeFirebase.cs" />
+    <None Include="..\IdMaker.Tests\Fixtures\web-reference.json" Link="Fixtures\web-reference.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

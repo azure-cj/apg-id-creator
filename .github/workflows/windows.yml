@@ -1,0 +1,155 @@
+name: Windows app
+
+# Builds the native app, runs every test on a real Windows machine (the
+# renderer and the window need one), and packages an installer.
+on:
+  # Every pull request, whatever it touches: these are the checks main requires, and a required check that
+  # never runs leaves its pull request waiting for ever.
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - 'windows/**'
+      - 'assets/**'
+      - 'test/golden-front.png'
+      - '.github/workflows/**'
+      - '!**/*.md'            # a change to the documents alone builds nothing
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+# Set for every job in this file.
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+
+jobs:
+  test:
+    name: Windows tests
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      IDMAKER_REPORT_DIR: ${{ github.workspace }}\report
+    steps:
+      - uses: actions/checkout@v4
+      # The runner image already has a .NET 8 SDK. Installing one again costs
+      # about half a minute a job, so that only happens if the image drops it.
+      - name: Is .NET 8 already here
+        id: sdk
+        shell: pwsh
+        run: |
+          $have = [bool](dotnet --list-sdks | Select-String '^8\.')
+          "have=$($have.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          dotnet --list-sdks
+      - uses: actions/setup-dotnet@v4
+        if: steps.sdk.outputs.have != 'true'
+        with:
+          dotnet-version: 8.0.x
+      # The matting model (25 MB) and the pen driver are two fixed downloads,
+      # each checked against a pinned SHA-256 when used. Keeping them between
+      # runs saves the time and a failure when either site is slow.
+      - name: Keep the two big downloads between runs
+        uses: actions/cache@v4
+        with:
+          path: |
+            windows/IdMaker.Vision/Models
+            windows/installer/.cache
+          key: downloads-${{ hashFiles('windows/IdMaker.Vision/IdMaker.Vision.csproj', 'windows/installer/Driver.psd1') }}
+      - name: Build
+        run: dotnet build windows/IdMaker.sln -c Release
+      - name: Core tests
+        run: dotnet test windows/IdMaker.Tests -c Release --no-build
+      - name: Renderer and window tests
+        run: dotnet test windows/IdMaker.App.Tests -c Release --no-build --logger "trx;LogFileName=app.trx" --results-directory report
+      - name: What failed, briefly
+        if: failure()
+        shell: pwsh
+        run: |
+          [xml]$trx = Get-Content report/app.trx
+          foreach ($r in $trx.TestRun.Results.UnitTestResult | Where-Object outcome -ne 'Passed') {
+            "FAILED $($r.testName)"
+            $m = "$($r.Output.ErrorInfo.Message)"
+            $m.Substring(0, [Math]::Min(1500, $m.Length))
+            $t = "$($r.Output.ErrorInfo.StackTrace)" -split "`n" | Where-Object { $_ -match 'IdMaker' } | Select-Object -First 6
+            $t -join "`n"
+            ''
+          }
+      - name: How the native card compares with the web app's
+        if: always()
+        shell: pwsh
+        run: |
+          $fonts = Join-Path $env:IDMAKER_REPORT_DIR 'font-metrics.txt'
+          if (Test-Path $fonts) { Get-Content $fonts | Select-Object -First 1 } else { 'font-metrics.txt was not written' }
+          $card = Join-Path $env:IDMAKER_REPORT_DIR 'front-against-web.txt'
+          if (Test-Path $card) { Get-Content $card } else { 'front-against-web.txt was not written' }
+      - name: Keep the rendered card
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-report
+          path: report
+          if-no-files-found: ignore
+
+  # Runs beside the tests, not after them: the two take about the same
+  # time, so the whole check takes as long as the slower one. What it builds
+  # is only kept as a run artifact; nothing is released from here.
+  package:
+    name: Windows package
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      # The runner image already has a .NET 8 SDK. Installing one again costs
+      # about half a minute a job, so that only happens if the image drops it.
+      - name: Is .NET 8 already here
+        id: sdk
+        shell: pwsh
+        run: |
+          $have = [bool](dotnet --list-sdks | Select-String '^8\.')
+          "have=$($have.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          dotnet --list-sdks
+      - uses: actions/setup-dotnet@v4
+        if: steps.sdk.outputs.have != 'true'
+        with:
+          dotnet-version: 8.0.x
+      # The matting model (25 MB) and the pen driver are two fixed downloads,
+      # each checked against a pinned SHA-256 when used. Keeping them between
+      # runs saves the time and a failure when either site is slow.
+      - name: Keep the two big downloads between runs
+        uses: actions/cache@v4
+        with:
+          path: |
+            windows/IdMaker.Vision/Models
+            windows/installer/.cache
+          key: downloads-${{ hashFiles('windows/IdMaker.Vision/IdMaker.Vision.csproj', 'windows/installer/Driver.psd1') }}
+      - name: Make sure Inno Setup is there
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y; if ($LASTEXITCODE -ne 0) { throw 'Inno Setup could not be installed.' } }
+          & $iscc /? | Select-Object -First 1
+          $global:LASTEXITCODE = 0
+      - name: Build the setup program
+        shell: pwsh
+        run: ./windows/installer/package.ps1
+      - name: Check it installs, starts and uninstalls like a Windows app
+        shell: pwsh
+        run: ./windows/installer/selftest.ps1
+      - name: Build the single .exe and check it starts
+        shell: pwsh
+        run: ./windows/installer/portable.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AlphaPremierIdMaker-Setup
+          path: windows/dist/AlphaPremierIdMaker-Setup.exe
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AlphaPremierIdMaker-exe
+          path: windows/dist/AlphaPremierIdMaker.exe
+          if-no-files-found: error

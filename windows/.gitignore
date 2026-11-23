@@ -1,0 +1,8 @@
+bin/
+obj/
+*.user
+.vs/
+dist/
+# fetched at build time, verified by hash (see IdMaker.Vision)
+IdMaker.Vision/Models/*.onnx
+TestResults/

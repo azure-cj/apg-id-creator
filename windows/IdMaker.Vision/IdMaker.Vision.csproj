@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <!--
+      The portrait-matting model (MODNet, Apache-2.0) is 25 MB, so it is
+      fetched once at build time rather than kept in git, and refused
+      unless it is byte for byte the file this was tested with.
+    -->
+    <ModelFile>$(MSBuildProjectDirectory)\Models\modnet.onnx</ModelFile>
+    <ModelUrl>https://huggingface.co/Xenova/modnet/resolve/main/onnx/model.onnx</ModelUrl>
+    <ModelSha256>07c308cf0fc7e6e8b2065a12ed7fc07e1de8febb7dc7839d7b7f15dd66584df9</ModelSha256>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.20.1" />
+    <ProjectReference Include="..\IdMaker.Core\IdMaker.Core.csproj" />
+    <None Include="Models\modnet.onnx" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Target Name="FetchModel" BeforeTargets="BeforeBuild" Condition="!Exists('$(ModelFile)')">
+    <DownloadFile SourceUrl="$(ModelUrl)" DestinationFolder="$(MSBuildProjectDirectory)\Models" DestinationFileName="modnet.onnx" Retries="3" />
+  </Target>
+
+  <Target Name="VerifyModel" BeforeTargets="BeforeBuild" DependsOnTargets="FetchModel">
+    <VerifyFileHash File="$(ModelFile)" Hash="$(ModelSha256)" Algorithm="SHA256" />
+  </Target>
+
+</Project>

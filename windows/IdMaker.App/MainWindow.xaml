@@ -1,0 +1,507 @@
+<Window x:Class="IdMaker.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:IdMaker.App"
+        Title="Alpha Premier ID Maker"
+        Width="1400" Height="860" MinWidth="1080" MinHeight="680"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Color.Bg}" Foreground="{DynamicResource Color.Text}"
+        FontFamily="Segoe UI" FontSize="14"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
+
+    <!--
+      Four columns: the rail (the product's name, the occasional tools),
+      whichever tool is open, the card, and the form. There is no title bar
+      of our own and no footer: the card's size comes from the window's
+      height, so every row not spent on chrome goes to the card.
+
+      When the window is too narrow for all four, an open tool takes the
+      form's place until it is closed (MainWindow.FitColumns).
+    -->
+    <Grid Margin="12">
+        <Grid x:Name="Columns">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MinWidth="300" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- ============ the rail ============ -->
+            <DockPanel x:Name="Rail" Grid.Column="0" Width="176" Margin="0,0,12,0">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4,4,0,24">
+                    <Border Width="36" Height="36" CornerRadius="8" Background="{DynamicResource Color.Tray}" Padding="4">
+                        <Image x:Name="BrandLogo" Stretch="Uniform" />
+                    </Border>
+                    <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="Alpha Premier" FontSize="13" Foreground="{DynamicResource Color.TextMuted}" />
+                        <TextBlock Text="ID Maker" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource Color.Text}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <TextBlock x:Name="AppVersion" DockPanel.Dock="Bottom" Style="{StaticResource Text.Note}" Margin="12,8,0,4" />
+
+                <StackPanel KeyboardNavigation.TabNavigation="Local">
+                    <TextBlock Text="Tools" Style="{StaticResource Text.Note}" Margin="12,0,0,6" />
+                    <ToggleButton x:Name="RailRegister" Style="{StaticResource Button.Rail}" Click="Rail_Click" Tag="register">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Issued IDs" />
+                            <!-- a plain count: it is a total, not something waiting to be dealt with -->
+                            <Border x:Name="RailRegisterBadge" Margin="8,0,0,0" Visibility="Collapsed">
+                                <TextBlock x:Name="RailRegisterCount" FontSize="13" FontWeight="Normal" Foreground="{DynamicResource Color.TextMuted}" VerticalAlignment="Center" />
+                            </Border>
+                        </StackPanel>
+                    </ToggleButton>
+                    <ToggleButton x:Name="RailBatch" Style="{StaticResource Button.Rail}" Click="Rail_Click" Tag="batch" Content="Batch from CSV" />
+                    <ToggleButton x:Name="RailPrinter" Style="{StaticResource Button.Rail}" Click="Rail_Click" Tag="printer" Content="Printer setting" />
+                    <ToggleButton x:Name="RailDesign" Style="{StaticResource Button.Rail}" Click="Rail_Click" Tag="design" Content="Card design" />
+                </StackPanel>
+            </DockPanel>
+
+            <Border x:Name="Drawer" Grid.Column="1" Width="320" Margin="0,0,12,0" Style="{StaticResource Panel}" Visibility="Collapsed">
+                <DockPanel Margin="20,16,8,16">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,12,12">
+                        <Button x:Name="DrawerClose" DockPanel.Dock="Right" Style="{StaticResource Button.Link}" Content="Close" Click="DrawerClose_Click" />
+                        <TextBlock x:Name="DrawerTitle" Style="{StaticResource Text.Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    </DockPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,12,0" Focusable="False">
+                        <Grid>
+                            <!-- Issued IDs -->
+                            <StackPanel x:Name="ToolRegister" Visibility="Collapsed">
+                                <!-- cards the shared register refused: duplicates that must not be handed out -->
+                                <StackPanel x:Name="RefusedPanel" Visibility="Collapsed" Margin="0,0,0,16">
+                                    <TextBlock x:Name="RefusedNote" Style="{StaticResource Text.Error}" AutomationProperties.LiveSetting="Assertive" />
+                                    <Button x:Name="BtnRefusedDone" Style="{StaticResource Button.Ghost}" Content="These cards are dealt with" Click="BtnRefusedDone_Click" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                                </StackPanel>
+                                <TextBlock x:Name="RegisterNote" Style="{StaticResource Text.Note}" Margin="0,0,0,12" />
+                                <StackPanel x:Name="RegisterList" />
+                                <WrapPanel Margin="0,12,0,0">
+                                    <Button x:Name="BtnRegisterCsv" Style="{StaticResource Button.Ghost}" Content="Save the list as CSV" Click="BtnRegisterCsv_Click" Margin="0,0,8,8" />
+                                    <Button x:Name="BtnRegisterImport" Style="{StaticResource Button.Ghost}" Content="Bring in a saved list" Click="BtnRegisterImport_Click" Margin="0,0,8,8" />
+                                </WrapPanel>
+                                <Border BorderBrush="{DynamicResource Color.Line}" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,16,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Shared register" Style="{StaticResource Text.Label}" />
+                                        <TextBlock x:Name="RegisterAccount" Style="{StaticResource Text.Note}" Margin="0,0,0,12" />
+                                        <!-- asked once on each computer; the account is the one the CEO made in Keystone -->
+                                        <StackPanel x:Name="SignInForm">
+                                            <TextBlock x:Name="LblSignInEmail" Text="Email" Style="{StaticResource Text.Label}" />
+                                            <TextBox x:Name="TxtSignInEmail" Style="{StaticResource Input}" AutomationProperties.LabeledBy="{Binding ElementName=LblSignInEmail}" />
+                                            <TextBlock x:Name="LblSignInPassword" Text="Password" Style="{StaticResource Text.Label}" Margin="0,20,0,6" />
+                                            <PasswordBox x:Name="TxtSignInPassword" Style="{StaticResource Input.Password}" AutomationProperties.LabeledBy="{Binding ElementName=LblSignInPassword}" KeyDown="TxtSignInPassword_KeyDown" />
+                                            <Button x:Name="BtnSignIn" Style="{StaticResource Button.Strong}" Content="Sign in" Click="BtnSignIn_Click" HorizontalAlignment="Left" Margin="0,12,0,0" />
+                                        </StackPanel>
+                                        <WrapPanel x:Name="SignedInActions" Visibility="Collapsed">
+                                            <Button x:Name="BtnRegisterTest" Style="{StaticResource Button.Ghost}" Content="Check the register" Click="BtnRegisterTest_Click" Margin="0,0,8,8" />
+                                            <Button x:Name="BtnSignOut" Style="{StaticResource Button.Ghost}" Content="Sign out" Click="BtnSignOut_Click" Margin="0,0,8,8" />
+                                        </WrapPanel>
+                                        <TextBlock x:Name="RegisterUrlMsg" Style="{StaticResource Text.Note}" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- Batch from CSV -->
+                            <StackPanel x:Name="ToolBatch" Visibility="Collapsed">
+                                <TextBlock Style="{StaticResource Text.Note}" Text="Make many cards in one go, from a list." />
+                                <Button x:Name="BtnCsvTemplate" Style="{StaticResource Button.Link}" Content="Save an example list to fill in" Click="BtnCsvTemplate_Click" Margin="-8,0,0,12" />
+
+                                <TextBlock Text="1. The list (CSV)" Style="{StaticResource Text.Label}" />
+                                <Button x:Name="BtnPickCsv" Style="{StaticResource Button.Ghost}" Content="Choose the list" Click="BtnPickCsv_Click" HorizontalAlignment="Left" />
+                                <TextBlock x:Name="CsvMsg" Style="{StaticResource Text.Note}" Margin="0,6,0,16" />
+
+                                <TextBlock Text="2. The photos" Style="{StaticResource Text.Label}" />
+                                <Button x:Name="BtnPickPhotos" Style="{StaticResource Button.Ghost}" Content="Choose the photos" Click="BtnPickPhotos_Click" HorizontalAlignment="Left" />
+                                <TextBlock x:Name="PhotosMsg" Style="{StaticResource Text.Note}" Margin="0,6,0,16" />
+
+                                <TextBlock Text="3. Scanned signatures (optional)" Style="{StaticResource Text.Label}" />
+                                <Button x:Name="BtnPickSigs" Style="{StaticResource Button.Ghost}" Content="Choose the signatures" Click="BtnPickSigs_Click" HorizontalAlignment="Left" />
+                                <TextBlock x:Name="SigsMsg" Style="{StaticResource Text.Note}" Margin="0,6,0,16" />
+
+                                <TextBlock x:Name="LblBatchLayout" Text="Print layout" Style="{StaticResource Text.Label}" />
+                                <ComboBox x:Name="CmbBatchLayout" Style="{StaticResource Select}" SelectionChanged="BatchLayout_Changed" AutomationProperties.LabeledBy="{Binding ElementName=LblBatchLayout}">
+                                    <ComboBoxItem Content="Sheets, fronts then backs (print both sides)" Tag="duplex" IsSelected="True" />
+                                    <ComboBoxItem Content="Sheets, front and back side by side (cut and stick)" Tag="pairs" />
+                                    <ComboBoxItem Content="One card per page (card printer)" Tag="cards" />
+                                </ComboBox>
+                                <TextBlock x:Name="LayoutMsg" Style="{StaticResource Text.Note}" Margin="0,6,0,16" />
+
+                                <StackPanel x:Name="BatchPaperField" Margin="0,0,0,16">
+                                    <TextBlock x:Name="LblBatchPaper" Text="Paper" Style="{StaticResource Text.Label}" />
+                                    <ComboBox x:Name="CmbBatchPaper" Style="{StaticResource Select}" SelectionChanged="BatchLayout_Changed" AutomationProperties.LabeledBy="{Binding ElementName=LblBatchPaper}" />
+                                </StackPanel>
+
+                                <Button x:Name="BtnBatch" Style="{StaticResource Button.Strong}" Content="Make the batch" Click="BtnBatch_Click" HorizontalAlignment="Left" />
+                                <TextBlock x:Name="BatchStatus" Style="{StaticResource Text.Note}" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite" />
+                                <StackPanel x:Name="BatchReport" Margin="0,8,0,0" />
+                            </StackPanel>
+
+                            <!-- Printer setting -->
+                            <StackPanel x:Name="ToolPrinter" Visibility="Collapsed">
+                                <TextBlock x:Name="LblFlip" Text="How your printer turns the paper over" Style="{StaticResource Text.Label}" />
+                                <ComboBox x:Name="CmbFlip" Style="{StaticResource Select}" SelectionChanged="CmbFlip_Changed" AutomationProperties.LabeledBy="{Binding ElementName=LblFlip}">
+                                    <ComboBoxItem Content="On the long edge (usual)" Tag="long" />
+                                    <ComboBoxItem Content="On the short edge" Tag="short" />
+                                </ComboBox>
+                                <TextBlock Style="{StaticResource Text.Note}" Margin="0,8,0,20"
+                                           Text="Set this once. It decides how the sheet of backs is reversed, so each back lands behind the right front. If the backs come out behind the wrong people, change it and print again. It only applies when printing both sides." />
+                                <CheckBox x:Name="ChkRotate" Style="{StaticResource Check}" Content="Turn the back upside down" Click="ChkRotate_Click" />
+                                <TextBlock Style="{StaticResource Text.Note}" Margin="0,4,0,0"
+                                           Text="Only if printed cards come out with the back upside down. Remembered on this computer." />
+                            </StackPanel>
+
+                            <!-- Card design -->
+                            <StackPanel x:Name="ToolDesign" Visibility="Collapsed">
+                                <TextBlock Style="{StaticResource Text.Body}" Margin="0,0,0,12">
+                                    <Run Text="Now using " /><Run x:Name="DesignName" FontWeight="SemiBold" /><Run Text="." />
+                                </TextBlock>
+
+                                <StackPanel x:Name="DesignHome">
+                                    <Button x:Name="BtnTplMap" Style="{StaticResource Button.Strong}" Content="Show the map" Click="BtnTplMap_Click" HorizontalAlignment="Left" />
+                                    <TextBlock Style="{StaticResource Text.Note}" Margin="0,8,0,20"
+                                               Text="The boxes for the photo, name, job title, number, signature and QR, drawn over the card. Drag them anywhere." />
+
+                                    <TextBlock Text="Use different artwork" Style="{StaticResource Text.Label}" />
+                                    <Button x:Name="BtnPickFront" Style="{StaticResource Button.Ghost}" Content="Choose the front" Click="BtnPickFront_Click" HorizontalAlignment="Left" />
+                                    <TextBlock x:Name="FrontFileMsg" Style="{StaticResource Text.Note}" Margin="0,6,0,12" />
+                                    <Button x:Name="BtnPickBack" Style="{StaticResource Button.Ghost}" Content="Choose the back" Click="BtnPickBack_Click" HorizontalAlignment="Left" />
+                                    <TextBlock x:Name="BackFileMsg" Style="{StaticResource Text.Note}" Margin="0,6,0,8" />
+                                    <TextBlock Style="{StaticResource Text.Note}" Margin="0,0,0,12"
+                                               Text="Both at 638 × 1011 pixels. TEMPLATE-SPEC.md has the full brief for the designer. The map stays where it is, so check it afterwards." />
+                                    <Button x:Name="BtnTplUse" Style="{StaticResource Button.Ghost}" Content="Use this artwork" Click="BtnTplUse_Click" HorizontalAlignment="Left" />
+                                </StackPanel>
+
+                                <StackPanel x:Name="DesignAdjust" Visibility="Collapsed">
+                                    <TextBlock Style="{StaticResource Text.Note}"
+                                               Text="Drag a box to move it, its corner to resize it. With a box selected, the arrow keys move it by a quarter of a millimetre, and Shift with an arrow key resizes it. Tab moves between boxes." />
+                                    <TextBlock x:Name="DesignReadout" Style="{StaticResource Text.Body}" Margin="0,12,0,12" AutomationProperties.LiveSetting="Polite" />
+                                    <WrapPanel>
+                                        <Button x:Name="BtnTplDone" Style="{StaticResource Button.Strong}" Content="Keep this map" Click="BtnTplDone_Click" Margin="0,0,8,8" />
+                                        <Button x:Name="BtnTplCancel" Style="{StaticResource Button.Ghost}" Content="Discard changes" Click="BtnTplCancel_Click" Margin="0,0,8,8" />
+                                    </WrapPanel>
+                                    <Button x:Name="BtnTplDefaults" Style="{StaticResource Button.Link}" Content="Put the boxes back where the built-in design has them" Click="BtnTplDefaults_Click" Margin="-8,4,0,0" />
+                                </StackPanel>
+
+                                <TextBlock x:Name="DesignMsg" Style="{StaticResource Text.Note}" Margin="0,12,0,0" AutomationProperties.LiveSetting="Polite" />
+                                <StackPanel x:Name="DesignWarn" Visibility="Collapsed" Margin="0,12,0,0">
+                                    <TextBlock x:Name="DesignWarnHead" Style="{StaticResource Text.Warning}" />
+                                    <StackPanel x:Name="DesignWarnList" Margin="0,6,0,0" />
+                                </StackPanel>
+                                <Button x:Name="BtnTplReset" Style="{StaticResource Button.Ghost}" Content="Go back to the built-in design" Click="BtnTplReset_Click"
+                                        HorizontalAlignment="Left" Margin="0,20,0,0" Visibility="Collapsed" />
+                            </StackPanel>
+                        </Grid>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <!-- ============ the card ============ -->
+            <Border x:Name="Stage" Grid.Column="2" Background="{DynamicResource Color.Stage}" CornerRadius="8">
+                <DockPanel Margin="20,16,20,16">
+                    <StackPanel x:Name="SideTabs" DockPanel.Dock="Top" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <RadioButton x:Name="SideFront" GroupName="side" Style="{StaticResource Chip.Side}" Content="Front" IsChecked="True" Click="Side_Click" />
+                        <RadioButton x:Name="SideBack" GroupName="side" Style="{StaticResource Chip.Side}" Content="Back" Click="Side_Click" />
+                    </StackPanel>
+
+                    <!-- what is already waiting to print with this card -->
+                    <Border x:Name="QueueStrip" DockPanel.Dock="Bottom" Background="{DynamicResource Color.StageRaised}" BorderBrush="{DynamicResource Color.Line}" BorderThickness="1" CornerRadius="6" Padding="14,10" Margin="0,12,0,0" Visibility="Collapsed">
+                        <StackPanel>
+                            <DockPanel>
+                                <TextBlock x:Name="JobCount" DockPanel.Dock="Right" FontSize="13" Foreground="{DynamicResource Color.StageMuted}" VerticalAlignment="Center" />
+                                <TextBlock Text="In this print" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Color.StageInk}" />
+                            </DockPanel>
+                            <ScrollViewer MaxHeight="132" VerticalScrollBarVisibility="Auto" Margin="0,6,0,0" Focusable="False">
+                                <StackPanel x:Name="JobList" />
+                            </ScrollViewer>
+                            <TextBlock x:Name="JobNote" FontSize="13" Foreground="{DynamicResource Color.StageMuted}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                            <Button x:Name="BtnCancelAdd" Style="{StaticResource Button.Ghost}" Content="Stop adding and go back to the print" Click="BtnCancelAdd_Click"
+                                    HorizontalAlignment="Left" Margin="0,8,0,0" Visibility="Collapsed" />
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock x:Name="Caption" DockPanel.Dock="Bottom" FontSize="13" Foreground="{DynamicResource Color.StageMuted}" TextAlignment="Center"
+                               TextWrapping="Wrap" Margin="0,10,0,0" />
+
+                    <StackPanel x:Name="SheetNav" DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0" Visibility="Collapsed">
+                        <Button x:Name="PrevPage" Style="{StaticResource Button.Ghost}" Content="Previous page" Click="PrevPage_Click" />
+                        <TextBlock x:Name="PreviewCaption" FontSize="13" Foreground="{DynamicResource Color.StageInk}" VerticalAlignment="Center" Margin="14,0" />
+                        <Button x:Name="NextPage" Style="{StaticResource Button.Ghost}" Content="Next page" Click="NextPage_Click" />
+                    </StackPanel>
+
+                    <Grid>
+                        <TextBlock x:Name="CardLoading" Text="Loading the card…" Foreground="{DynamicResource Color.StageMuted}" FontSize="14"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" />
+                        <!-- the card, as large as the space allows; the map boxes sit exactly on top of it -->
+                        <Viewbox x:Name="CardBox" Stretch="Uniform" Visibility="Collapsed">
+                            <Grid x:Name="CardSurface" Width="540" Height="856" Background="Transparent"
+                                  MouseLeftButtonDown="Card_MouseDown" MouseMove="Card_MouseMove" MouseLeftButtonUp="Card_MouseUp" MouseWheel="Card_MouseWheel">
+                                <Image x:Name="CardImage" Stretch="Fill" />
+                                <Border BorderBrush="{DynamicResource Color.CardEdge}" BorderThickness="1" IsHitTestVisible="False" />
+                                <local:MapEditor x:Name="MapOverlay" Visibility="Collapsed" />
+                            </Grid>
+                        </Viewbox>
+                        <Image x:Name="SheetImage" Stretch="Uniform" Visibility="Collapsed" />
+                    </Grid>
+                </DockPanel>
+            </Border>
+
+            <!-- ============ the form ============ -->
+            <Border x:Name="FormPanel" Grid.Column="3" Width="440" Margin="12,0,0,0" Style="{StaticResource Panel}">
+                <DockPanel Margin="24,20,12,16">
+                    <!-- the six steps, one row, equal widths: 61 + 4 each, so the bar ends on the form's right edge -->
+                    <UniformGrid x:Name="StepsBar" DockPanel.Dock="Top" Rows="1" Margin="0,0,8,20" />
+
+                    <!-- the way forward stays put under the step, set off by one rule -->
+                    <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource Color.Line}" BorderThickness="0,1,0,0" Margin="0,12,12,0" Padding="0,16,0,0">
+                      <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="BtnBack" Style="{StaticResource Button.Ghost}" Content="Back" Click="BtnBack_Click" Margin="0,0,8,0" MinWidth="88" />
+                            <Button x:Name="BtnNext" Style="{StaticResource Button.Primary}" Content="Next" Click="BtnNext_Click" MinWidth="120" />
+                        </StackPanel>
+                        <TextBlock x:Name="Blocked" Style="{StaticResource Text.Error}" Margin="0,8,0,0" AutomationProperties.LiveSetting="Assertive" Visibility="Collapsed" />
+                        <TextBlock x:Name="Status" Style="{StaticResource Text.Note}" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite" />
+                      </StackPanel>
+                    </Border>
+
+                    <ScrollViewer x:Name="StepScroll" VerticalScrollBarVisibility="Auto" Padding="0,0,12,0" Focusable="False">
+                        <Grid>
+                            <!-- 1. name -->
+                            <StackPanel x:Name="StepName">
+                                <TextBlock Style="{StaticResource Text.Heading}" Text="Who is this ID for?" />
+                                <TextBlock x:Name="LblLast" Text="Last name" Style="{StaticResource Text.Label}" />
+                                <TextBox x:Name="TxtLast" Style="{StaticResource Input}" MaxLength="40" Tag="Last" TextChanged="Name_TextChanged" LostFocus="Name_LostFocus" AutomationProperties.LabeledBy="{Binding ElementName=LblLast}" />
+                                <TextBlock x:Name="MsgLast" Style="{StaticResource Text.Error}" Margin="0,4,0,12" MinHeight="4" />
+                                <TextBlock x:Name="LblFirst" Text="First name" Style="{StaticResource Text.Label}" />
+                                <TextBox x:Name="TxtFirst" Style="{StaticResource Input}" MaxLength="40" Tag="First" TextChanged="Name_TextChanged" LostFocus="Name_LostFocus" AutomationProperties.LabeledBy="{Binding ElementName=LblFirst}" />
+                                <TextBlock x:Name="MsgFirst" Style="{StaticResource Text.Error}" Margin="0,4,0,12" MinHeight="4" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="120" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock x:Name="LblMiddle" Text="Middle name" Style="{StaticResource Text.Label}" />
+                                        <TextBox x:Name="TxtMiddle" Style="{StaticResource Input}" MaxLength="40" Tag="Middle" TextChanged="Name_TextChanged" LostFocus="Name_LostFocus" AutomationProperties.LabeledBy="{Binding ElementName=LblMiddle}" />
+                                        <TextBlock x:Name="MsgMiddle" Style="{StaticResource Text.Error}" Margin="0,4,0,12" MinHeight="4" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock x:Name="LblSuffix" Text="Suffix (Jr., III)" Style="{StaticResource Text.Label}" />
+                                        <TextBox x:Name="TxtSuffix" Style="{StaticResource Input}" MaxLength="10" Tag="Suffix" TextChanged="Name_TextChanged" LostFocus="Name_LostFocus" AutomationProperties.LabeledBy="{Binding ElementName=LblSuffix}" />
+                                        <TextBlock x:Name="MsgSuffix" Style="{StaticResource Text.Error}" Margin="0,4,0,12" MinHeight="4" />
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock x:Name="NamePreview" Style="{StaticResource Text.Body}" />
+                            </StackPanel>
+
+                            <!-- 2. job title -->
+                            <StackPanel x:Name="StepTitle" Visibility="Collapsed">
+                                <TextBlock Style="{StaticResource Text.Heading}" Text="What do they do?" />
+                                <!-- asked, never guessed: the attendance system takes interns, and only interns, from this -->
+                                <TextBlock x:Name="LblKind" Text="This ID is for" Style="{StaticResource Text.Label}" />
+                                <ComboBox x:Name="CmbKind" Style="{StaticResource Select}" Width="200" HorizontalAlignment="Left" SelectionChanged="CmbKind_Changed"
+                                          AutomationProperties.LabeledBy="{Binding ElementName=LblKind}">
+                                    <ComboBoxItem Content="An employee" Tag="employee" />
+                                    <ComboBoxItem Content="An intern" Tag="intern" />
+                                </ComboBox>
+                                <TextBlock x:Name="MsgKind" Style="{StaticResource Text.Error}" Margin="0,4,0,12" MinHeight="4" />
+                                <TextBlock Text="Job title" Style="{StaticResource Text.Label}" />
+                                <WrapPanel x:Name="TitleChips" AutomationProperties.Name="Job title" />
+                                <TextBox x:Name="TxtTitleCustom" Style="{StaticResource Input}" MaxLength="60" TextChanged="TitleCustom_TextChanged" LostFocus="TitleCustom_LostFocus"
+                                         AutomationProperties.Name="Job title" Visibility="Collapsed" />
+                                <TextBlock x:Name="MsgTitle" Style="{StaticResource Text.Error}" Margin="0,4,0,12" MinHeight="4" />
+
+                                <StackPanel x:Name="FieldTitle2" Visibility="Collapsed">
+                                    <DockPanel Margin="0,0,0,6">
+                                        <Button x:Name="BtnRoleRemove" DockPanel.Dock="Right" Style="{StaticResource Button.Link}" Content="Remove the second role" Click="BtnRoleRemove_Click" />
+                                        <TextBlock Text="Second role" Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0" />
+                                    </DockPanel>
+                                    <WrapPanel x:Name="Title2Chips" AutomationProperties.Name="Second role" />
+                                    <TextBox x:Name="TxtTitle2Custom" Style="{StaticResource Input}" MaxLength="60" TextChanged="Title2Custom_TextChanged" LostFocus="Title2Custom_LostFocus"
+                                             AutomationProperties.Name="Second role" Visibility="Collapsed" />
+                                    <TextBlock x:Name="MsgTitle2" Style="{StaticResource Text.Error}" Margin="0,4,0,12" MinHeight="4" />
+                                </StackPanel>
+
+                                <Button x:Name="BtnRoleAdd" Style="{StaticResource Button.Ghost}" Content="Add a second role" Click="BtnRoleAdd_Click" HorizontalAlignment="Left" />
+                                <TextBlock x:Name="TitlePreview" Style="{StaticResource Text.Error}" Margin="0,12,0,0" Visibility="Collapsed" />
+                            </StackPanel>
+
+                            <!-- 3. number -->
+                            <StackPanel x:Name="StepNumber" Visibility="Collapsed">
+                                <TextBlock Style="{StaticResource Text.Heading}" Text="Which employee number?" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="SeqPrefix" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <ComboBox x:Name="CmbYear" Style="{StaticResource Select}" Width="96" SelectionChanged="CmbYear_Changed" AutomationProperties.Name="Year of issue" />
+                                    <TextBlock Text="-" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0" />
+                                    <TextBox x:Name="TxtSeq" Style="{StaticResource Input}" Width="110" MaxLength="4" TextChanged="TxtSeq_TextChanged" LostFocus="TxtSeq_LostFocus"
+                                             AutomationProperties.Name="Employee number" />
+                                </StackPanel>
+                                <TextBlock x:Name="MsgSeq" Style="{StaticResource Text.Error}" Margin="0,6,0,12" MinHeight="4" />
+                                <StackPanel x:Name="ReissueWrap" Visibility="Collapsed">
+                                    <CheckBox x:Name="ChkReissue" Style="{StaticResource Check}" Content="Replacement card" Click="ChkReissue_Click" />
+                                    <TextBlock Style="{StaticResource Text.Note}" Margin="0,4,0,0"
+                                               Text="This number is already issued. Tick only if you are printing the same person’s card again (lost, damaged, name change)." />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- 4. photo -->
+                            <StackPanel x:Name="StepPhoto" Visibility="Collapsed" AllowDrop="True" Drop="Photo_Drop" DragOver="Photo_DragOver" Background="Transparent">
+                                <TextBlock Style="{StaticResource Text.Heading}" Text="Their photo" />
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="72" Height="92" CornerRadius="6" Background="{DynamicResource Color.Bg}" BorderBrush="{DynamicResource Color.Line}" BorderThickness="1" ClipToBounds="True">
+                                        <Image x:Name="PhotoThumb" Stretch="Uniform" />
+                                    </Border>
+                                    <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                                        <Button x:Name="BtnPhoto" Style="{StaticResource Button.Strong}" Content="Choose a photo" Click="BtnPhoto_Click" HorizontalAlignment="Left" />
+                                        <TextBlock x:Name="PhotoName" Style="{StaticResource Text.Note}" Margin="0,6,0,0" MaxWidth="250" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                                    </StackPanel>
+                                </StackPanel>
+                                <TextBlock x:Name="PhotoMsg" Style="{StaticResource Text.Note}" Margin="0,12,0,0" AutomationProperties.LiveSetting="Polite" />
+
+                                <Expander x:Name="AdjustBox" Header="Move or resize it" Margin="0,16,0,0" FontSize="14" Visibility="Collapsed">
+                                    <StackPanel Margin="0,12,0,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Style="{StaticResource Button.Ghost}" Content="Left" Tag="-1,0" Click="Nudge_Click" Margin="0,0,6,0" AutomationProperties.Name="Move the photo left" />
+                                            <Button Style="{StaticResource Button.Ghost}" Content="Up" Tag="0,-1" Click="Nudge_Click" Margin="0,0,6,0" AutomationProperties.Name="Move the photo up" />
+                                            <Button Style="{StaticResource Button.Ghost}" Content="Down" Tag="0,1" Click="Nudge_Click" Margin="0,0,6,0" AutomationProperties.Name="Move the photo down" />
+                                            <Button Style="{StaticResource Button.Ghost}" Content="Right" Tag="1,0" Click="Nudge_Click" AutomationProperties.Name="Move the photo right" />
+                                        </StackPanel>
+                                        <DockPanel Margin="0,14,0,0">
+                                            <TextBlock x:Name="ZoomOut" DockPanel.Dock="Right" Style="{StaticResource Text.Body}" Width="56" TextAlignment="Right" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="LblZoom" DockPanel.Dock="Left" Text="Size" Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                            <Slider x:Name="SldZoom" Minimum="50" Maximum="150" TickFrequency="5" IsSnapToTickEnabled="True" SmallChange="5" LargeChange="10" Value="100"
+                                                    VerticalAlignment="Center" ValueChanged="SldZoom_Changed" AutomationProperties.LabeledBy="{Binding ElementName=LblZoom}" />
+                                        </DockPanel>
+                                        <TextBlock Style="{StaticResource Text.Note}" Margin="0,8,0,0" Text="You can also drag the photo on the card, and turn the mouse wheel over it to resize." />
+                                        <Button x:Name="BtnAdjustReset" Style="{StaticResource Button.Link}" Content="Put it back where the app placed it" Click="BtnAdjustReset_Click" Margin="-8,4,0,0" />
+                                    </StackPanel>
+                                </Expander>
+
+                                <Expander x:Name="GuideBox" Margin="0,16,0,0" FontSize="14">
+                                    <Expander.Header>
+                                        <TextBlock x:Name="GuideLabel" Text="If the cut-out looks wrong" />
+                                    </Expander.Header>
+                                    <StackPanel Margin="0,12,0,0">
+                                        <TextBlock Style="{StaticResource Text.Note}"
+                                                   Text="The app removes the background itself, on this computer. If it leaves bits of background or cuts into the person, a photo against a plain wall usually fixes it. Failing that, an AI tool can make a green-background version:" />
+                                        <TextBlock Style="{StaticResource Text.Note}" Margin="0,8,0,0" Text="1. Open Gemini or ChatGPT signed in to the company’s enterprise account, and attach the photo." />
+                                        <TextBlock Style="{StaticResource Text.Note}" Text="2. Paste the prompt below and send it." />
+                                        <TextBlock Style="{StaticResource Text.Note}" Text="3. Save the result and choose it here." />
+                                        <TextBox x:Name="TxtPrompt" Style="{StaticResource Input.Multiline}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" Height="96"
+                                                 VerticalScrollBarVisibility="Auto" Margin="0,10,0,0" Padding="8" AutomationProperties.Name="The prompt to paste" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                            <Button x:Name="BtnCopyPrompt" Style="{StaticResource Button.Ghost}" Content="Copy the prompt" Click="BtnCopyPrompt_Click" />
+                                            <TextBlock x:Name="CopyStatus" Style="{StaticResource Text.Note}" VerticalAlignment="Center" Margin="10,0,0,0" AutomationProperties.LiveSetting="Polite" />
+                                        </StackPanel>
+                                        <TextBlock Style="{StaticResource Text.Note}" Margin="0,10,0,0"
+                                                   Text="Employee photos are personal data. Use the company’s approved enterprise AI account, never a personal login, and check the face still looks like the person." />
+                                    </StackPanel>
+                                </Expander>
+                            </StackPanel>
+
+                            <!-- 5. signature -->
+                            <StackPanel x:Name="StepSign" Visibility="Collapsed">
+                                <TextBlock Style="{StaticResource Text.Heading}" Text="Their signature" />
+                                <Border x:Name="SigFrame" BorderBrush="{DynamicResource Color.ControlBorder}" BorderThickness="1" CornerRadius="6" ClipToBounds="True" Background="White">
+                                    <Grid>
+                                        <local:SignaturePad x:Name="SigPreview" CanDraw="False" Hint="No signature yet" />
+                                        <Image x:Name="SigImage" Stretch="Uniform" Margin="12" Visibility="Collapsed" />
+                                    </Grid>
+                                </Border>
+                                <WrapPanel Margin="0,12,0,0">
+                                    <Button x:Name="BtnSign" Style="{StaticResource Button.Strong}" Content="Sign now" Click="BtnSign_Click" Margin="0,0,8,8" />
+                                    <Button x:Name="BtnSigScan" Style="{StaticResource Button.Ghost}" Content="Use a scan instead" Click="BtnSigScan_Click" Margin="0,0,8,8" />
+                                    <Button x:Name="BtnClearSig" Style="{StaticResource Button.Ghost}" Content="Clear" Click="BtnClearSig_Click" Margin="0,0,8,8" />
+                                </WrapPanel>
+                                <TextBlock x:Name="SigHelp" Style="{StaticResource Text.Note}" />
+                                <TextBlock x:Name="SigMsg" Style="{StaticResource Text.Error}" Margin="0,6,0,0" Visibility="Collapsed" />
+                                <TextBlock x:Name="TabletNote" Style="{StaticResource Text.Note}" Margin="0,12,0,0" />
+                            </StackPanel>
+
+                            <!-- 6. check and print -->
+                            <StackPanel x:Name="StepCheck" Visibility="Collapsed">
+                                <TextBlock x:Name="StepCheckHeading" Style="{StaticResource Text.Heading}" Text="Is everything correct?" />
+                                <TextBlock x:Name="ReviewSub" Style="{StaticResource Text.Note}" Margin="0,-8,0,12" Visibility="Collapsed" />
+
+                                <StackPanel x:Name="ReviewStage">
+                                    <Grid x:Name="Summary" Margin="0,0,0,16">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Width="120" BorderBrush="{DynamicResource Color.Line}" BorderThickness="1" CornerRadius="4" ClipToBounds="True" VerticalAlignment="Top">
+                                            <Image x:Name="SummaryImage" Stretch="Uniform" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Margin="14,0,0,0">
+                                            <TextBlock Text="Name" Style="{StaticResource Text.Note}" />
+                                            <DockPanel>
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Link}" Content="Edit" Tag="0" Click="SummaryEdit_Click" AutomationProperties.Name="Edit the name" />
+                                                <TextBlock x:Name="SumName" Style="{StaticResource Text.Body}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                            <TextBlock Text="Job title" Style="{StaticResource Text.Note}" Margin="0,4,0,0" />
+                                            <DockPanel>
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Link}" Content="Edit" Tag="1" Click="SummaryEdit_Click" AutomationProperties.Name="Edit the job title" />
+                                                <TextBlock x:Name="SumTitle" Style="{StaticResource Text.Body}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                            <TextBlock Text="Employee number" Style="{StaticResource Text.Note}" Margin="0,4,0,0" />
+                                            <DockPanel>
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Link}" Content="Edit" Tag="2" Click="SummaryEdit_Click" AutomationProperties.Name="Edit the employee number" />
+                                                <TextBlock x:Name="SumNumber" Style="{StaticResource Text.Body}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                    <TextBlock x:Name="ReviewWarning" Style="{StaticResource Text.Warning}" Margin="0,0,0,12" Visibility="Collapsed" />
+
+                                    <TextBlock Text="Printing" Style="{StaticResource Text.Title}" Margin="0,0,0,10" />
+                                    <WrapPanel>
+                                        <RadioButton x:Name="LayPairs" GroupName="layout" Style="{StaticResource Chip}" Content="Side by side" Click="Layout_Click" />
+                                        <RadioButton x:Name="LayDuplex" GroupName="layout" Style="{StaticResource Chip}" Content="Both sides of the paper" Click="Layout_Click" />
+                                    </WrapPanel>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock x:Name="LblPaper" Text="Paper" Style="{StaticResource Text.Label}" />
+                                            <ComboBox x:Name="CmbPaper" Style="{StaticResource Select}" SelectionChanged="CmbPaper_Changed" AutomationProperties.LabeledBy="{Binding ElementName=LblPaper}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock x:Name="CopiesLabel" Text="Copies of this card" Style="{StaticResource Text.Label}" />
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button x:Name="CopiesDown" Style="{StaticResource Button.Ghost}" Content="−" Width="40" Padding="0" Click="CopiesDown_Click" AutomationProperties.Name="One fewer copy" />
+                                                <TextBox x:Name="TxtCopies" Style="{StaticResource Input}" Width="60" Margin="6,0" TextAlignment="Center" MaxLength="4" TextChanged="TxtCopies_TextChanged" LostFocus="TxtCopies_LostFocus"
+                                                         AutomationProperties.LabeledBy="{Binding ElementName=CopiesLabel}" />
+                                                <Button x:Name="CopiesUp" Style="{StaticResource Button.Ghost}" Content="+" Width="40" Padding="0" Click="CopiesUp_Click" AutomationProperties.Name="One more copy" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                    <TextBlock x:Name="PrintNote" Style="{StaticResource Text.Note}" Margin="0,8,0,0" />
+                                    <Button x:Name="BtnAddAnother" Style="{StaticResource Button.Ghost}" Content="Add another ID to this print" Click="BtnAddAnother_Click" HorizontalAlignment="Left" Margin="0,12,0,0" />
+
+                                    <TextBlock x:Name="ReviewError" Style="{StaticResource Text.Error}" Margin="0,16,0,0" Visibility="Collapsed" AutomationProperties.LiveSetting="Assertive" />
+                                    <WrapPanel Margin="0,20,0,0">
+                                        <Button x:Name="BtnDownload" Style="{StaticResource Button.Primary}" Content="Save the PDF" Click="BtnDownload_Click" Margin="0,0,8,8" MinWidth="150" />
+                                        <Button x:Name="BtnPng" Style="{StaticResource Button.Link}" Content="Save as pictures instead" Click="BtnPng_Click" />
+                                    </WrapPanel>
+                                    <TextBlock x:Name="ReviewFile" Style="{StaticResource Text.Note}" Margin="0,4,0,0" />
+                                </StackPanel>
+
+                                <StackPanel x:Name="SavedStage" Visibility="Collapsed">
+                                    <TextBlock Style="{StaticResource Text.Body}">
+                                        <Run Text="Saved " /><Run x:Name="SavedName" FontWeight="SemiBold" /><Run Text=". Print it at 100% (not “fit to page”)." />
+                                    </TextBlock>
+                                    <TextBlock x:Name="SavedNote" Style="{StaticResource Text.Warning}" Margin="0,8,0,0" Visibility="Collapsed" AutomationProperties.LiveSetting="Polite" />
+                                    <WrapPanel Margin="0,16,0,0">
+                                        <Button x:Name="BtnNewId" Style="{StaticResource Button.Primary}" Content="Start a new ID" Click="BtnNewId_Click" Margin="0,0,8,8" />
+                                        <Button x:Name="BtnOpenFolder" Style="{StaticResource Button.Ghost}" Content="Show the file" Click="BtnOpenFolder_Click" Margin="0,0,8,8" />
+                                    </WrapPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

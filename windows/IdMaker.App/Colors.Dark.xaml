@@ -1,0 +1,77 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+      Dark mode.
+
+      The same brand in Windows' dark mode: the page and panels go to warm
+      near-blacks and text to warm off-white. Gold keeps its two jobs (the
+      one forward button and the current step). The card's stage is a step
+      darker than the page; the signing screen is black in both modes.
+
+      Two tiers. The Palette.* colours are raw values; the Color.* brushes
+      are named for what they are for, and the window only ever uses those.
+      Colors.Light.xaml and Colors.Dark.xaml define exactly the same names:
+      ThemeManager swaps one for the other when Windows changes mode, and
+      every control that refers to a brush with DynamicResource follows.
+
+      The printed card is not drawn from any of these. Its colours come
+      from the card artwork, and do not change with the window.
+    -->
+    <Color x:Key="Palette.Page">#141412</Color>
+    <Color x:Key="Palette.Panel">#1C1B19</Color>
+    <Color x:Key="Palette.Field">#141412</Color>
+    <Color x:Key="Palette.Ink">#ECE8DE</Color>
+    <Color x:Key="Palette.InkMuted">#A39E92</Color>
+    <Color x:Key="Palette.Rule">#2E2C28</Color>
+    <Color x:Key="Palette.RuleStrong">#7B776D</Color>
+    <Color x:Key="Palette.Black">#000000</Color>
+    <Color x:Key="Palette.Charcoal">#1F1F1F</Color>
+    <Color x:Key="Palette.Smoke">#E0E0E0</Color>
+    <Color x:Key="Palette.Ash">#A8A8A8</Color>
+    <Color x:Key="Palette.Gold">#D4AF37</Color>
+    <Color x:Key="Palette.GoldBright">#E3C257</Color>
+    <Color x:Key="Palette.InkOnGold">#1D1C1A</Color>
+    <Color x:Key="Palette.Red">#FF8A80</Color>
+    <Color x:Key="Palette.Amber">#E8B04A</Color>
+    <Color x:Key="Palette.Hover">#262521</Color>
+    <Color x:Key="Palette.Active">#302E2A</Color>
+    <Color x:Key="Palette.InkHover">#FFFFFF</Color>
+    <Color x:Key="Palette.OnInk">#1D1C1A</Color>
+    <Color x:Key="Palette.Stage">#0C0C0B</Color>
+    <Color x:Key="Palette.StageRaised">#1C1B19</Color>
+    <Color x:Key="Palette.StageMuted">#A39E92</Color>
+    <Color x:Key="Palette.CardEdge">#3A3833</Color>
+    <Color x:Key="Palette.Thumb">#7B776D</Color>
+    <Color x:Key="Palette.ThumbHover">#A39E92</Color>
+
+    <SolidColorBrush x:Key="Color.Bg" Color="{StaticResource Palette.Page}" />
+    <SolidColorBrush x:Key="Color.Surface" Color="{StaticResource Palette.Panel}" />
+    <SolidColorBrush x:Key="Color.Field" Color="{StaticResource Palette.Field}" />  <!-- inside a text box or list -->
+    <SolidColorBrush x:Key="Color.Text" Color="{StaticResource Palette.Ink}" />
+    <SolidColorBrush x:Key="Color.TextMuted" Color="{StaticResource Palette.InkMuted}" />
+    <SolidColorBrush x:Key="Color.Line" Color="{StaticResource Palette.Rule}" />  <!-- dividers and panel edges -->
+    <SolidColorBrush x:Key="Color.ControlBorder" Color="{StaticResource Palette.RuleStrong}" />  <!-- edges of things you can use: 3:1 or more against Surface -->
+    <SolidColorBrush x:Key="Color.Tray" Color="{StaticResource Palette.Black}" />  <!-- the signing screen, the logo tile and the map labels: black in both modes -->
+    <SolidColorBrush x:Key="Color.TrayRaised" Color="{StaticResource Palette.Charcoal}" />
+    <SolidColorBrush x:Key="Color.TrayInk" Color="{StaticResource Palette.Smoke}" />
+    <SolidColorBrush x:Key="Color.TrayMuted" Color="{StaticResource Palette.Ash}" />
+    <SolidColorBrush x:Key="Color.AccentSolid" Color="{StaticResource Palette.Gold}" />  <!-- gold for fills -->
+    <SolidColorBrush x:Key="Color.AccentSolidHover" Color="{StaticResource Palette.GoldBright}" />
+    <SolidColorBrush x:Key="Color.OnAccent" Color="{StaticResource Palette.InkOnGold}" />  <!-- text on a gold fill -->
+    <SolidColorBrush x:Key="Color.Hover" Color="{StaticResource Palette.Hover}" />  <!-- under the pointer: one tone step, no colour -->
+    <SolidColorBrush x:Key="Color.Active" Color="{StaticResource Palette.Active}" />  <!-- the open tool, the highlighted row -->
+    <SolidColorBrush x:Key="Color.Strong" Color="{StaticResource Palette.Ink}" />  <!-- a chosen option, a ticked box: the text colour as a fill -->
+    <SolidColorBrush x:Key="Color.StrongHover" Color="{StaticResource Palette.InkHover}" />
+    <SolidColorBrush x:Key="Color.OnStrong" Color="{StaticResource Palette.OnInk}" />
+    <SolidColorBrush x:Key="Color.Focus" Color="{StaticResource Palette.Ink}" />  <!-- the focus ring: the text colour, so gold stays the only hue -->
+    <SolidColorBrush x:Key="Color.Stage" Color="{StaticResource Palette.Stage}" />  <!-- what the card preview sits on: one step from the page -->
+    <SolidColorBrush x:Key="Color.StageRaised" Color="{StaticResource Palette.StageRaised}" />
+    <SolidColorBrush x:Key="Color.StageInk" Color="{StaticResource Palette.Ink}" />
+    <SolidColorBrush x:Key="Color.StageMuted" Color="{StaticResource Palette.StageMuted}" />
+    <SolidColorBrush x:Key="Color.CardEdge" Color="{StaticResource Palette.CardEdge}" />  <!-- a hairline round the card, so its edge shows on the stage -->
+    <SolidColorBrush x:Key="Color.Danger" Color="{StaticResource Palette.Red}" />
+    <SolidColorBrush x:Key="Color.Warning" Color="{StaticResource Palette.Amber}" />
+    <SolidColorBrush x:Key="Color.ScrollThumb" Color="{StaticResource Palette.Thumb}" />
+    <SolidColorBrush x:Key="Color.ScrollThumbHover" Color="{StaticResource Palette.ThumbHover}" />
+</ResourceDictionary>

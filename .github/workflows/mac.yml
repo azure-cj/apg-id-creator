@@ -1,0 +1,127 @@
+name: Mac app
+
+# Builds the native Mac app and runs its checks on a real Mac (the renderer
+# and the window need one).
+on:
+  # Every pull request, whatever it touches: these are the checks main requires, and a required check that
+  # never runs leaves its pull request waiting for ever.
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - 'mac/**'
+      - 'windows/IdMaker.Core/**'
+      - 'windows/IdMaker.Vision/**'
+      - 'windows/IdMaker.Tests/FakeFirebase.cs'
+      - 'windows/IdMaker.App/Fonts/**'
+      - 'assets/**'
+      - 'test/golden-front.png'
+      - '.github/workflows/mac.yml'
+      - '!**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mac-${{ github.ref }}
+  cancel-in-progress: true
+
+# Set for every job in this file.
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  # The Mac workload is tied to one Xcode. mac/workloads.json pins the
+  # one that builds with the Xcode the runner has; move both together.
+  MAC_XCODE: '/Applications/Xcode_26.6.app'
+  # The SDK band that workload belongs to; mac/global.json holds the same band.
+  MAC_DOTNET_SDK: '10.0.4xx'
+
+jobs:
+  test:
+    name: Mac tests
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      # where the self-test and the window tests leave the card and the screenshots they made
+      IDMAKER_REPORT_DIR: ${{ github.workspace }}/report
+    # Every dotnet command runs in mac/, where global.json keeps the SDK on
+    # the 10.0.4xx band the pinned workload belongs to, whatever newer SDK
+    # the runner also has.
+    defaults:
+      run:
+        working-directory: mac
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.MAC_DOTNET_SDK }}
+      - name: Workload and Xcode
+        run: |
+          sudo xcode-select -s "$MAC_XCODE"
+          dotnet --version
+          dotnet workload install macos --from-rollback-file workloads.json
+          dotnet workload list
+      - name: Core tests, on a Mac
+        run: dotnet test ../windows/IdMaker.Tests -c Release
+      - name: Build, with the window tests in it
+        run: dotnet build IdMaker.Mac -c Release -r osx-arm64 -p:WindowTest=true
+      - name: Self-test
+        run: |
+          app=$(find IdMaker.Mac/bin/Release -maxdepth 4 -path '*osx-arm64*' -name '*.app' | head -1)
+          echo "$app"; ls "$app/Contents/MacOS" "$app/Contents/Resources"
+          "$app/Contents/MacOS/AlphaPremierIdMaker" --selftest --repo "$GITHUB_WORKSPACE"
+      - name: Window tests
+        run: |
+          app=$(find IdMaker.Mac/bin/Release -maxdepth 4 -path '*osx-arm64*' -name '*.app' | head -1)
+          "$app/Contents/MacOS/AlphaPremierIdMaker" --windowtest --repo "$GITHUB_WORKSPACE"
+      # The pictures the window tests took, small, in the log itself: the
+      # log can be read from anywhere, the artifact only by a signed-in person.
+      - name: Show the window
+        if: always()
+        working-directory: ${{ github.workspace }}
+        run: |
+          for name in 3-check 7-refused 8-batch 9-map; do
+            [ -f "report/$name.png" ] || continue
+            sips -Z 1000 -s format jpeg -s formatOptions 55 "report/$name.png" --out "report/$name.jpg" >/dev/null
+            echo "=====BEGIN $name====="
+            base64 -i "report/$name.jpg" | fold -w 200
+            echo "=====END $name====="
+          done
+      - name: Keep the card it drew
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-report
+          path: report
+          if-no-files-found: ignore
+
+  # The disk image a release hands out, built and opened the same way, so a
+  # change that breaks packaging is seen here and not on release day. Kept
+  # as a run artifact; nothing is released from here.
+  package:
+    name: Mac package
+    runs-on: macos-26
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: mac
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.MAC_DOTNET_SDK }}
+      - name: Workload and Xcode
+        run: |
+          sudo xcode-select -s "$MAC_XCODE"
+          dotnet workload install macos --from-rollback-file workloads.json
+      - name: Rosetta, to run the Intel build on this Apple Silicon runner
+        run: softwareupdate --install-rosetta --agree-to-license
+      - name: Apple Silicon disk image
+        run: ./package.sh osx-arm64 AppleSilicon
+      - name: Intel disk image
+        run: ./package.sh osx-x64 Intel
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-disk-images
+          path: mac/dist/*.dmg

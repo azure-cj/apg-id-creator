@@ -1,0 +1,221 @@
+name: Release
+
+# Every change to the app that reaches main is released by itself: the
+# installer package is built, proved to install and start, and published as
+# a GitHub release named after the app's version. The Mac app's two disk
+# images (Apple Silicon and Intel) are then built, opened and started, and
+# added to the same release.
+#
+# The version is the one in windows/IdMaker.App/IdMaker.App.csproj. A
+# version that has already been released is not released twice: bump it
+# (there, in app.manifest and in CardConfig.AppVersion) when the change is
+# one HR should install.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'windows/**'
+      - 'mac/**'
+      - 'assets/**'
+      - '.github/workflows/release.yml'
+      - '!**/*.md'            # a change to the documents alone releases nothing
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+# Set for every job in this file.
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      # The runner image already has a .NET 8 SDK. Installing one again costs
+      # about half a minute a job, so that only happens if the image drops it.
+      - name: Is .NET 8 already here
+        id: sdk
+        shell: pwsh
+        run: |
+          $have = [bool](dotnet --list-sdks | Select-String '^8\.')
+          "have=$($have.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          dotnet --list-sdks
+      - uses: actions/setup-dotnet@v4
+        if: steps.sdk.outputs.have != 'true'
+        with:
+          dotnet-version: 8.0.x
+      # The matting model (25 MB) and the pen driver are two fixed downloads,
+      # each checked against a pinned SHA-256 when used. Keeping them between
+      # runs saves the time and a failure when either site is slow.
+      - name: Keep the two big downloads between runs
+        uses: actions/cache@v4
+        with:
+          path: |
+            windows/IdMaker.Vision/Models
+            windows/installer/.cache
+          key: downloads-${{ hashFiles('windows/IdMaker.Vision/IdMaker.Vision.csproj', 'windows/installer/Driver.psd1') }}
+
+      - name: Which version is this
+        id: version
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content windows/IdMaker.App/IdMaker.App.csproj
+          $version = ($project.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ } | Select-Object -First 1)
+          if (-not $version) { throw 'No <Version> in IdMaker.App.csproj.' }
+          $config = Select-String -Path windows/IdMaker.Core/Config.cs -Pattern 'AppVersion = "([^"]+)"'
+          if ($config.Matches[0].Groups[1].Value -ne $version) {
+            throw "The version in IdMaker.App.csproj ($version) and CardConfig.AppVersion ($($config.Matches[0].Groups[1].Value)) do not agree."
+          }
+          $tag = "v$version"
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          $exists = $LASTEXITCODE -eq 0
+          $global:LASTEXITCODE = 0
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "exists=$($exists.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          if ($exists) { "::notice::$tag is already released. Bump the version to release this change." } else { "Releasing $tag" }
+
+      - name: Test
+        if: steps.version.outputs.exists == 'false'
+        run: dotnet test windows/IdMaker.sln -c Release
+
+      - name: Make sure Inno Setup is there
+        if: steps.version.outputs.exists == 'false'
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y; if ($LASTEXITCODE -ne 0) { throw 'Inno Setup could not be installed.' } }
+          & $iscc /? | Select-Object -First 1
+          $global:LASTEXITCODE = 0
+
+      - name: Make sure the register's project is set
+        if: steps.version.outputs.exists == 'false'
+        shell: pwsh
+        env:
+          IDMAKER_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          IDMAKER_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+        run: |
+          if ("$env:IDMAKER_FIREBASE_PROJECT_ID".Trim() -notmatch '^[a-z0-9-]{4,40}$' -or "$env:IDMAKER_FIREBASE_API_KEY".Trim() -notmatch '^[A-Za-z0-9_-]{20,}$') {
+            throw 'The repository secrets FIREBASE_PROJECT_ID and FIREBASE_API_KEY are missing or do not look right. Add them under Settings, Secrets and variables, Actions (see register/README.md). Without them the released app would have no shared register.'
+          }
+          'The register''s project is set.'
+
+      - name: Build the setup program
+        if: steps.version.outputs.exists == 'false'
+        shell: pwsh
+        env:
+          IDMAKER_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          IDMAKER_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+        run: ./windows/installer/package.ps1
+
+      - name: Check it installs, starts and uninstalls like a Windows app
+        if: steps.version.outputs.exists == 'false'
+        shell: pwsh
+        run: ./windows/installer/selftest.ps1
+
+      - name: Build the single .exe and check it starts
+        if: steps.version.outputs.exists == 'false'
+        shell: pwsh
+        env:
+          IDMAKER_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          IDMAKER_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+        run: ./windows/installer/portable.ps1
+
+      - name: Publish the release
+        if: steps.version.outputs.exists == 'false'
+        shell: pwsh
+        run: |
+          $tag = '${{ steps.version.outputs.tag }}'
+          $zip = "windows/dist/AlphaPremierIdMaker-Setup-$tag.exe"
+          $exe = "windows/dist/AlphaPremierIdMaker-Portable-$tag.exe"
+          Copy-Item windows/dist/AlphaPremierIdMaker-Setup.exe $zip
+          Copy-Item windows/dist/AlphaPremierIdMaker.exe $exe
+          $sums = foreach ($f in $zip, $exe) { "$((Get-FileHash -Algorithm SHA256 $f).Hash.ToLowerInvariant())  $(Split-Path -Leaf $f)" }
+          $sums | Set-Content windows/dist/SHA256SUMS.txt -Encoding ascii
+          $notes = @"
+          Alpha Premier ID Maker $tag for Windows.
+
+          **To install:** download ``AlphaPremierIdMaker-Setup-$tag.exe`` and double-click it. It installs like any Windows app: a Start-menu shortcut, and an entry under Settings, Apps, Installed apps with an Uninstall button. It needs no administrator. It also offers the XP-Pen Deco Fun pen tablet driver when the computer has no tablet driver, and Windows asks for permission for that one step.
+
+          **To run it without installing:** download ``AlphaPremierIdMaker-Portable-$tag.exe`` and double-click it. It does not set up the pen tablet driver.
+
+          Windows may say "Windows protected your PC" the first time, because the files are not code-signed. Choose *More info*, then *Run anyway*.
+
+          Built from $env:GITHUB_SHA.
+          "@
+          gh release create $tag $zip $exe windows/dist/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Alpha Premier ID Maker $tag" --notes $notes
+          if ($LASTEXITCODE -ne 0) { throw 'The release was not published.' }
+
+  # The Mac app, added to the release the Windows job made (or, for a
+  # version released before there was a Mac app, to the one already there).
+  mac:
+    needs: release
+    runs-on: macos-26
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MAC_XCODE: '/Applications/Xcode_26.6.app'
+      TAG: ${{ needs.release.outputs.tag }}
+    defaults:
+      run:
+        working-directory: mac
+    steps:
+      - uses: actions/checkout@v4
+      - name: Is the Mac app already on this release
+        id: have
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null || { echo "There is no release $TAG to add the Mac app to."; exit 1; }
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -q '\.dmg$'; then
+            echo "done=true" >> "$GITHUB_OUTPUT"; echo "::notice::$TAG already has the Mac app."
+          else
+            echo "done=false" >> "$GITHUB_OUTPUT"
+          fi
+          grep -q "<Version>${TAG#v}</Version>" IdMaker.Mac/IdMaker.Mac.csproj || { echo "mac/IdMaker.Mac/IdMaker.Mac.csproj is not at version ${TAG#v}."; exit 1; }
+      - uses: actions/setup-dotnet@v4
+        if: steps.have.outputs.done == 'false'
+        with:
+          dotnet-version: 10.0.4xx
+      - name: Workload and Xcode
+        if: steps.have.outputs.done == 'false'
+        run: |
+          sudo xcode-select -s "$MAC_XCODE"
+          dotnet workload install macos --from-rollback-file workloads.json
+      - name: Rosetta, to run the Intel build on this Apple Silicon runner
+        if: steps.have.outputs.done == 'false'
+        run: softwareupdate --install-rosetta --agree-to-license
+      - name: Build both disk images, open them and start the app
+        if: steps.have.outputs.done == 'false'
+        env:
+          IDMAKER_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          IDMAKER_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+        run: |
+          ./package.sh osx-arm64 AppleSilicon --needs-register
+          ./package.sh osx-x64 Intel --needs-register
+      - name: Add them to the release
+        if: steps.have.outputs.done == 'false'
+        run: |
+          cd dist
+          arm="AlphaPremierIdMaker-Mac-AppleSilicon-$TAG.dmg"
+          intel="AlphaPremierIdMaker-Mac-Intel-$TAG.dmg"
+          mv AlphaPremierIdMaker-AppleSilicon.dmg "$arm"
+          mv AlphaPremierIdMaker-Intel.dmg "$intel"
+          shasum -a 256 "$arm" "$intel" > SHA256SUMS-Mac.txt
+          gh release upload "$TAG" "$arm" "$intel" SHA256SUMS-Mac.txt --repo "$GITHUB_REPOSITORY"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > body.md
+          cat >> body.md <<NOTES
+
+          **On a Mac:** download \`$arm\` (M1 and later) or \`$intel\` (older Intel Macs), open it, and drag the app into Applications. The app is not signed by an Apple developer account, so the first time macOS says it cannot check it: open System Settings, Privacy & Security, and choose *Open Anyway*. On its first start it offers to install the XP-Pen pen tablet driver.
+          NOTES
+          sed -i '' 's/^          //' body.md
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file body.md

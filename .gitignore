@@ -1,7 +1,12 @@
-node_modules/
-test/diff-front.png
 .DS_Store
 Thumbs.db
 
 # local only, never pushed
 JIRA-BOARD.local.md
+
+# downloads kept between builds (windows/installer/package.ps1)
+windows/installer/.cache/
+
+# made on a Mac when the app is packaged (mac/package.sh)
+mac/dist/
+mac/IdMaker.Mac/AppIcon.icns

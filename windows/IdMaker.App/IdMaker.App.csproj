@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!-- lets the project compile on a build machine that is not Windows; it only runs on Windows -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <RootNamespace>IdMaker.App</RootNamespace>
+    <AssemblyName>AlphaPremierIdMaker</AssemblyName>
+    <ApplicationIcon>AppIcon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>2.0.4</Version>
+    <Product>Alpha Premier ID Maker</Product>
+    <Company>Alpha Premier Group of Companies</Company>
+    <Description>Employee ID card maker</Description>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IdMaker.Core\IdMaker.Core.csproj" />
+    <ProjectReference Include="..\IdMaker.Vision\IdMaker.Vision.csproj" />
+    <InternalsVisibleTo Include="IdMaker.App.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The card artwork has one home, assets/ at the top of the repository. -->
+    <Content Include="..\..\assets\front-template.png" Link="Assets\front-template.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\back.png" Link="Assets\back.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\logo.png" Link="Assets\logo.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Fonts\*.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <Resource Include="AppIcon.ico" />
+  </ItemGroup>
+
+</Project>
