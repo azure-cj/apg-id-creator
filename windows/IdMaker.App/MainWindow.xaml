@@ -34,9 +34,9 @@
             <!-- ============ the rail ============ -->
             <DockPanel x:Name="Rail" Grid.Column="0" Width="176" Margin="0,0,12,0">
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4,4,0,12">
-                    <Border Width="36" Height="36" CornerRadius="8" Background="{DynamicResource Color.Tray}" Padding="4">
-                        <Image x:Name="BrandLogo" Stretch="Uniform" />
-                    </Border>
+                    <!-- the app's own icon, as on the taskbar: 32 px, the size every APG system shows its icon at -->
+                    <Image x:Name="BrandLogo" Source="pack://application:,,,/AlphaPremierIdMaker;component/AppIcon.png" Width="32" Height="32" Stretch="Uniform"
+                           VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
                     <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="Alpha Premier" FontSize="13" Foreground="{DynamicResource Color.TextMuted}" />
                         <TextBlock Text="ID Maker" FontSize="16" FontFamily="{StaticResource Font.Display}" Foreground="{DynamicResource Color.Text}" />

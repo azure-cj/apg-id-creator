@@ -212,7 +212,6 @@ public partial class MainWindow : Window
             var measurer = WpfTextMeasurer.Load(BesideProgram("Fonts"));
             _renderer = new CardRenderer(measurer);
             _builtInArt = new CardArt(ImageFiles.Load(BesideProgram("Assets", CardConfig.FrontArtFile)), ImageFiles.Load(BesideProgram("Assets", CardConfig.BackArtFile)));
-            BrandLogo.Source = ImageFiles.Load(BesideProgram("Assets", CardConfig.LogoFile));
             _art = _builtInArt;
 
             // a design put in earlier is still the one in use

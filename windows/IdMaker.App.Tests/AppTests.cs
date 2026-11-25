@@ -858,6 +858,23 @@ public class WindowTests
     }
 
     [Fact]
+    public void The_rail_shows_the_apps_own_icon_at_32_pixels()
+    {
+        // The icon once left an empty gap: an address that worked in the app found nothing from the test host.
+        var window = Ui.Run(() => Open(Files.TempFolder()));
+        Ui.Settle();
+        Ui.Run(() =>
+        {
+            var icon = Assert.IsAssignableFrom<System.Windows.Media.Imaging.BitmapSource>(window.BrandLogo.Source);
+            Assert.Equal(256, icon.PixelWidth);   // the 256 px copy, sharp at any display scaling
+            Assert.Equal(32, window.BrandLogo.ActualWidth);
+            Assert.Equal(32, window.BrandLogo.ActualHeight);
+            Shoot(window, "rail-icon");
+            window.Close();
+        });
+    }
+
+    [Fact]
     public void The_operator_can_keep_the_window_light_or_dark_whatever_windows_is_set_to()
     {
         var folder = Files.TempFolder();

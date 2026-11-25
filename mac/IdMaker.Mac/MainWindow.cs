@@ -61,7 +61,8 @@ public sealed partial class MainWindow
 
     /* ---- the controls --------------------------------------------- */
 
-    private readonly NSImageView _logo = Ui.Picture(56, 56);
+    // the app's own icon, as in the Dock: 32 pt, the size every APG system shows its icon at
+    private readonly NSImageView _logo = Ui.Picture(32, 32);
     private readonly NSButton _railRegister;
     private readonly NSButton _railBatch;
     private readonly NSButton _railPrinter;
@@ -498,8 +499,8 @@ public sealed partial class MainWindow
             if (front is null || back is null) throw new IOException("the card artwork is missing.");
             _builtInArt = new CardArt(front, back);
             _art = _builtInArt;
-            using var logo = MacPictures.Load(InBundle("Assets", CardConfig.LogoFile));
-            if (logo is not null) _logo.Image = new NSImage(logo, new CGSize(56, 56));
+            using var logo = MacPictures.Load(InBundle("Assets", "AppIcon.png"));
+            if (logo is not null) _logo.Image = new NSImage(logo, new CGSize(32, 32));
 
             // a design put in earlier is still the one in use
             if (_templates.Restore() && _templates.HasArtwork)
