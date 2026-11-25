@@ -116,8 +116,8 @@ waiting on a person with the hardware.
 | security-audit | findings only where a lower-trust input crosses a boundary: files opened or dropped, the register's answers, the installer's download |
 | full-output-enforcement | no placeholders, no "rest follows the same pattern" |
 | better-accessibility, fixing-accessibility | real controls, a visible focus ring, labels tied to inputs, errors as words beside the field, status announced, 40-pixel targets, Next never disabled |
-| better-layout, better-typography, better-colors, better-ui, baseline-ui | `Theme.xaml`: two tiers of colour, four type sizes, spacing in steps, no animation, no gradients |
-| design-taste-frontend (its app-screens chapter), redesign-existing-projects | "How the window is meant to look" in `windows/README.md`: gold for one button and the current step, the card as the biggest thing, flat surfaces, one radius family. Judged on the screenshots CI keeps in `render-report` |
+| better-layout, better-typography, better-colors, better-ui, baseline-ui | `Theme.xaml`: two tiers of colour, four type sizes, spacing in steps, the company design system's fonts (Poppins, Orbitron, built in); motion only in `Motion.cs`, under a quarter of a second, by transform or opacity, and off when Windows' animation effects are off |
+| design-taste-frontend (its app-screens chapter), redesign-existing-projects | "How the window is meant to look" in `windows/README.md`: gold as a fill only where `ThemeTests` allows (one forward button, the current step, switch thumbs, washes), the card as the biggest thing, panels raised like glass, one radius family. Judged on the screenshots CI keeps in `render-report` |
 | better-writing | verb-first buttons that name the consequence, sentence case, errors that say how to recover |
 | anti-slop | TypeScript-only as written; its principles are the `// SAFETY:` rule and parsing at the boundary (`Register.ParseEntry`) |
 | i-have-adhd | how replies to Deign are shaped, not the app |
