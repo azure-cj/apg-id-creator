@@ -6,7 +6,7 @@
         Width="1400" Height="860" MinWidth="1080" MinHeight="680"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource Color.Bg}" Foreground="{DynamicResource Color.Text}"
-        FontFamily="Segoe UI" FontSize="14"
+        FontFamily="{StaticResource Font.Ui}" FontSize="14"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
 
     <!--
@@ -15,8 +15,12 @@
       of our own and no footer: the card's size comes from the window's
       height, so every row not spent on chrome goes to the card.
 
-      When the window is too narrow for all four, an open tool takes the
-      form's place until it is closed (MainWindow.FitColumns).
+      A tool opens over the card, on a veil that dims it, so neither the
+      card nor the form moves; a click on the veil, Close or Escape puts it
+      away. Only while the map is being dragged does the tool stand beside
+      the card instead, so every box on the card can be reached; then, in a
+      window too narrow for all four, it takes the form's place until it is
+      closed (MainWindow.FitColumns).
     -->
     <Grid Margin="12">
         <Grid x:Name="Columns">
@@ -29,26 +33,60 @@
 
             <!-- ============ the rail ============ -->
             <DockPanel x:Name="Rail" Grid.Column="0" Width="176" Margin="0,0,12,0">
-                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4,4,0,24">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4,4,0,12">
                     <Border Width="36" Height="36" CornerRadius="8" Background="{DynamicResource Color.Tray}" Padding="4">
                         <Image x:Name="BrandLogo" Stretch="Uniform" />
                     </Border>
                     <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="Alpha Premier" FontSize="13" Foreground="{DynamicResource Color.TextMuted}" />
-                        <TextBlock Text="ID Maker" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource Color.Text}" />
+                        <TextBlock Text="ID Maker" FontSize="16" FontFamily="{StaticResource Font.Display}" Foreground="{DynamicResource Color.Text}" />
                     </StackPanel>
                 </StackPanel>
+                <!-- the header stands on the page, closed by one gold hairline that fades out -->
+                <Border DockPanel.Dock="Top" Style="{StaticResource Rule.GoldFade}" Margin="4,0,0,20" />
 
                 <TextBlock x:Name="AppVersion" DockPanel.Dock="Bottom" Style="{StaticResource Text.Note}" Margin="12,8,0,4" />
 
+                <!-- light or dark: as Windows is set unless chosen here; remembered on this computer -->
+                <StackPanel DockPanel.Dock="Bottom" Margin="4,0,0,4">
+                    <TextBlock x:Name="LblAppearance" Text="Appearance" Style="{StaticResource Text.Kicker}" Margin="8,0,0,6" />
+                    <!-- a three-way switch: a screen (follow Windows), a sun, a moon; the gold thumb glides to the one chosen -->
+                    <Border Style="{StaticResource Switch.Track}" AutomationProperties.LabeledBy="{Binding ElementName=LblAppearance}">
+                        <Grid>
+                            <Canvas>
+                                <Border x:Name="AppearanceThumb" Style="{StaticResource Switch.Thumb}">
+                                    <Border Style="{StaticResource Switch.ThumbSheen}" />
+                                </Border>
+                            </Canvas>
+                            <UniformGrid x:Name="AppearanceChoices" Rows="1" SizeChanged="AppearanceChoices_SizeChanged">
+                            <RadioButton x:Name="AppearSystem" GroupName="appearance" Style="{StaticResource Switch.Option}" Tag="system" Click="Appearance_Click"
+                                         ToolTip="Match Windows" AutomationProperties.Name="Match Windows">
+                                <Path Data="M1.5,2.5 H14.5 V11 H1.5 Z M5.5,14 H10.5 M8,11 V14" Width="16" Height="16" StrokeThickness="1.5" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
+                            </RadioButton>
+                            <RadioButton x:Name="AppearLight" GroupName="appearance" Style="{StaticResource Switch.Option}" Tag="light" Click="Appearance_Click"
+                                         ToolTip="Light" AutomationProperties.Name="Light">
+                                <Path Data="M10.8,8 A2.8,2.8 0 1 1 5.2,8 A2.8,2.8 0 1 1 10.8,8 Z M8,1 V2.6 M8,13.4 V15 M1,8 H2.6 M13.4,8 H15 M3.05,3.05 L4.2,4.2 M11.8,11.8 L12.95,12.95 M3.05,12.95 L4.2,11.8 M11.8,4.2 L12.95,3.05" Width="16" Height="16" StrokeThickness="1.5" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
+                            </RadioButton>
+                            <RadioButton x:Name="AppearDark" GroupName="appearance" Style="{StaticResource Switch.Option}" Tag="dark" Click="Appearance_Click"
+                                         ToolTip="Dark" AutomationProperties.Name="Dark">
+                                <Path Data="M13.5,10 A6,6 0 1 1 6,2.5 A4.8,4.8 0 0 0 13.5,10 Z" Width="16" Height="16" StrokeThickness="1.5" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
+                            </RadioButton>
+                            </UniformGrid>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
                 <StackPanel KeyboardNavigation.TabNavigation="Local">
-                    <TextBlock Text="Tools" Style="{StaticResource Text.Note}" Margin="12,0,0,6" />
+                    <TextBlock Text="Tools" Style="{StaticResource Text.Kicker}" Margin="12,0,0,6" />
                     <ToggleButton x:Name="RailRegister" Style="{StaticResource Button.Rail}" Click="Rail_Click" Tag="register">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Issued IDs" />
                             <!-- a plain count: it is a total, not something waiting to be dealt with -->
                             <Border x:Name="RailRegisterBadge" Margin="8,0,0,0" Visibility="Collapsed">
-                                <TextBlock x:Name="RailRegisterCount" FontSize="13" FontWeight="Normal" Foreground="{DynamicResource Color.TextMuted}" VerticalAlignment="Center" />
+                                <TextBlock x:Name="RailRegisterCount" FontSize="13" FontWeight="Normal" Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource Color.TextMuted}" VerticalAlignment="Center" />
                             </Border>
                         </StackPanel>
                     </ToggleButton>
@@ -58,13 +96,27 @@
                 </StackPanel>
             </DockPanel>
 
-            <Border x:Name="Drawer" Grid.Column="1" Width="320" Margin="0,0,12,0" Style="{StaticResource Panel}" Visibility="Collapsed">
-                <DockPanel Margin="20,16,8,16">
-                    <DockPanel DockPanel.Dock="Top" Margin="0,0,12,12">
-                        <Button x:Name="DrawerClose" DockPanel.Dock="Right" Style="{StaticResource Button.Link}" Content="Close" Click="DrawerClose_Click" />
-                        <TextBlock x:Name="DrawerTitle" Style="{StaticResource Text.Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                    </DockPanel>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,12,0" Focusable="False">
+            <!-- the veil over the card while a tool is open: the card stays in place, dimmed; a click here closes the tool -->
+            <Border x:Name="Veil" Grid.Column="2" Panel.ZIndex="1" Background="{DynamicResource Color.Bg}" Opacity="0.72" CornerRadius="8"
+                    Visibility="Collapsed" MouseLeftButtonDown="Veil_MouseDown" Cursor="Hand" />
+
+            <!-- an open tool: over the card (column 2), or beside it while the map is dragged (column 1); MainWindow.FitColumns -->
+            <Border x:Name="Drawer" Grid.Column="2" Panel.ZIndex="2" Width="340" Margin="12" HorizontalAlignment="Left" Style="{StaticResource Panel}"
+                    BorderBrush="{DynamicResource Color.ControlBorder}" Visibility="Collapsed">
+                <!-- raised over the card: a deep soft shadow (company design system) -->
+                <Border.Effect>
+                    <DropShadowEffect Color="Black" BlurRadius="36" ShadowDepth="10" Direction="270" Opacity="0.35" RenderingBias="Performance" />
+                </Border.Effect>
+                <DockPanel>
+                    <!-- the tool's name on a black band, in light type, so the header reads as a header (black in both modes, like the signing screen) -->
+                    <Border DockPanel.Dock="Top" Background="{DynamicResource Color.Tray}"
+                            CornerRadius="7,7,0,0" Padding="20,10,12,10">
+                        <DockPanel>
+                            <Button x:Name="DrawerClose" DockPanel.Dock="Right" Style="{StaticResource Button.LinkOnTray}" Content="Close" Click="DrawerClose_Click" />
+                            <TextBlock x:Name="DrawerTitle" Style="{StaticResource Text.Title}" Foreground="{DynamicResource Color.TrayInk}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        </DockPanel>
+                    </Border>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,12,0" Margin="20,16,8,16" Focusable="False">
                         <Grid>
                             <!-- Issued IDs -->
                             <StackPanel x:Name="ToolRegister" Visibility="Collapsed">
@@ -73,8 +125,35 @@
                                     <TextBlock x:Name="RefusedNote" Style="{StaticResource Text.Error}" AutomationProperties.LiveSetting="Assertive" />
                                     <Button x:Name="BtnRefusedDone" Style="{StaticResource Button.Ghost}" Content="These cards are dealt with" Click="BtnRefusedDone_Click" HorizontalAlignment="Left" Margin="0,8,0,0" />
                                 </StackPanel>
-                                <TextBlock x:Name="RegisterNote" Style="{StaticResource Text.Note}" Margin="0,0,0,12" />
-                                <StackPanel x:Name="RegisterList" />
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                    <TextBlock x:Name="RegisterNote" Style="{StaticResource Text.Note}" VerticalAlignment="Center" />
+                                    <Button Style="{StaticResource Button.Info}"
+                                            ToolTip="Every card you save is listed here and also written to the shared register, which is what the duplicate check reads." />
+                                </StackPanel>
+                                <!--
+                                  A table on the gold wash, like the Batch list: the number with the day it
+                                  was issued under it, then the name with the position under it. Two columns,
+                                  so a name has the room to sit on one line.
+                                -->
+                                <Grid x:Name="RegisterTable" Visibility="Collapsed">
+                                    <Border Style="{StaticResource Panel.GoldWash}" />
+                                    <StackPanel Margin="14,10,14,4">
+                                        <Grid x:Name="RegisterHead" Margin="0,0,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="128" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="ID no. · issued" Style="{StaticResource Text.Kicker}" />
+                                            <TextBlock Grid.Column="1" Text="Name and position" Style="{StaticResource Text.Kicker}" />
+                                        </Grid>
+                                        <!-- the latest three; opened, all of them, in a box that scrolls so the panel never grows on and on -->
+                                        <!-- opened, the scroll bar (10 wide) sits in the box's right padding, so the names keep their width (RenderRegister) -->
+                                        <ScrollViewer x:Name="RegisterScroll" VerticalScrollBarVisibility="Auto" Focusable="False">
+                                            <StackPanel x:Name="RegisterList" />
+                                        </ScrollViewer>
+                                        <Button x:Name="BtnRegisterFold" Style="{StaticResource Button.Link}" Click="BtnRegisterFold_Click" Margin="-8,0,0,6" Visibility="Collapsed" />
+                                    </StackPanel>
+                                </Grid>
                                 <WrapPanel Margin="0,12,0,0">
                                     <Button x:Name="BtnRegisterCsv" Style="{StaticResource Button.Ghost}" Content="Save the list as CSV" Click="BtnRegisterCsv_Click" Margin="0,0,8,8" />
                                     <Button x:Name="BtnRegisterImport" Style="{StaticResource Button.Ghost}" Content="Bring in a saved list" Click="BtnRegisterImport_Click" Margin="0,0,8,8" />
@@ -102,21 +181,80 @@
 
                             <!-- Batch from CSV -->
                             <StackPanel x:Name="ToolBatch" Visibility="Collapsed">
-                                <TextBlock Style="{StaticResource Text.Note}" Text="Make many cards in one go, from a list." />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Text.Note}" Text="Make many cards in one go, from a list." VerticalAlignment="Center" />
+                                    <Button Style="{StaticResource Button.Info}"
+                                            ToolTip="Columns: last, first, title, seq, and optionally middle, suffix, title2, year, photo, signature, replacement. Photos and signatures are matched to the list by file name." />
+                                </StackPanel>
                                 <Button x:Name="BtnCsvTemplate" Style="{StaticResource Button.Link}" Content="Save an example list to fill in" Click="BtnCsvTemplate_Click" Margin="-8,0,0,12" />
 
-                                <TextBlock Text="1. The list (CSV)" Style="{StaticResource Text.Label}" />
-                                <Button x:Name="BtnPickCsv" Style="{StaticResource Button.Ghost}" Content="Choose the list" Click="BtnPickCsv_Click" HorizontalAlignment="Left" />
-                                <TextBlock x:Name="CsvMsg" Style="{StaticResource Text.Note}" Margin="0,6,0,16" />
+                                <!--
+                                  What goes in, as one short list: a numbered mark that turns into a tick
+                                  once the file is chosen (MainWindow.UpdateBatchButton), the name, what was
+                                  chosen under it, and a short button. Fewer words, the same three steps.
+                                -->
+                                <!-- a low wash of the brand gold: the gold itself at low opacity, on its own layer so the words on it stay solid -->
+                                <Grid Margin="0,0,0,20">
+                                <Border Style="{StaticResource Panel.GoldWash}" />
+                                <Border CornerRadius="8">
+                                    <StackPanel>
+                                        <Border BorderBrush="{DynamicResource Color.Surface}" BorderThickness="0,0,0,2" Padding="14,12,12,12">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border x:Name="CsvMark" Grid.Column="0" Width="28" Height="28" CornerRadius="14" BorderThickness="1.5" Margin="0,0,12,0" VerticalAlignment="Center" Tag="1" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="The list" Style="{StaticResource Text.Label}" Margin="0" />
+                                                    </StackPanel>
+                                                    <TextBlock x:Name="CsvMsg" Style="{StaticResource Text.Note}" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                                <Button x:Name="BtnPickCsv" Grid.Column="2" Style="{StaticResource Button.Ghost}" Content="Choose" Click="BtnPickCsv_Click" Padding="14,8" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                        AutomationProperties.Name="Choose the list (CSV)" />
+                                            </Grid>
+                                        </Border>
+                                        <Border BorderBrush="{DynamicResource Color.Surface}" BorderThickness="0,0,0,2" Padding="14,12,12,12">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border x:Name="PhotosMark" Grid.Column="0" Width="28" Height="28" CornerRadius="14" BorderThickness="1.5" Margin="0,0,12,0" VerticalAlignment="Center" Tag="2" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="The photos" Style="{StaticResource Text.Label}" Margin="0" />
+                                                    </StackPanel>
+                                                    <TextBlock x:Name="PhotosMsg" Style="{StaticResource Text.Note}" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                                <Button x:Name="BtnPickPhotos" Grid.Column="2" Style="{StaticResource Button.Ghost}" Content="Choose" Click="BtnPickPhotos_Click" Padding="14,8" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                        AutomationProperties.Name="Choose the photos" />
+                                            </Grid>
+                                        </Border>
+                                        <Border BorderBrush="{DynamicResource Color.Line}" BorderThickness="0,0,0,0" Padding="14,12,12,12">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border x:Name="SigsMark" Grid.Column="0" Width="28" Height="28" CornerRadius="14" BorderThickness="1.5" Margin="0,0,12,0" VerticalAlignment="Center" Tag="3" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="Signatures" Style="{StaticResource Text.Label}" Margin="0" />
+                                                    <TextBlock x:Name="SigsMsg" Style="{StaticResource Text.Note}" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                                <Button x:Name="BtnPickSigs" Grid.Column="2" Style="{StaticResource Button.Ghost}" Content="Choose" Click="BtnPickSigs_Click" Padding="14,8" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                        AutomationProperties.Name="Choose the scanned signatures (optional)" />
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                                </Grid>
 
-                                <TextBlock Text="2. The photos" Style="{StaticResource Text.Label}" />
-                                <Button x:Name="BtnPickPhotos" Style="{StaticResource Button.Ghost}" Content="Choose the photos" Click="BtnPickPhotos_Click" HorizontalAlignment="Left" />
-                                <TextBlock x:Name="PhotosMsg" Style="{StaticResource Text.Note}" Margin="0,6,0,16" />
-
-                                <TextBlock Text="3. Scanned signatures (optional)" Style="{StaticResource Text.Label}" />
-                                <Button x:Name="BtnPickSigs" Style="{StaticResource Button.Ghost}" Content="Choose the signatures" Click="BtnPickSigs_Click" HorizontalAlignment="Left" />
-                                <TextBlock x:Name="SigsMsg" Style="{StaticResource Text.Note}" Margin="0,6,0,16" />
-
+                                <TextBlock Text="Printing" Style="{StaticResource Text.Title}" Margin="0,0,0,12" />
                                 <TextBlock x:Name="LblBatchLayout" Text="Print layout" Style="{StaticResource Text.Label}" />
                                 <ComboBox x:Name="CmbBatchLayout" Style="{StaticResource Select}" SelectionChanged="BatchLayout_Changed" AutomationProperties.LabeledBy="{Binding ElementName=LblBatchLayout}">
                                     <ComboBoxItem Content="Sheets, fronts then backs (print both sides)" Tag="duplex" IsSelected="True" />
@@ -130,23 +268,45 @@
                                     <ComboBox x:Name="CmbBatchPaper" Style="{StaticResource Select}" SelectionChanged="BatchLayout_Changed" AutomationProperties.LabeledBy="{Binding ElementName=LblBatchPaper}" />
                                 </StackPanel>
 
-                                <Button x:Name="BtnBatch" Style="{StaticResource Button.Strong}" Content="Make the batch" Click="BtnBatch_Click" HorizontalAlignment="Left" />
+                                <Button x:Name="BtnBatch" Style="{StaticResource Button.Strong}" Content="Make the batch" Click="BtnBatch_Click" HorizontalAlignment="Stretch" Margin="0,4,0,0" />
                                 <TextBlock x:Name="BatchStatus" Style="{StaticResource Text.Note}" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite" />
-                                <StackPanel x:Name="BatchReport" Margin="0,8,0,0" />
+                                <!--
+                                  The outcome at a glance (made, to check, skipped), and each row folded
+                                  away under it, problems first, in a box of fixed height that scrolls:
+                                  a long list never pushes the panel on and on. Each run replaces the last.
+                                -->
+                                <StackPanel x:Name="BatchResult" Margin="0,10,0,0" Visibility="Collapsed">
+                                    <WrapPanel x:Name="BatchCounts" />
+                                    <Expander x:Name="BatchDetails" FontSize="14" Margin="0,6,0,0" Expanded="BatchDetails_Expanded">
+                                        <Expander.Header>
+                                            <TextBlock x:Name="BatchDetailsLabel" />
+                                        </Expander.Header>
+                                        <Grid Margin="0,8,0,0">
+                                            <Border Style="{StaticResource Panel.GoldWash}" />
+                                            <ScrollViewer MaxHeight="280" VerticalScrollBarVisibility="Auto" Focusable="False">
+                                                <StackPanel x:Name="BatchReport" Margin="14,4,8,4" />
+                                            </ScrollViewer>
+                                        </Grid>
+                                    </Expander>
+                                </StackPanel>
                             </StackPanel>
 
                             <!-- Printer setting -->
                             <StackPanel x:Name="ToolPrinter" Visibility="Collapsed">
-                                <TextBlock x:Name="LblFlip" Text="How your printer turns the paper over" Style="{StaticResource Text.Label}" />
-                                <ComboBox x:Name="CmbFlip" Style="{StaticResource Select}" SelectionChanged="CmbFlip_Changed" AutomationProperties.LabeledBy="{Binding ElementName=LblFlip}">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock x:Name="LblFlip" Text="How your printer turns the paper over" Style="{StaticResource Text.Label}" Margin="0" VerticalAlignment="Center" />
+                                    <Button Style="{StaticResource Button.Info}"
+                                            ToolTip="Set this once. It decides how the sheet of backs is reversed, so each back lands behind the right front. If the backs come out behind the wrong people, change it and print again. Only for printing both sides." />
+                                </StackPanel>
+                                <ComboBox x:Name="CmbFlip" Style="{StaticResource Select}" SelectionChanged="CmbFlip_Changed" AutomationProperties.LabeledBy="{Binding ElementName=LblFlip}" Margin="0,0,0,20">
                                     <ComboBoxItem Content="On the long edge (usual)" Tag="long" />
                                     <ComboBoxItem Content="On the short edge" Tag="short" />
                                 </ComboBox>
-                                <TextBlock Style="{StaticResource Text.Note}" Margin="0,8,0,20"
-                                           Text="Set this once. It decides how the sheet of backs is reversed, so each back lands behind the right front. If the backs come out behind the wrong people, change it and print again. It only applies when printing both sides." />
-                                <CheckBox x:Name="ChkRotate" Style="{StaticResource Check}" Content="Turn the back upside down" Click="ChkRotate_Click" />
-                                <TextBlock Style="{StaticResource Text.Note}" Margin="0,4,0,0"
-                                           Text="Only if printed cards come out with the back upside down. Remembered on this computer." />
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox x:Name="ChkRotate" Style="{StaticResource Check}" Content="Turn the back upside down" Click="ChkRotate_Click" />
+                                    <Button Style="{StaticResource Button.Info}"
+                                            ToolTip="Only if printed cards come out with the back upside down. Remembered on this computer." />
+                                </StackPanel>
                             </StackPanel>
 
                             <!-- Card design -->
@@ -156,17 +316,21 @@
                                 </TextBlock>
 
                                 <StackPanel x:Name="DesignHome">
-                                    <Button x:Name="BtnTplMap" Style="{StaticResource Button.Strong}" Content="Show the map" Click="BtnTplMap_Click" HorizontalAlignment="Left" />
-                                    <TextBlock Style="{StaticResource Text.Note}" Margin="0,8,0,20"
-                                               Text="The boxes for the photo, name, job title, number, signature and QR, drawn over the card. Drag them anywhere." />
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                                        <Button x:Name="BtnTplMap" Style="{StaticResource Button.Strong}" Content="Show the map" Click="BtnTplMap_Click" HorizontalAlignment="Left" />
+                                        <Button Style="{StaticResource Button.Info}" Margin="6,0,0,0"
+                                                ToolTip="The boxes for the photo, name, job title, number, signature and QR, drawn over the card. Drag them anywhere." />
+                                    </StackPanel>
 
-                                    <TextBlock Text="Use different artwork" Style="{StaticResource Text.Label}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                        <TextBlock Text="Use different artwork" Style="{StaticResource Text.Label}" Margin="0" VerticalAlignment="Center" />
+                                        <Button Style="{StaticResource Button.Info}"
+                                                ToolTip="Both at 638 × 1011 pixels. TEMPLATE-SPEC.md has the full brief for the designer. The map stays where it is, so check it afterwards." />
+                                    </StackPanel>
                                     <Button x:Name="BtnPickFront" Style="{StaticResource Button.Ghost}" Content="Choose the front" Click="BtnPickFront_Click" HorizontalAlignment="Left" />
                                     <TextBlock x:Name="FrontFileMsg" Style="{StaticResource Text.Note}" Margin="0,6,0,12" />
                                     <Button x:Name="BtnPickBack" Style="{StaticResource Button.Ghost}" Content="Choose the back" Click="BtnPickBack_Click" HorizontalAlignment="Left" />
-                                    <TextBlock x:Name="BackFileMsg" Style="{StaticResource Text.Note}" Margin="0,6,0,8" />
-                                    <TextBlock Style="{StaticResource Text.Note}" Margin="0,0,0,12"
-                                               Text="Both at 638 × 1011 pixels. TEMPLATE-SPEC.md has the full brief for the designer. The map stays where it is, so check it afterwards." />
+                                    <TextBlock x:Name="BackFileMsg" Style="{StaticResource Text.Note}" Margin="0,6,0,12" />
                                     <Button x:Name="BtnTplUse" Style="{StaticResource Button.Ghost}" Content="Use this artwork" Click="BtnTplUse_Click" HorizontalAlignment="Left" />
                                 </StackPanel>
 
@@ -197,24 +361,46 @@
             <!-- ============ the card ============ -->
             <Border x:Name="Stage" Grid.Column="2" Background="{DynamicResource Color.Stage}" CornerRadius="8">
                 <DockPanel Margin="20,16,20,16">
+                    <!--
+                      Front or Back: a flip switch. The words either side can be pressed too;
+                      the side shown is in gold, and the gold knob slides to it (MainWindow.Render).
+                    -->
                     <StackPanel x:Name="SideTabs" DockPanel.Dock="Top" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
-                        <RadioButton x:Name="SideFront" GroupName="side" Style="{StaticResource Chip.Side}" Content="Front" IsChecked="True" Click="Side_Click" />
-                        <RadioButton x:Name="SideBack" GroupName="side" Style="{StaticResource Chip.Side}" Content="Back" Click="Side_Click" />
+                        <RadioButton x:Name="SideFront" GroupName="side" Style="{StaticResource Switch.OptionOutline}" Content="Front" IsChecked="True" Click="Side_Click" MinWidth="52" />
+                        <ToggleButton x:Name="SideFlip" Style="{StaticResource Switch.Flip}" Click="SideFlip_Click" Margin="10,0"
+                                      AutomationProperties.Name="Show the back of the card">
+                            <Grid Width="52" Height="28">
+                                <Border CornerRadius="14" Background="{DynamicResource Color.Active}" BorderBrush="{DynamicResource Color.ControlBorder}" BorderThickness="1" />
+                                <Canvas>
+                                    <Border x:Name="SideKnob" Style="{StaticResource Switch.Thumb}" Width="20" Height="20" CornerRadius="10" Canvas.Left="4" Canvas.Top="4">
+                                        <Border Style="{StaticResource Switch.ThumbSheen}" CornerRadius="10" />
+                                    </Border>
+                                </Canvas>
+                            </Grid>
+                        </ToggleButton>
+                        <RadioButton x:Name="SideBack" GroupName="side" Style="{StaticResource Switch.OptionOutline}" Content="Back" Click="Side_Click" MinWidth="52" />
                     </StackPanel>
 
                     <!-- what is already waiting to print with this card -->
-                    <Border x:Name="QueueStrip" DockPanel.Dock="Bottom" Background="{DynamicResource Color.StageRaised}" BorderBrush="{DynamicResource Color.Line}" BorderThickness="1" CornerRadius="6" Padding="14,10" Margin="0,12,0,0" Visibility="Collapsed">
+                    <!-- folded to one line until it is opened, so a long print never takes the card's room -->
+                    <Border x:Name="QueueStrip" DockPanel.Dock="Bottom" Background="{DynamicResource Color.StageRaised}" BorderBrush="{DynamicResource Color.Line}" BorderThickness="1" CornerRadius="6" Padding="14,6" Margin="0,12,0,0" Visibility="Collapsed">
                         <StackPanel>
-                            <DockPanel>
-                                <TextBlock x:Name="JobCount" DockPanel.Dock="Right" FontSize="13" Foreground="{DynamicResource Color.StageMuted}" VerticalAlignment="Center" />
-                                <TextBlock Text="In this print" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Color.StageInk}" />
-                            </DockPanel>
-                            <ScrollViewer MaxHeight="132" VerticalScrollBarVisibility="Auto" Margin="0,6,0,0" Focusable="False">
-                                <StackPanel x:Name="JobList" />
-                            </ScrollViewer>
-                            <TextBlock x:Name="JobNote" FontSize="13" Foreground="{DynamicResource Color.StageMuted}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                            <Expander x:Name="JobBox" FontSize="14" IsExpanded="False">
+                                <Expander.Header>
+                                    <DockPanel LastChildFill="False" MinWidth="240">
+                                        <TextBlock Text="In this print" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Color.StageInk}" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="JobCount" FontSize="13" Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource Color.StageMuted}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                                    </DockPanel>
+                                </Expander.Header>
+                                <StackPanel Margin="0,6,0,4">
+                                    <ScrollViewer MaxHeight="132" VerticalScrollBarVisibility="Auto" Focusable="False">
+                                        <StackPanel x:Name="JobList" />
+                                    </ScrollViewer>
+                                    <TextBlock x:Name="JobNote" FontSize="13" Foreground="{DynamicResource Color.StageMuted}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                </StackPanel>
+                            </Expander>
                             <Button x:Name="BtnCancelAdd" Style="{StaticResource Button.Ghost}" Content="Stop adding and go back to the print" Click="BtnCancelAdd_Click"
-                                    HorizontalAlignment="Left" Margin="0,8,0,0" Visibility="Collapsed" />
+                                    HorizontalAlignment="Left" Margin="0,4,0,6" Visibility="Collapsed" />
                         </StackPanel>
                     </Border>
 
@@ -227,7 +413,8 @@
                         <Button x:Name="NextPage" Style="{StaticResource Button.Ghost}" Content="Next page" Click="NextPage_Click" />
                     </StackPanel>
 
-                    <Grid>
+                    <!-- the card while it is being made, the sheet at the end; one fades into the other (MainWindow.AfterMove) -->
+                    <Grid x:Name="StageView">
                         <TextBlock x:Name="CardLoading" Text="Loading the card…" Foreground="{DynamicResource Color.StageMuted}" FontSize="14"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" />
                         <!-- the card, as large as the space allows; the map boxes sit exactly on top of it -->
@@ -236,6 +423,21 @@
                                   MouseLeftButtonDown="Card_MouseDown" MouseMove="Card_MouseMove" MouseLeftButtonUp="Card_MouseUp" MouseWheel="Card_MouseWheel">
                                 <Image x:Name="CardImage" Stretch="Fill" />
                                 <Border BorderBrush="{DynamicResource Color.CardEdge}" BorderThickness="1" IsHitTestVisible="False" />
+                                <!--
+                                  Where the step being filled in prints on the card, named on a tag.
+                                  Two rings, the text colour inside the page colour, so it shows on
+                                  the white and the black parts of the card alike; no gold, which is
+                                  kept for Next and the current step. Placed in CardSurface units
+                                  (10 to the millimetre) by MainWindow.RenderCardFocus.
+                                -->
+                                <Canvas x:Name="FocusLayer" IsHitTestVisible="False" Visibility="Collapsed">
+                                    <Border x:Name="CardFocus" BorderBrush="{DynamicResource Color.OnStrong}" BorderThickness="2" CornerRadius="5">
+                                        <Border BorderBrush="{DynamicResource Color.Strong}" BorderThickness="3" CornerRadius="4" />
+                                    </Border>
+                                    <Border x:Name="CardFocusTag" Background="{DynamicResource Color.Strong}" CornerRadius="4" Padding="7,1,7,2">
+                                        <TextBlock x:Name="CardFocusText" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Color.OnStrong}" />
+                                    </Border>
+                                </Canvas>
                                 <local:MapEditor x:Name="MapOverlay" Visibility="Collapsed" />
                             </Grid>
                         </Viewbox>
@@ -245,28 +447,47 @@
             </Border>
 
             <!-- ============ the form ============ -->
+            <!-- the form's glass: a soft shadow behind it, a faint light line over its top edge (Theme: Panel) -->
+            <Border Grid.Column="3" Width="440" Margin="12,0,0,0" Style="{StaticResource Panel.Shadow}" Visibility="{Binding Visibility, ElementName=FormPanel}" />
+            <Border Grid.Column="3" Width="440" Margin="12,0,0,0" Style="{StaticResource Panel.Highlight}" Panel.ZIndex="1" Visibility="{Binding Visibility, ElementName=FormPanel}" />
             <Border x:Name="FormPanel" Grid.Column="3" Width="440" Margin="12,0,0,0" Style="{StaticResource Panel}">
-                <DockPanel Margin="24,20,12,16">
-                    <!-- the six steps, one row, equal widths: 61 + 4 each, so the bar ends on the form's right edge -->
-                    <UniformGrid x:Name="StepsBar" DockPanel.Dock="Top" Rows="1" Margin="0,0,8,20" />
+                <DockPanel Margin="20,20,20,16">
+                    <!-- the five steps, one row, equal widths (MainWindow.BuildStepChips), so the bar ends on the form's right edge -->
+                    <Grid x:Name="StepsBar" DockPanel.Dock="Top" Margin="0,0,-4,16" />
 
-                    <!-- the way forward stays put under the step, set off by one rule -->
-                    <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource Color.Line}" BorderThickness="0,1,0,0" Margin="0,12,12,0" Padding="0,16,0,0">
-                      <StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <Button x:Name="BtnBack" Style="{StaticResource Button.Ghost}" Content="Back" Click="BtnBack_Click" Margin="0,0,8,0" MinWidth="88" />
-                            <Button x:Name="BtnNext" Style="{StaticResource Button.Primary}" Content="Next" Click="BtnNext_Click" MinWidth="120" />
-                        </StackPanel>
+                    <!--
+                      The way forward stays put under the step: Back at the left edge, the
+                      one gold button at the right. On the check step the gold button is
+                      Save the PDF, in the same place; once saved, Start a new ID.
+                    -->
+                    <StackPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
+                        <DockPanel LastChildFill="False">
+                            <Button x:Name="BtnBack" DockPanel.Dock="Left" Style="{StaticResource Button.Ghost}" Content="Back" Click="BtnBack_Click" MinWidth="124" FontSize="15" />
+                            <Button x:Name="BtnNext" DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" Content="Next" Click="BtnNext_Click" MinWidth="124" FontSize="15" />
+                            <!-- one Save button; pressed, it offers the two ways to save, the PDF first (it is what is printed) -->
+                            <Button x:Name="BtnDownload" DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" Click="BtnSave_Click" MinWidth="124" FontSize="15" Visibility="Collapsed"
+                                    AutomationProperties.Name="Save: choose the PDF or pictures">
+                                <Button.ContextMenu>
+                                    <ContextMenu x:Name="SaveMenu" Placement="Top" VerticalOffset="-6">
+                                        <MenuItem x:Name="MenuPdf" Header="Save the PDF (to print)" Click="BtnDownload_Click" />
+                                        <MenuItem x:Name="MenuPng" Header="Save as pictures" Click="BtnPng_Click" />
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                            <Button x:Name="BtnNewId" DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" Content="Start a new ID" Click="BtnNewId_Click" Visibility="Collapsed" />
+                            <Button x:Name="BtnOpenFolder" DockPanel.Dock="Right" Style="{StaticResource Button.Ghost}" Content="Show the file" Click="BtnOpenFolder_Click" Margin="0,0,8,0" Visibility="Collapsed" />
+                        </DockPanel>
                         <TextBlock x:Name="Blocked" Style="{StaticResource Text.Error}" Margin="0,8,0,0" AutomationProperties.LiveSetting="Assertive" Visibility="Collapsed" />
                         <TextBlock x:Name="Status" Style="{StaticResource Text.Note}" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite" />
-                      </StackPanel>
-                    </Border>
+                    </StackPanel>
 
+                    <!-- the step itself sits in an inset of the page tone, so the form's inner margin shows -->
+                    <Border x:Name="StepInset" Background="{DynamicResource Color.Bg}" CornerRadius="6" Padding="16,16,4,16">
                     <ScrollViewer x:Name="StepScroll" VerticalScrollBarVisibility="Auto" Padding="0,0,12,0" Focusable="False">
                         <Grid>
                             <!-- 1. name -->
                             <StackPanel x:Name="StepName">
-                                <TextBlock Style="{StaticResource Text.Heading}" Text="Who is this ID for?" />
+                                <TextBlock Style="{StaticResource Text.Heading}" Text="ID holder information" />
                                 <TextBlock x:Name="LblLast" Text="Last name" Style="{StaticResource Text.Label}" />
                                 <TextBox x:Name="TxtLast" Style="{StaticResource Input}" MaxLength="40" Tag="Last" TextChanged="Name_TextChanged" LostFocus="Name_LostFocus" AutomationProperties.LabeledBy="{Binding ElementName=LblLast}" />
                                 <TextBlock x:Name="MsgLast" Style="{StaticResource Text.Error}" Margin="0,4,0,12" MinHeight="4" />
@@ -293,9 +514,9 @@
                                 <TextBlock x:Name="NamePreview" Style="{StaticResource Text.Body}" />
                             </StackPanel>
 
-                            <!-- 2. job title -->
+                            <!-- 2. job and number -->
                             <StackPanel x:Name="StepTitle" Visibility="Collapsed">
-                                <TextBlock Style="{StaticResource Text.Heading}" Text="What do they do?" />
+                                <TextBlock Style="{StaticResource Text.Heading}" Text="Select job position" />
                                 <!-- asked, never guessed: the attendance system takes interns, and only interns, from this -->
                                 <TextBlock x:Name="LblKind" Text="This ID is for" Style="{StaticResource Text.Label}" />
                                 <ComboBox x:Name="CmbKind" Style="{StaticResource Select}" Width="200" HorizontalAlignment="Left" SelectionChanged="CmbKind_Changed"
@@ -304,7 +525,7 @@
                                     <ComboBoxItem Content="An intern" Tag="intern" />
                                 </ComboBox>
                                 <TextBlock x:Name="MsgKind" Style="{StaticResource Text.Error}" Margin="0,4,0,12" MinHeight="4" />
-                                <TextBlock Text="Job title" Style="{StaticResource Text.Label}" />
+                                <TextBlock Text="Job position" Style="{StaticResource Text.Label}" />
                                 <WrapPanel x:Name="TitleChips" AutomationProperties.Name="Job title" />
                                 <TextBox x:Name="TxtTitleCustom" Style="{StaticResource Input}" MaxLength="60" TextChanged="TitleCustom_TextChanged" LostFocus="TitleCustom_LostFocus"
                                          AutomationProperties.Name="Job title" Visibility="Collapsed" />
@@ -312,8 +533,8 @@
 
                                 <StackPanel x:Name="FieldTitle2" Visibility="Collapsed">
                                     <DockPanel Margin="0,0,0,6">
-                                        <Button x:Name="BtnRoleRemove" DockPanel.Dock="Right" Style="{StaticResource Button.Link}" Content="Remove the second role" Click="BtnRoleRemove_Click" />
-                                        <TextBlock Text="Second role" Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0" />
+                                        <Button x:Name="BtnRoleRemove" DockPanel.Dock="Right" Style="{StaticResource Button.Link}" Content="Remove" AutomationProperties.Name="Remove the second position" Click="BtnRoleRemove_Click" />
+                                        <TextBlock Text="Second position" Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0" />
                                     </DockPanel>
                                     <WrapPanel x:Name="Title2Chips" AutomationProperties.Name="Second role" />
                                     <TextBox x:Name="TxtTitle2Custom" Style="{StaticResource Input}" MaxLength="60" TextChanged="Title2Custom_TextChanged" LostFocus="Title2Custom_LostFocus"
@@ -321,31 +542,33 @@
                                     <TextBlock x:Name="MsgTitle2" Style="{StaticResource Text.Error}" Margin="0,4,0,12" MinHeight="4" />
                                 </StackPanel>
 
-                                <Button x:Name="BtnRoleAdd" Style="{StaticResource Button.Ghost}" Content="Add a second role" Click="BtnRoleAdd_Click" HorizontalAlignment="Left" />
+                                <Button x:Name="BtnRoleAdd" Style="{StaticResource Button.Ghost}" Content="Add a second position" Click="BtnRoleAdd_Click" HorizontalAlignment="Left" />
                                 <TextBlock x:Name="TitlePreview" Style="{StaticResource Text.Error}" Margin="0,12,0,0" Visibility="Collapsed" />
-                            </StackPanel>
 
-                            <!-- 3. number -->
-                            <StackPanel x:Name="StepNumber" Visibility="Collapsed">
-                                <TextBlock Style="{StaticResource Text.Heading}" Text="Which employee number?" />
+                                <!-- the employee number shares the page: on its own it left a page nearly empty -->
+                                <Border BorderBrush="{DynamicResource Color.Line}" BorderThickness="0,1,0,0" Margin="0,20,0,0" Padding="0,20,0,0">
+                                <StackPanel x:Name="FieldNumber">
+                                <TextBlock x:Name="LblNumber" Style="{StaticResource Text.Title}" Text="Enter employee number" Margin="0,0,0,10" />
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock x:Name="SeqPrefix" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                    <ComboBox x:Name="CmbYear" Style="{StaticResource Select}" Width="96" SelectionChanged="CmbYear_Changed" AutomationProperties.Name="Year of issue" />
+                                    <ComboBox x:Name="CmbYear" Style="{StaticResource Select}" Width="96" SelectionChanged="CmbYear_Changed" GotKeyboardFocus="Number_FocusMoved" LostKeyboardFocus="Number_FocusMoved" AutomationProperties.Name="Year of issue" />
                                     <TextBlock Text="-" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0" />
-                                    <TextBox x:Name="TxtSeq" Style="{StaticResource Input}" Width="110" MaxLength="4" TextChanged="TxtSeq_TextChanged" LostFocus="TxtSeq_LostFocus"
+                                    <TextBox x:Name="TxtSeq" Style="{StaticResource Input}" Width="110" MaxLength="4" TextChanged="TxtSeq_TextChanged" LostFocus="TxtSeq_LostFocus" GotKeyboardFocus="Number_FocusMoved"
                                              AutomationProperties.Name="Employee number" />
                                 </StackPanel>
                                 <TextBlock x:Name="MsgSeq" Style="{StaticResource Text.Error}" Margin="0,6,0,12" MinHeight="4" />
                                 <StackPanel x:Name="ReissueWrap" Visibility="Collapsed">
                                     <CheckBox x:Name="ChkReissue" Style="{StaticResource Check}" Content="Replacement card" Click="ChkReissue_Click" />
                                     <TextBlock Style="{StaticResource Text.Note}" Margin="0,4,0,0"
-                                               Text="This number is already issued. Tick only if you are printing the same person’s card again (lost, damaged, name change)." />
+                                               Text="Only when printing the same person’s card again (lost, damaged, name change)." />
                                 </StackPanel>
+                                </StackPanel>
+                                </Border>
                             </StackPanel>
 
-                            <!-- 4. photo -->
+                            <!-- 3. photo -->
                             <StackPanel x:Name="StepPhoto" Visibility="Collapsed" AllowDrop="True" Drop="Photo_Drop" DragOver="Photo_DragOver" Background="Transparent">
-                                <TextBlock Style="{StaticResource Text.Heading}" Text="Their photo" />
+                                <TextBlock Style="{StaticResource Text.Heading}" Text="ID holder’s photo" />
                                 <StackPanel Orientation="Horizontal">
                                     <Border Width="72" Height="92" CornerRadius="6" Background="{DynamicResource Color.Bg}" BorderBrush="{DynamicResource Color.Line}" BorderThickness="1" ClipToBounds="True">
                                         <Image x:Name="PhotoThumb" Stretch="Uniform" />
@@ -357,22 +580,31 @@
                                 </StackPanel>
                                 <TextBlock x:Name="PhotoMsg" Style="{StaticResource Text.Note}" Margin="0,12,0,0" AutomationProperties.LiveSetting="Polite" />
 
-                                <Expander x:Name="AdjustBox" Header="Move or resize it" Margin="0,16,0,0" FontSize="14" Visibility="Collapsed">
-                                    <StackPanel Margin="0,12,0,0">
+                                <!-- one row of arrows and the size slider, instead of a block of word buttons -->
+                                <Expander x:Name="AdjustBox" Margin="0,16,0,0" FontSize="14" Visibility="Collapsed">
+                                    <Expander.Header>
                                         <StackPanel Orientation="Horizontal">
-                                            <Button Style="{StaticResource Button.Ghost}" Content="Left" Tag="-1,0" Click="Nudge_Click" Margin="0,0,6,0" AutomationProperties.Name="Move the photo left" />
-                                            <Button Style="{StaticResource Button.Ghost}" Content="Up" Tag="0,-1" Click="Nudge_Click" Margin="0,0,6,0" AutomationProperties.Name="Move the photo up" />
-                                            <Button Style="{StaticResource Button.Ghost}" Content="Down" Tag="0,1" Click="Nudge_Click" Margin="0,0,6,0" AutomationProperties.Name="Move the photo down" />
-                                            <Button Style="{StaticResource Button.Ghost}" Content="Right" Tag="1,0" Click="Nudge_Click" AutomationProperties.Name="Move the photo right" />
+                                            <TextBlock Text="Adjust position and size" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource Button.Info}" ToolTip="You can also drag the photo on the card, and turn the mouse wheel over it to resize it." />
                                         </StackPanel>
-                                        <DockPanel Margin="0,14,0,0">
+                                    </Expander.Header>
+                                    <StackPanel Margin="0,12,0,0">
+                                        <DockPanel>
+                                            <Button x:Name="BtnAdjustReset" DockPanel.Dock="Right" Style="{StaticResource Button.Link}" Content="Reset" Click="BtnAdjustReset_Click"
+                                                    AutomationProperties.Name="Put the photo back where the app placed it" VerticalAlignment="Center" />
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Style="{StaticResource Button.Ghost}" Content="←" Width="44" Padding="0,8" Tag="-1,0" Click="Nudge_Click" Margin="0,0,4,0" AutomationProperties.Name="Move the photo left" ToolTip="Move left" />
+                                                <Button Style="{StaticResource Button.Ghost}" Content="↑" Width="44" Padding="0,8" Tag="0,-1" Click="Nudge_Click" Margin="0,0,4,0" AutomationProperties.Name="Move the photo up" ToolTip="Move up" />
+                                                <Button Style="{StaticResource Button.Ghost}" Content="↓" Width="44" Padding="0,8" Tag="0,1" Click="Nudge_Click" Margin="0,0,4,0" AutomationProperties.Name="Move the photo down" ToolTip="Move down" />
+                                                <Button Style="{StaticResource Button.Ghost}" Content="→" Width="44" Padding="0,8" Tag="1,0" Click="Nudge_Click" AutomationProperties.Name="Move the photo right" ToolTip="Move right" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,12,0,0">
                                             <TextBlock x:Name="ZoomOut" DockPanel.Dock="Right" Style="{StaticResource Text.Body}" Width="56" TextAlignment="Right" VerticalAlignment="Center" />
                                             <TextBlock x:Name="LblZoom" DockPanel.Dock="Left" Text="Size" Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0,0,12,0" />
                                             <Slider x:Name="SldZoom" Minimum="50" Maximum="150" TickFrequency="5" IsSnapToTickEnabled="True" SmallChange="5" LargeChange="10" Value="100"
                                                     VerticalAlignment="Center" ValueChanged="SldZoom_Changed" AutomationProperties.LabeledBy="{Binding ElementName=LblZoom}" />
                                         </DockPanel>
-                                        <TextBlock Style="{StaticResource Text.Note}" Margin="0,8,0,0" Text="You can also drag the photo on the card, and turn the mouse wheel over it to resize." />
-                                        <Button x:Name="BtnAdjustReset" Style="{StaticResource Button.Link}" Content="Put it back where the app placed it" Click="BtnAdjustReset_Click" Margin="-8,4,0,0" />
                                     </StackPanel>
                                 </Expander>
 
@@ -380,27 +612,62 @@
                                     <Expander.Header>
                                         <TextBlock x:Name="GuideLabel" Text="If the cut-out looks wrong" />
                                     </Expander.Header>
+                                    <!-- three numbered steps; the prompt itself is for copying, and shown only on request -->
                                     <StackPanel Margin="0,12,0,0">
-                                        <TextBlock Style="{StaticResource Text.Note}"
-                                                   Text="The app removes the background itself, on this computer. If it leaves bits of background or cuts into the person, a photo against a plain wall usually fixes it. Failing that, an AI tool can make a green-background version:" />
-                                        <TextBlock Style="{StaticResource Text.Note}" Margin="0,8,0,0" Text="1. Open Gemini or ChatGPT signed in to the company’s enterprise account, and attach the photo." />
-                                        <TextBlock Style="{StaticResource Text.Note}" Text="2. Paste the prompt below and send it." />
-                                        <TextBlock Style="{StaticResource Text.Note}" Text="3. Save the result and choose it here." />
-                                        <TextBox x:Name="TxtPrompt" Style="{StaticResource Input.Multiline}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" Height="96"
-                                                 VerticalScrollBarVisibility="Auto" Margin="0,10,0,0" Padding="8" AutomationProperties.Name="The prompt to paste" />
-                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                            <Button x:Name="BtnCopyPrompt" Style="{StaticResource Button.Ghost}" Content="Copy the prompt" Click="BtnCopyPrompt_Click" />
-                                            <TextBlock x:Name="CopyStatus" Style="{StaticResource Text.Note}" VerticalAlignment="Center" Margin="10,0,0,0" AutomationProperties.LiveSetting="Polite" />
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Style="{StaticResource Text.Note}" Text="A photo against a plain wall usually fixes it. Or:" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource Button.Info}"
+                                                    ToolTip="The app removes the background itself, on this computer. If it leaves bits of background or cuts into the person, an AI tool can make a version on a green background, which the app always accepts." />
                                         </StackPanel>
-                                        <TextBlock Style="{StaticResource Text.Note}" Margin="0,10,0,0"
-                                                   Text="Employee photos are personal data. Use the company’s approved enterprise AI account, never a personal login, and check the face still looks like the person." />
+
+                                        <Grid Margin="0,12,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="28" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="1" Style="{StaticResource Text.Label}" />
+                                            <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,12">
+                                                <TextBlock Text="Get the prompt" Style="{StaticResource Text.Label}" />
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Button x:Name="BtnCopyPrompt" Style="{StaticResource Button.Ghost}" Content="Copy the prompt" Click="BtnCopyPrompt_Click" Margin="0,0,8,0" />
+                                                    <Button x:Name="BtnShowPrompt" Style="{StaticResource Button.Link}" Content="Show the prompt" Click="BtnShowPrompt_Click" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                                <TextBlock x:Name="CopyStatus" Style="{StaticResource Text.Note}" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
+                                                <TextBox x:Name="TxtPrompt" Style="{StaticResource Input.Multiline}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" Height="120"
+                                                         VerticalScrollBarVisibility="Auto" Margin="0,8,0,0" Padding="8" AutomationProperties.Name="The prompt to paste" Visibility="Collapsed" />
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="2" Style="{StaticResource Text.Label}" />
+                                            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,12">
+                                                <TextBlock Text="Paste it in the company AI" Style="{StaticResource Text.Label}" />
+                                                <TextBlock Style="{StaticResource Text.Note}" Text="Gemini or ChatGPT, signed in to the company’s enterprise account, with the photo attached." />
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="3" Style="{StaticResource Text.Label}" />
+                                            <StackPanel Grid.Row="2" Grid.Column="1">
+                                                <TextBlock Text="Choose the result here" Style="{StaticResource Text.Label}" />
+                                                <TextBlock Style="{StaticResource Text.Note}" Text="The app takes the green away itself." />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                            <TextBlock Style="{StaticResource Text.Note}" FontWeight="SemiBold" Text="Photos are personal data: company account only." VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource Button.Info}"
+                                                    ToolTip="Use the company’s approved enterprise AI account, never a personal login, and check the face still looks like the person before choosing it." />
+                                        </StackPanel>
                                     </StackPanel>
                                 </Expander>
                             </StackPanel>
 
-                            <!-- 5. signature -->
+                            <!-- 4. signature -->
                             <StackPanel x:Name="StepSign" Visibility="Collapsed">
-                                <TextBlock Style="{StaticResource Text.Heading}" Text="Their signature" />
+                                <TextBlock Style="{StaticResource Text.Heading}" Text="ID holder’s signature" />
                                 <Border x:Name="SigFrame" BorderBrush="{DynamicResource Color.ControlBorder}" BorderThickness="1" CornerRadius="6" ClipToBounds="True" Background="White">
                                     <Grid>
                                         <local:SignaturePad x:Name="SigPreview" CanDraw="False" Hint="No signature yet" />
@@ -409,7 +676,8 @@
                                 </Border>
                                 <WrapPanel Margin="0,12,0,0">
                                     <Button x:Name="BtnSign" Style="{StaticResource Button.Strong}" Content="Sign now" Click="BtnSign_Click" Margin="0,0,8,8" />
-                                    <Button x:Name="BtnSigScan" Style="{StaticResource Button.Ghost}" Content="Use a scan instead" Click="BtnSigScan_Click" Margin="0,0,8,8" />
+                                    <Button x:Name="BtnSigScan" Style="{StaticResource Button.Ghost}" Content="Use a scan" Click="BtnSigScan_Click" Margin="0,0,8,8"
+                                            AutomationProperties.Name="Use a scanned signature instead" />
                                     <Button x:Name="BtnClearSig" Style="{StaticResource Button.Ghost}" Content="Clear" Click="BtnClearSig_Click" Margin="0,0,8,8" />
                                 </WrapPanel>
                                 <TextBlock x:Name="SigHelp" Style="{StaticResource Text.Note}" />
@@ -417,7 +685,7 @@
                                 <TextBlock x:Name="TabletNote" Style="{StaticResource Text.Note}" Margin="0,12,0,0" />
                             </StackPanel>
 
-                            <!-- 6. check and print -->
+                            <!-- 5. check and print -->
                             <StackPanel x:Name="StepCheck" Visibility="Collapsed">
                                 <TextBlock x:Name="StepCheckHeading" Style="{StaticResource Text.Heading}" Text="Is everything correct?" />
                                 <TextBlock x:Name="ReviewSub" Style="{StaticResource Text.Note}" Margin="0,-8,0,12" Visibility="Collapsed" />
@@ -444,18 +712,29 @@
                                             </DockPanel>
                                             <TextBlock Text="Employee number" Style="{StaticResource Text.Note}" Margin="0,4,0,0" />
                                             <DockPanel>
-                                                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Link}" Content="Edit" Tag="2" Click="SummaryEdit_Click" AutomationProperties.Name="Edit the employee number" />
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Link}" x:Name="EditNumber" Content="Edit" Tag="1" Click="SummaryEdit_Click" AutomationProperties.Name="Edit the employee number" />
                                                 <TextBlock x:Name="SumNumber" Style="{StaticResource Text.Body}" FontWeight="SemiBold" VerticalAlignment="Center" />
                                             </DockPanel>
                                         </StackPanel>
                                     </Grid>
-                                    <TextBlock x:Name="ReviewWarning" Style="{StaticResource Text.Warning}" Margin="0,0,0,12" Visibility="Collapsed" />
+                                    <!-- a photo worth a second look: a mark and a few words; the whole of it on hover or focus -->
+                                    <Button x:Name="ReviewWarning" Style="{StaticResource Button.Warn}" Content="Check the photo" Margin="0,0,0,16" Visibility="Collapsed" />
 
                                     <TextBlock Text="Printing" Style="{StaticResource Text.Title}" Margin="0,0,0,10" />
-                                    <WrapPanel>
-                                        <RadioButton x:Name="LayPairs" GroupName="layout" Style="{StaticResource Chip}" Content="Side by side" Click="Layout_Click" />
-                                        <RadioButton x:Name="LayDuplex" GroupName="layout" Style="{StaticResource Chip}" Content="Both sides of the paper" Click="Layout_Click" />
-                                    </WrapPanel>
+                                    <!-- one of two ways to print: outlined, like the warning mark; the chosen side's gold outline slides to it -->
+                                    <Border BorderBrush="{DynamicResource Color.ControlBorder}" BorderThickness="1" CornerRadius="6" Padding="3" Margin="0,0,0,8">
+                                        <Grid>
+                                            <Canvas>
+                                                <Border x:Name="LayoutThumb" Height="40" CornerRadius="4" BorderThickness="1.5" BorderBrush="{DynamicResource Color.Link}" IsHitTestVisible="False">
+                                                    <Border Style="{StaticResource Panel.GoldWash}" CornerRadius="3" />
+                                                </Border>
+                                            </Canvas>
+                                            <UniformGrid x:Name="LayoutChoices" Rows="1" SizeChanged="SwitchChoices_SizeChanged">
+                                                <RadioButton x:Name="LayPairs" GroupName="layout" Style="{StaticResource Switch.OptionOutline}" Content="Side by side" Click="Layout_Click" />
+                                                <RadioButton x:Name="LayDuplex" GroupName="layout" Style="{StaticResource Switch.OptionOutline}" Content="Both sides of the paper" Click="Layout_Click" />
+                                            </UniformGrid>
+                                        </Grid>
+                                    </Border>
                                     <Grid Margin="0,4,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -480,11 +759,7 @@
                                     <Button x:Name="BtnAddAnother" Style="{StaticResource Button.Ghost}" Content="Add another ID to this print" Click="BtnAddAnother_Click" HorizontalAlignment="Left" Margin="0,12,0,0" />
 
                                     <TextBlock x:Name="ReviewError" Style="{StaticResource Text.Error}" Margin="0,16,0,0" Visibility="Collapsed" AutomationProperties.LiveSetting="Assertive" />
-                                    <WrapPanel Margin="0,20,0,0">
-                                        <Button x:Name="BtnDownload" Style="{StaticResource Button.Primary}" Content="Save the PDF" Click="BtnDownload_Click" Margin="0,0,8,8" MinWidth="150" />
-                                        <Button x:Name="BtnPng" Style="{StaticResource Button.Link}" Content="Save as pictures instead" Click="BtnPng_Click" />
-                                    </WrapPanel>
-                                    <TextBlock x:Name="ReviewFile" Style="{StaticResource Text.Note}" Margin="0,4,0,0" />
+                                    <TextBlock x:Name="ReviewFile" Style="{StaticResource Text.Note}" Margin="0,12,0,0" />
                                 </StackPanel>
 
                                 <StackPanel x:Name="SavedStage" Visibility="Collapsed">
@@ -492,14 +767,11 @@
                                         <Run Text="Saved " /><Run x:Name="SavedName" FontWeight="SemiBold" /><Run Text=". Print it at 100% (not “fit to page”)." />
                                     </TextBlock>
                                     <TextBlock x:Name="SavedNote" Style="{StaticResource Text.Warning}" Margin="0,8,0,0" Visibility="Collapsed" AutomationProperties.LiveSetting="Polite" />
-                                    <WrapPanel Margin="0,16,0,0">
-                                        <Button x:Name="BtnNewId" Style="{StaticResource Button.Primary}" Content="Start a new ID" Click="BtnNewId_Click" Margin="0,0,8,8" />
-                                        <Button x:Name="BtnOpenFolder" Style="{StaticResource Button.Ghost}" Content="Show the file" Click="BtnOpenFolder_Click" Margin="0,0,8,8" />
-                                    </WrapPanel>
                                 </StackPanel>
                             </StackPanel>
                         </Grid>
                     </ScrollViewer>
+                    </Border>
                 </DockPanel>
             </Border>
         </Grid>

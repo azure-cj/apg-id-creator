@@ -176,6 +176,17 @@ public static partial class PhotoPipeline
 {
     public const string MsgHasBackground = "This photo still has its background, and the background remover is not available on this computer. Use a photo on a plain green background, or a cut-out PNG.";
     public const string MsgCheckerboard = "This photo has a grey checkerboard painted into it, not a real transparent background. The ID needs a plain green background instead.";
+    public const string MsgRoomBehind = "There’s a room behind the person in this photo. Take it again against a plain wall, or use a cut-out PNG or a photo on a green background.";
+
+    // What the remover cut away must be a wall, not a room. A wall is one colour,
+    // or two (a darker panel, a shadow), shading gently; a room behind somebody
+    // shows a door, a window, shelves: three or more colours, each a real share.
+    // Colours closer than this (0–441 across the RGB cube) count as one, so a
+    // wall's shading does not split it.
+    private const double SameColour = 48;
+    private const double ColourShare = 0.04;    // a colour this much of the background counts
+    private const int MostWallColours = 2;
+    private const int MatteBackground = 32;     // matte at or below this is background
 
     private const int AlphaSolid = 128;         // alpha at or above this counts as "person"
     // Clothing the same colour as the backdrop is keyed out with it. Two signs:
@@ -537,12 +548,15 @@ public static partial class PhotoPipeline
 
         var background = ClassifyBackground(pixels);
         PhotoCheck check;
+        var room = false;
 
         // An ordinary photo: cut the person out here rather than sending
         // anybody's face to an outside service to have it done.
         if (background is PhotoBackground.Other or PhotoBackground.Checkerboard && remover?.Matte(pixels) is { } matte
             && matte.Length == pixels.Width * pixels.Height)
         {
+            // judged on the colours as taken, before the cut-out clears them
+            room = WallColours(pixels, matte) > MostWallColours;
             for (var i = 0; i < matte.Length; i++) pixels.Data[i * 4 + 3] = (byte)(pixels.Data[i * 4 + 3] * matte[i] / 255);
             TrimEdgeHalo(pixels);
             background = PhotoBackground.Removed;
@@ -550,6 +564,8 @@ public static partial class PhotoPipeline
 
         if (background == PhotoBackground.Checkerboard) check = new PhotoCheck { Problem = MsgCheckerboard, FixIsPrompt = true };
         else if (background == PhotoBackground.Other) check = new PhotoCheck { Problem = MsgHasBackground, FixIsPrompt = true };
+        // the cut-out would work, but an ID photo is taken against a wall: the prompt (a green background) is one fix
+        else if (room) check = new PhotoCheck { Problem = MsgRoomBehind, FixIsPrompt = true };
         else
         {
             var keyed = background is PhotoBackground.Green or PhotoBackground.Blue;
@@ -568,5 +584,41 @@ public static partial class PhotoPipeline
             }
         }
         return new PhotoResult(pixels, fileName, background, check);
+    }
+
+    /// <summary>
+    /// How many colours the background the remover found is made of, counting
+    /// only those that cover a real share of it, and taking colours closer than
+    /// SameColour as one. A wall comes to one or two; a room to three or more.
+    /// A photo with too little background to judge counts as a wall.
+    /// </summary>
+    public static int WallColours(RgbaImage img, byte[] matte)
+    {
+        // bins of 16 levels a channel, filled from a grid of samples
+        var bins = new Dictionary<int, int>();
+        var step = Math.Max(1, (int)Math.Sqrt((double)img.Width * img.Height / 40000));
+        var total = 0;
+        for (var y = 0; y < img.Height; y += step)
+            for (var x = 0; x < img.Width; x += step)
+            {
+                var i = y * img.Width + x;
+                if (matte[i] > MatteBackground) continue;
+                var o = i * 4;
+                var key = (img.Data[o] >> 4) << 8 | (img.Data[o + 1] >> 4) << 4 | img.Data[o + 2] >> 4;
+                bins[key] = bins.GetValueOrDefault(key) + 1;
+                total++;
+            }
+        if (total < 500) return 1;
+
+        // the biggest bins first; each joins the first colour it is close to, or starts one
+        var colours = new List<(double R, double G, double B, int Count)>();
+        foreach (var (key, count) in bins.OrderByDescending(kv => kv.Value))
+        {
+            double r = (key >> 8) * 16 + 8, g = (key >> 4 & 15) * 16 + 8, b = (key & 15) * 16 + 8;
+            var at = colours.FindIndex(c => Math.Sqrt((c.R - r) * (c.R - r) + (c.G - g) * (c.G - g) + (c.B - b) * (c.B - b)) <= SameColour);
+            if (at < 0) colours.Add((r, g, b, count));
+            else colours[at] = colours[at] with { Count = colours[at].Count + count };
+        }
+        return colours.Count(c => (double)c.Count / total >= ColourShare);
     }
 }

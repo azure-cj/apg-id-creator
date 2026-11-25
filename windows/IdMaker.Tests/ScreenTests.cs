@@ -41,13 +41,13 @@ public class ScreenTests
         s.Touch(Field.Seq);
         s.Touch(Field.Signature);
         var touched = Screen.From(s, Windows);
-        Assert.Equal("Enter the last name.", touched.Name.LastError);
+        Assert.Equal("Required.", touched.Name.LastError);
         Assert.Equal("", touched.Name.FirstError);
-        Assert.Equal("Choose whether this ID is for an employee or an intern.", touched.Title.KindError);
-        Assert.StartsWith("Enter the employee number", touched.Number.Error);
+        Assert.Equal("Required.", touched.Title.KindError);
+        Assert.Equal("Required.", touched.Number.Error);
         Assert.True(touched.Number.LineIsError);
-        Assert.Equal("Ask the new hire to sign.", touched.Sign.Error);
-        Assert.Equal("Ask the new hire to sign.", touched.Sign.Message);
+        Assert.Equal("Required.", touched.Sign.Error);
+        Assert.Equal("Required.", touched.Sign.Message);
     }
 
     [Fact]
@@ -58,14 +58,14 @@ public class ScreenTests
         s.SetNamePart(Field.Last, "Montenegro-Villanueva");
         var half = Screen.From(s, Windows).Name;
         Assert.False(half.PreviewIsError);
-        Assert.Equal("On the card: Montenegro-Villanueva", half.Preview);
+        Assert.Equal("", half.Preview);
 
         s.SetNamePart(Field.First, "Christopher Joseph");
         var whole = Screen.From(s, Windows).Name;
         Assert.True(whole.PreviewIsError);
         Assert.StartsWith("This name is too long for the card", whole.Preview);
 
-        Assert.Equal("On the card: —", Screen.From(Make.Session(), Windows).Name.Preview);
+        Assert.Equal("", Screen.From(Make.Session(), Windows).Name.Preview);
     }
 
     [Fact]
@@ -161,8 +161,8 @@ public class ScreenTests
     {
         var s = Make.Session();
         var first = Screen.From(s, Windows).Footer;
-        Assert.True(first.StatusShown);
-        Assert.Equal("Still needed: last name, first name.", first.StatusText);
+        Assert.False(first.StatusShown);
+        Assert.Equal("", first.StatusText);
         Assert.False(first.BlockedShown);
         Assert.False(first.BackShown);
         Assert.True(first.NextShown);
@@ -183,7 +183,7 @@ public class ScreenTests
         var refused = Screen.From(s, Windows).Footer;
         Assert.True(refused.BlockedShown);
         Assert.False(refused.StatusShown);
-        Assert.StartsWith("Can’t continue yet.", refused.BlockedText);
+        Assert.Equal("Please complete the highlighted fields.", refused.BlockedText);
         s.SetNamePart(Field.Last, "Reyes");
         s.SetNamePart(Field.First, "Ana");
         var fixedNow = Screen.From(s, Windows).Footer;
@@ -200,7 +200,7 @@ public class ScreenTests
         s.GoStep((int)Step.Sign);
         var sign = Screen.From(s, Windows).Footer;
         Assert.True(sign.BackShown);
-        Assert.Equal("Check the card", sign.NextTitle);
+        Assert.Equal("Next", sign.NextTitle);
 
         s.GoStep(Session.LastStep);
         var check = Screen.From(s, Windows);
@@ -250,11 +250,12 @@ public class ScreenTests
 
         Assert.True(chips[1].Current);
         Assert.False(chips[1].Done);
-        Assert.Equal("Job title. Current step.", chips[1].Says);
+        Assert.Equal("Job & number. Current step.", chips[1].Says);
+        Assert.Equal("Job & no.", chips[1].Short);           // what fits an equal fifth of the bar
 
         Assert.True(chips[2].Locked);
-        Assert.Equal("Number. Locked until step 2, Job title, is finished.", chips[2].Says);
-        Assert.Equal("Finish job title first", chips[2].ToolTip);
+        Assert.Equal("Photo. Locked until step 2, Job & number, is finished.", chips[2].Says);
+        Assert.Equal("Finish job & number first", chips[2].ToolTip);
 
         // a step cannot be both finished and out of reach, and the last step is never "finished"
         Assert.All(chips, c => Assert.False(c.Done && c.Locked));
@@ -365,7 +366,7 @@ public class ScreenTests
         Assert.True(front.SideTabsShown);
         Assert.True(front.CardShown);
         Assert.False(front.SheetShown);
-        Assert.Equal("", front.Caption);
+        Assert.Equal("The front updates as you type.", front.Caption);
         Assert.Equal("Front of the ID card for a new hire", front.CardSays);
         var back = Screen.From(s, Windows with { Front = false }).Stage;
         Assert.Equal("The back is the same on every card.", back.Caption);
@@ -575,7 +576,7 @@ public class ScreenTests
         var s = Make.Session(register, store);
         var empty = Must(Screen.From(s, Windows with { Tool = ToolKey.Register }).Register);
         Assert.False(empty.ExportEnabled);
-        Assert.StartsWith("Nothing issued yet.", empty.Note);
+        Assert.Equal("No cards issued yet.", empty.Note);
         Assert.Empty(empty.Rows);
         Assert.Equal("", empty.More);
         Assert.Equal("This copy of the app keeps its own list only.", empty.Account);
@@ -597,7 +598,7 @@ public class ScreenTests
         Assert.Equal(30, windows.Tools.Issued);
         var listed = Must(windows.Register);
         Assert.True(listed.ExportEnabled);
-        Assert.StartsWith("The most recent cards issued on this computer.", listed.Note);
+        Assert.Equal("Latest cards issued on this computer.", listed.Note);
         Assert.Equal(25, listed.Rows.Count);
         Assert.Equal("… and 5 more in the saved list.", listed.More);
         Assert.Equal("APG-2026-030 (replacement)", listed.Rows[0].Head);
@@ -707,8 +708,10 @@ public class ScreenTests
         Assert.Equal(FocusTarget.Kind, title.Focus);
         s.PickKind(PersonKind.Intern);
         Assert.Equal(FocusTarget.TitlePicked, Screen.LandingFor(s, (int)Step.Title));
+        // the number shares the job's step: once the job is settled, that is where the cursor goes
+        s.PickRole1(s.TitleOptions()[0]);
+        Assert.Equal(FocusTarget.Seq, Screen.LandingFor(s, (int)Step.Title));
         Assert.Equal(FocusTarget.Last, Screen.LandingFor(s, (int)Step.Name));
-        Assert.Equal(FocusTarget.Seq, Screen.LandingFor(s, (int)Step.Number));
         Assert.Equal(FocusTarget.PhotoButton, Screen.LandingFor(s, (int)Step.Photo));
         Assert.Equal(FocusTarget.SignButton, Screen.LandingFor(s, (int)Step.Sign));
         Assert.Equal(FocusTarget.SaveButton, Screen.LandingFor(s, Session.LastStep));
@@ -769,15 +772,15 @@ public class ScreenTests
     public void The_batch_tool_says_what_was_chosen_and_what_the_layout_comes_to()
     {
         var nothing = Screen.BatchChosen(null, 0, 0);
-        Assert.StartsWith("Columns: last, first, title, seq", nothing.List);
-        Assert.Equal("Choose every photo. They are matched to the list by file name.", nothing.Photos);
-        Assert.StartsWith("Photos or scans of signatures on white paper.", nothing.Signatures);
+        Assert.Equal("No list chosen yet.", nothing.List);
+        Assert.Equal("No photos chosen yet.", nothing.Photos);
+        Assert.Equal("Optional: rows without one get no signature.", nothing.Signatures);
         var chosen = Screen.BatchChosen(Path.Combine("lists", "november.csv"), 1, 2);
         Assert.Equal("november.csv", chosen.List);
         Assert.Equal("1 photo chosen.", chosen.Photos);
         Assert.Equal("2 signatures chosen.", chosen.Signatures);
 
-        Assert.Equal("Two pages per person, each the size of the card.", Screen.BatchLayoutLine(Batch.LayoutCards, "A4"));
+        Assert.Equal("Two card-sized pages per person.", Screen.BatchLayoutLine(Batch.LayoutCards, "A4"));
         var plan = Must(Sheets.Plan("A4", SheetMode.Pairs));
         Assert.Equal($"{plan.PerSheet} cards per sheet ({plan.Cols} × {plan.Rows}, {(plan.Landscape ? "landscape" : "portrait")}).", Screen.BatchLayoutLine(Batch.LayoutPairs, "A4"));
         Assert.NotEqual(Screen.BatchLayoutLine(Batch.LayoutPairs, "A4"), Screen.BatchLayoutLine(Batch.LayoutDuplex, "A4"));
@@ -786,6 +789,26 @@ public class ScreenTests
     [Fact]
     public void A_batch_row_is_reported_as_skipped_warned_or_ready()
     {
+        // Issued IDs: the latest three, the rest one press away
+        Assert.Equal((2, ""), Screen.IssuedFold(2, open: false));
+        Assert.Equal((3, ""), Screen.IssuedFold(3, open: true));
+        Assert.Equal((3, "Show all 9"), Screen.IssuedFold(9, open: false));
+        Assert.Equal((9, "Show fewer"), Screen.IssuedFold(9, open: true));
+
+        // at a glance: made, to look at, skipped; and the rows with the problems first, in list order within each
+        var rows = new[]
+        {
+            new BatchRowResult { Ok = true, Id = "APG-2026-125", Label = "Aureo, Chris", Line = 2 },
+            new BatchRowResult { Line = 3, Label = "Cruz, Juan", Problem = "No job title." },
+            new BatchRowResult { Ok = true, Id = "APG-2026-124", Label = "Reyes, Ana", NoSignature = true, Line = 4 },
+            new BatchRowResult { Line = 5, Label = "Lim, Kevin", Problem = "No photo." },
+            new BatchRowResult { Ok = true, Id = "APG-2026-126", Label = "Uy, Carla", Warnings = new[] { "A little soft." }, Line = 6 },
+        };
+        var sum = Screen.BatchSummary(rows);
+        Assert.Equal((3, 2, 2), (sum.Made, sum.ToCheck, sum.Skipped));
+        Assert.Equal(new[] { 3, 5, 4, 6, 2 }, sum.Rows.Select(r => r.Line));
+        Assert.Equal((0, 0, 0), (Screen.BatchSummary(Array.Empty<BatchRowResult>()).Made, Screen.BatchSummary(Array.Empty<BatchRowResult>()).ToCheck, Screen.BatchSummary(Array.Empty<BatchRowResult>()).Skipped));
+
         var skipped = Screen.BatchRow(new BatchRowResult { Line = 3, Label = "Cruz, Juan", Problem = "No job title." });
         Assert.Equal((Tone.Error, "Line 3 · Cruz, Juan", "Skipped: No job title."), skipped);
         var warned = Screen.BatchRow(new BatchRowResult { Ok = true, Id = "APG-2026-124", Label = "Reyes, Ana", NoSignature = true, Warnings = new[] { "A little soft." } });

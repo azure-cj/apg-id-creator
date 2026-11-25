@@ -81,7 +81,7 @@ Maker).
 
 ## Making an ID
 
-Open the app and work through the six steps. It will not let you move on
+Open the app and work through the five steps. It will not let you move on
 until the step you are on is complete, so you cannot forget anything.
 
 **1. Name** — last name, first name, middle name, suffix. Type them
@@ -89,7 +89,7 @@ normally; if you type all in small letters the app fixes the capitals when
 you leave the box. The line underneath shows exactly what will be printed
 on the card.
 
-**2. Employee or intern, and job title** — first choose who the ID is
+**2. Job and employee number** — first choose who the ID is
 for: **An employee** or **An intern**. The app does not guess, and will
 not move on until you choose. The attendance system keeps interns only
 and takes new ones from this register, so get this one right.
@@ -99,38 +99,40 @@ second role and pick that too; the card will say something like
 *IT/Admin Associate*. If the title you need is not listed, choose
 **Other…** and type it.
 
-**3. Employee number** — type the number HR assigned, for example `124`.
-The app turns it into `APG-2026-124`.
+Below the job, on the same page, type the employee number HR assigned,
+for example `124`. The app turns it into `APG-2026-124`.
 
 > If that number has been used before, the box turns **red** and tells you
 > who already has it. Either use a different number, or — if you are
 > reprinting a lost card for the same person — tick **Replacement card**.
 
-**4. Photo** — choose any clear photo of the person, or drag it onto the
+**3. Photo** — choose any clear photo of the person, or drag it onto the
 window. The app removes the background itself, on this computer; the
 photo is not sent anywhere. It then places the person on the card.
 
-A photo taken against a plain wall gives the cleanest edge. A cut-out PNG
-or a photo on a green background works too, as before.
+Take the photo against a plain wall: it gives the cleanest edge. A photo
+with a room behind the person (a door, a window, shelves) is refused, and
+the app says how to fix it. A cut-out PNG or a photo on a green background
+works too, as before.
 
 If the photo is blurry, small, or cropped very close, the app says so but
 lets you carry on — how the photo was taken is the photographer's call.
 Check the card, and use **Move or resize it** if the face needs shifting.
 You can also drag the photo on the card and turn the mouse wheel over it.
 
-**5. Signature** — the signing screen opens by itself and fills the whole
+**4. Signature** — the signing screen opens by itself and fills the whole
 screen, so the pen has the whole tablet to work with and cannot wander
 off the edge. The new hire signs with the pen (press harder for a thicker
 line), a finger on a touch screen, or the mouse, then presses **Use this
 signature**. **Clear** starts over; **Cancel** or the Esc key goes back
 without signing.
 
-No tablet? **Use a scan instead** takes a photo of their signature on
+No tablet? **Use a scan** takes a photo of their signature on
 white paper.
 
-**6. Check and print** — you will see the actual sheet that will come out
+**5. Check and print** — you will see the actual sheet that will come out
 of the printer. Check the name, title and number, then press **Save the
-PDF** and choose where to keep it. The card counts as issued once the file
+PDF** (at the bottom right, where Next was) and choose where to keep it. The card counts as issued once the file
 is saved.
 
 ---
@@ -240,8 +242,12 @@ layout back at any time.
 
 The app follows Windows: if Windows is set to dark mode, so is the app,
 and it changes over by itself when you change the setting (Settings →
-Personalisation → Colours → *Choose your app mode*). The printed card
-looks the same either way.
+Personalisation → Colours → *Choose your app mode*). To keep the app light
+or dark whatever Windows is set to, choose **Light** or **Dark** under
+**Appearance** at the bottom left; **Match Windows** goes back to
+following Windows. The choice is remembered on this computer. The printed
+card looks the same either way. (On the Mac the app follows macOS, as
+before.)
 
 ---
 

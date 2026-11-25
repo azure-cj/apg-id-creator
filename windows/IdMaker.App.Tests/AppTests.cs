@@ -440,6 +440,8 @@ public class WindowTests
     private static MainWindow Open(string folder)
     {
         var files = new FileStore(folder);
+        // every movement ends at once, so no picture or check lands halfway through one
+        Motion.Off = true;
         // no shared register: these tests must not write to the company's register
         var window = new MainWindow(files, new Register(files) { Project = null })
         {
@@ -454,6 +456,7 @@ public class WindowTests
     private static MainWindow OpenShared(string folder, FakeFirebase firebase, ISecretKeeper? keeper = null)
     {
         var files = new FileStore(folder);
+        Motion.Off = true;
         var window = new MainWindow(files, new Register(files, firebase.Http, keeper) { Project = FakeFirebase.Project })
         {
             OpenSigningOnArrival = false,
@@ -618,8 +621,8 @@ public class WindowTests
             Click(window.BtnNext);
             Assert.Equal(0, window.Session.StepIndex);
             Assert.Equal(Visibility.Visible, window.Blocked.Visibility);
-            Assert.Contains("Enter the last name", window.Blocked.Text);
-            Assert.Equal("Enter the last name.", window.MsgLast.Text);
+            Assert.Equal("Please complete the highlighted fields.", window.Blocked.Text);
+            Assert.Equal("Required.", window.MsgLast.Text);
 
             window.TxtLast.Text = "reyes";
             window.TxtFirst.Text = "Ana";
@@ -631,25 +634,29 @@ public class WindowTests
             // the step first asks who the ID is for, and does not move on without an answer
             Click(window.BtnNext);
             Assert.Equal(1, window.Session.StepIndex);
-            Assert.Contains("employee or an intern", window.Blocked.Text);
+            Assert.Equal("Please complete the highlighted fields.", window.Blocked.Text);
+            Assert.Equal("Required.", window.MsgKind.Text);
             Assert.Null(window.CmbKind.SelectedItem);
             window.CmbKind.SelectedIndex = 1;
             Assert.Equal(PersonKind.Intern, window.Session.Kind);
             window.CmbKind.SelectedIndex = 0;
             Assert.Equal(PersonKind.Employee, window.Session.Kind);
 
-            // the job-title chips, then the number
+            // the job-title chips, then the number on the same page
             var chip = window.TitleChips.Children.OfType<RadioButton>().First(c => (string)c.Content == "HR Associate");
             chip.IsChecked = true;
             Click(chip);
             Assert.Equal("HR Associate", window.Session.JobTitle);
-            Shoot(window, "step-2-job-title");
+            Shoot(window, "step-2-job");
+            // the job alone is not the whole step: the number is asked for beside it
             Click(window.BtnNext);
+            Assert.Equal((int)Step.Title, window.Session.StepIndex);
+            Assert.Equal("Required.", window.MsgSeq.Text);
             window.TxtSeq.Text = "12x4";
             Assert.Equal("124", window.Session.Seq);
-            Shoot(window, "step-3-number");
+            Shoot(window, "step-2-number");
             Click(window.BtnNext);
-            Assert.Equal(3, window.Session.StepIndex);
+            Assert.Equal((int)Step.Photo, window.Session.StepIndex);
         });
 
         await Ui.RunAsync(() => window.AcceptPhotoFile(Path.Combine(Files.RepoRoot, "assets", "example-cut-out.png")));
@@ -658,9 +665,9 @@ public class WindowTests
             Assert.True(window.Session.Photo is not null, window.Session.PhotoError);
             Assert.NotNull(window.PhotoThumb.Source);
             Assert.Equal(Visibility.Visible, window.AdjustBox.Visibility);
-            Shoot(window, "step-4-photo");
+            Shoot(window, "step-3-photo");
             Click(window.BtnNext);
-            Assert.Equal(4, window.Session.StepIndex);
+            Assert.Equal((int)Step.Sign, window.Session.StepIndex);
 
             // signing: the full-screen window is stood in for, and asked for exactly once
             window.AskForSignature = (_, _) => { asked++; return Session.ExampleSignature(); };
@@ -668,13 +675,17 @@ public class WindowTests
             Assert.Equal(1, asked);
             Assert.True(window.Session.Signature is { HasInk: true });
             Assert.True(window.SigPreview.HasInk);
-            Shoot(window, "step-5-signature");
+            Shoot(window, "step-4-signature");
             Click(window.BtnNext);
             Assert.Equal(Session.LastStep, window.Session.StepIndex);
             Assert.Equal("Reyes", window.Session.Last);               // capitalised on the way past
             Assert.Equal("Ana Reyes", window.SumName.Text);
             Assert.Equal("APG-" + DateTime.Now.Year + "-124", window.SumNumber.Text);
             Assert.Equal(Visibility.Visible, window.SheetImage.Visibility);
+            // drawn the moment the step opens, at its final size: the stage is never empty, and nothing then
+            // shrinks it (the page buttons' row is there from the start)
+            Assert.NotNull(window.SheetImage.Source);
+            Assert.NotEqual(Visibility.Collapsed, window.SheetNav.Visibility);
         });
         Ui.Settle();
         await Task.Delay(400);                                        // the sheet preview is drawn a moment after the step opens
@@ -682,7 +693,7 @@ public class WindowTests
 
         var pdf = Path.Combine(folder, "out", "card.pdf");
         Directory.CreateDirectory(Path.GetDirectoryName(pdf)!);
-        Ui.Run(() => { Assert.NotNull(window.SheetImage.Source); Shoot(window, "step-6-check"); });
+        Ui.Run(() => { Assert.NotNull(window.SheetImage.Source); Shoot(window, "step-5-check"); });
         await Ui.RunAsync(() => window.SavePrint(pdf));
 
         Assert.True(File.Exists(pdf));
@@ -696,7 +707,10 @@ public class WindowTests
         {
             Assert.Equal(Visibility.Visible, window.SavedStage.Visibility);
             Assert.Equal("card.pdf", window.SavedName.Text);
-            Shoot(window, "step-6-saved");
+            // the gold button at the right edge is now the next piece of work
+            Assert.Equal(Visibility.Visible, window.BtnNewId.Visibility);
+            Assert.Equal(Visibility.Collapsed, window.BtnDownload.Visibility);
+            Shoot(window, "step-5-saved");
             var issued = new Register(new FileStore(folder)) { Project = null }.All();
             Assert.Single(issued);
             Assert.Equal("Ana Reyes", issued[0].Name);
@@ -798,6 +812,95 @@ public class WindowTests
         });
     }
 
+    [Fact]
+    public void A_tool_opens_over_the_card_and_turning_the_card_over_leaves_it_where_it_is()
+    {
+        var folder = Files.TempFolder();
+        var window = Ui.Run(() => Open(folder));
+        Ui.Settle();
+        Ui.Run(() =>
+        {
+            Rect Place(FrameworkElement e) => new(e.TranslatePoint(new Point(0, 0), window), new Size(e.ActualWidth, e.ActualHeight));
+            window.UpdateLayout();
+            var card = Place(window.CardBox);
+            var form = Place(window.FormPanel);
+
+            // each tool opens over the dimmed card: neither the card nor the form moves or changes size
+            foreach (var rail in new[] { window.RailRegister, window.RailBatch, window.RailPrinter, window.RailDesign })
+            {
+                Click(rail);
+                window.UpdateLayout();
+                Assert.Equal(Visibility.Visible, window.Drawer.Visibility);
+                Assert.Equal(Visibility.Visible, window.Veil.Visibility);
+                Assert.Equal(card, Place(window.CardBox));
+                Assert.Equal(form, Place(window.FormPanel));
+            }
+            Shoot(window, "tool-over-card");
+
+            // a click on the dimmed card puts the tool away
+            window.Veil.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left) { RoutedEvent = UIElement.MouseLeftButtonDownEvent });
+            Assert.Equal(Visibility.Collapsed, window.Drawer.Visibility);
+            Assert.Equal(Visibility.Collapsed, window.Veil.Visibility);
+
+            // turning the card over changes the side shown, not the card's size or place
+            window.SideBack.IsChecked = true;
+            Click(window.SideBack);
+            window.UpdateLayout();
+            Assert.Equal(card, Place(window.CardBox));
+            Assert.Equal(Visibility.Collapsed, window.FocusLayer.Visibility);     // the field outline is for the front
+            window.SideFront.IsChecked = true;
+            Click(window.SideFront);
+            window.UpdateLayout();
+            Assert.Equal(card, Place(window.CardBox));
+            Assert.Equal(Visibility.Visible, window.FocusLayer.Visibility);
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public void The_operator_can_keep_the_window_light_or_dark_whatever_windows_is_set_to()
+    {
+        var folder = Files.TempFolder();
+        try
+        {
+            // the app the test host starts reads this computer's own settings, where a choice may already be kept: start from the default
+            var window = Ui.Run(() => { ThemeManager.Choose(ThemeManager.MatchWindows); return Open(folder); });
+            Ui.Settle();
+            Ui.Run(() =>
+            {
+                Assert.True(window.AppearSystem.IsChecked);                 // Match Windows
+                window.AppearDark.IsChecked = true;
+                Click(window.AppearDark);
+                Assert.Equal(AppTheme.Dark, ThemeManager.Current);
+                Assert.Equal(ThemeManager.AlwaysDark, new FileStore(folder).Get(ThemeManager.ChoiceKey));
+                Shoot(window, "appearance-dark");
+                window.Close();
+            });
+
+            // opened again on this computer, it is still dark, whatever Windows says
+            var again = Ui.Run(() => { ThemeManager.Apply(AppTheme.Light); return Open(folder); });
+            Ui.Settle();
+            Ui.Run(() =>
+            {
+                Assert.Equal(AppTheme.Dark, ThemeManager.Current);
+                Assert.True(again.AppearDark.IsChecked);
+                Assert.False(again.AppearLight.IsChecked);
+
+                // back to following Windows: nothing is kept for it
+                again.AppearSystem.IsChecked = true;
+                Click(again.AppearSystem);
+                Assert.Equal(ThemeManager.MatchWindows, ThemeManager.Choice);
+                Assert.Equal(ThemeManager.SystemTheme(), ThemeManager.Current);
+                Assert.Null(new FileStore(folder).Get(ThemeManager.ChoiceKey));
+                again.Close();
+            });
+        }
+        finally
+        {
+            Ui.Run(() => { ThemeManager.Choose(ThemeManager.MatchWindows); ThemeManager.Apply(AppTheme.Light); });   // the other tests expect the default
+        }
+    }
+
     private static Color PixelOf(BitmapSource picture, int x, int y)
     {
         var px = new byte[4];
@@ -854,10 +957,10 @@ public class WindowTests
             {
                 Assert.Equal(AppTheme.Dark, ThemeManager.Current);
                 var darkSurface = ((SolidColorBrush)window.FormPanel.Background).Color;
-                Assert.Equal(Color.FromRgb(0x1C, 0x1B, 0x19), darkSurface);
-                Assert.Equal(Color.FromRgb(0xEC, 0xE8, 0xDE), ((SolidColorBrush)window.Foreground).Color);
-                // a border set from code, by name, follows too
-                Assert.Equal(Color.FromRgb(0x7B, 0x77, 0x6D), ((SolidColorBrush)window.TxtLast.BorderBrush).Color);
+                Assert.Equal(Color.FromRgb(0x15, 0x16, 0x13), darkSurface);
+                Assert.Equal(Color.FromRgb(0xF6, 0xF2, 0xE9), ((SolidColorBrush)window.Foreground).Color);
+                // a border set from code, by name, follows too (gold-soft, the quiet outline)
+                Assert.Equal(Color.FromRgb(0x8D, 0x75, 0x3E), ((SolidColorBrush)window.TxtLast.BorderBrush).Color);
 
                 Shoot(window, "window-dark-form");
                 // open the printer setting, which shows a drop-down list and a tick box drawn by the theme
@@ -870,10 +973,11 @@ public class WindowTests
                 var shot = Snapshot(window);
                 ImageFiles.SavePng(shot, Path.Combine(Files.ReportDirectory, "window-dark.png"));
                 // the panel shows its surface and the fields on it; either way, the dark palette's own
-                var darkGrounds = new[] { Color.FromRgb(0x14, 0x14, 0x12), Color.FromRgb(0x1C, 0x1B, 0x19) };
+                var darkGrounds = new[] { Color.FromRgb(0x09, 0x0A, 0x09), Color.FromRgb(0x15, 0x16, 0x13) };
                 Assert.Contains(MostOf(shot, window.Drawer, window), darkGrounds);
-                // in a window too narrow for all four columns the open tool takes the form's place
-                Assert.Equal(window.Columns.ActualWidth < 1272, window.FormPanel.Visibility == Visibility.Collapsed);
+                // the tool opens over the card, on a veil, and the form stays where it is at any width
+                Assert.Equal(Visibility.Visible, window.Veil.Visibility);
+                Assert.Equal(Visibility.Visible, window.FormPanel.Visibility);
                 var list = window.CmbFlip.TranslatePoint(new Point(window.CmbFlip.ActualWidth - 50, window.CmbFlip.ActualHeight / 2), window);
                 var listPixel = PixelOf(shot, (int)list.X, (int)list.Y);
                 Assert.True(listPixel.R < 60 && listPixel.G < 60, $"the drop-down list should be dark in dark mode, but is {listPixel}");
@@ -885,7 +989,7 @@ public class WindowTests
             Ui.Run(() =>
             {
                 Assert.Equal(Colors.White, ((SolidColorBrush)window.FormPanel.Background).Color);
-                Assert.Equal(Color.FromRgb(0x85, 0x7F, 0x73), ((SolidColorBrush)window.TxtLast.BorderBrush).Color);
+                Assert.Equal(Color.FromRgb(0x8D, 0x75, 0x3E), ((SolidColorBrush)window.TxtLast.BorderBrush).Color);
                 var shot = Snapshot(window);
                 ImageFiles.SavePng(shot, Path.Combine(Files.ReportDirectory, "window-light.png"));
                 var lightGrounds = new[] { Color.FromRgb(0xF5, 0xF5, 0xF2), Colors.White };
@@ -928,6 +1032,7 @@ public class WindowTests
         {
             var sign = new SignWindow("Ana", null);
             sign.Show();
+            sign.Activate();
             sign.UpdateLayout();
             Assert.False(sign.Holding);
 
@@ -935,6 +1040,9 @@ public class WindowTests
             Stroke(sign.Pad);
             Assert.True(sign.Holding);
             Assert.True(sign.Pad.HasInk);
+            // and the keys still have somewhere to go: with nothing focused, Windows hands a key
+            // to no one, and Backspace and Esc did nothing (keys below go where Windows sends them)
+            Assert.Same(sign, Keyboard.FocusedElement);
 
             // Backspace starts again, still held
             Press(sign, Key.Back);
@@ -946,6 +1054,15 @@ public class WindowTests
             Assert.False(sign.Holding);
             Assert.True(sign.IsVisible);
             Assert.Null(sign.Result);
+
+            // let go, Backspace still clears, as the key cap on Clear says
+            Stroke(sign.Pad);
+            Press(sign, Key.Escape);
+            Assert.False(sign.Holding);
+            Assert.True(sign.Pad.HasInk);
+            Press(sign, Key.Back);
+            Assert.False(sign.Pad.HasInk);
+            Assert.True(sign.IsVisible);
 
             // Enter, once signed, uses the signature
             Stroke(sign.Pad);
@@ -961,7 +1078,12 @@ public class WindowTests
             pad.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, at + 1, MouseButton.Left) { RoutedEvent = Mouse.MouseUpEvent });
         }
 
-        static void Press(Window window, Key key) =>
-            window.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window)!, Environment.TickCount, key) { RoutedEvent = Keyboard.PreviewKeyDownEvent });
+        // a key goes to whatever has the keyboard focus, as Windows sends it; nothing focused, no key
+        static void Press(Window window, Key key)
+        {
+            var to = Keyboard.FocusedElement as UIElement;
+            Assert.True(to is not null, $"{key} was pressed with nothing focused: Windows would hand it to no one");
+            to.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window)!, Environment.TickCount, key) { RoutedEvent = Keyboard.PreviewKeyDownEvent });
+        }
     }
 }

@@ -188,6 +188,68 @@ public class PhotoTests
         Assert.Equal(1, remover.Calls);
     }
 
+    // A photo of the standard silhouette on `paint`'s background, and a remover that finds exactly the person.
+    private static (RgbaImage Photo, FakeRemover Remover) PersonIn(Func<int, int, (byte R, byte G, byte B)> paint)
+    {
+        var person = Make.Silhouette(600, 1000, 60, 200, 260, 90, 40, 520);
+        var photo = person.Clone();
+        for (var y = 0; y < 1000; y++)
+            for (var x = 0; x < 600; x++)
+            {
+                var o = (y * 600 + x) * 4;
+                if (person.Data[o + 3] != 0) continue;
+                var (r, g, b) = paint(x, y);
+                photo.Data[o] = r; photo.Data[o + 1] = g; photo.Data[o + 2] = b; photo.Data[o + 3] = 255;
+            }
+        var remover = new FakeRemover(_ =>
+        {
+            var m = new byte[600 * 1000];
+            for (var i = 0; i < m.Length; i++) m[i] = person.Data[i * 4 + 3];
+            return m;
+        });
+        return (photo, remover);
+    }
+
+    [Fact]
+    public void A_photo_taken_in_a_room_is_refused_and_points_to_the_fix()
+    {
+        // a wall, a door on the left, a window on the right, the floor along the bottom
+        var (photo, remover) = PersonIn((x, y) =>
+            y > 900 ? ((byte)124, (byte)106, (byte)88)
+            : x < 110 && y > 150 ? ((byte)138, (byte)108, (byte)74)
+            : x > 430 && x < 580 && y > 60 && y < 330 ? ((byte)159, (byte)192, (byte)223)
+            : ((byte)208, (byte)196, (byte)178));
+        var result = PhotoPipeline.Analyse(photo, "room.jpg", Spec, remover);
+        Assert.False(result.Check.Ok);
+        Assert.Equal(PhotoPipeline.MsgRoomBehind, result.Check.Problem);
+        Assert.True(result.Check.FixIsPrompt);
+    }
+
+    [Theory]
+    [InlineData(235, 233, 228)]     // off-white
+    [InlineData(208, 196, 178)]     // beige
+    [InlineData(150, 170, 190)]     // pale blue
+    [InlineData(90, 90, 92)]        // dark grey
+    public void A_plain_wall_shading_from_one_side_to_the_other_is_still_a_wall(int r, int g, int b)
+    {
+        // light falling across the wall: 40 levels darker at one side than the other
+        var (photo, remover) = PersonIn((x, y) => ((byte)Math.Clamp(r - 40 * x / 600, 0, 255), (byte)Math.Clamp(g - 40 * x / 600, 0, 255), (byte)Math.Clamp(b - 30 * x / 600, 0, 255)));
+        var result = PhotoPipeline.Analyse(photo, "wall.jpg", Spec, remover);
+        Assert.True(result.Check.Ok, result.Check.Problem);
+    }
+
+    [Fact]
+    public void A_wall_with_a_darker_panel_and_a_rail_is_still_a_wall()
+    {
+        // the office the background-remover tests use: two colours and a thin rail
+        var (photo, remover) = PersonIn((x, y) =>
+            Math.Abs(y - 500) < 5 ? ((byte)60, (byte)60, (byte)60)
+            : x > 372 ? ((byte)(135 - 20 * x / 600), (byte)(143 - 10 * y / 1000), (byte)125)
+            : ((byte)(205 - 20 * x / 600), (byte)(198 - 10 * y / 1000), (byte)185));
+        var result = PhotoPipeline.Analyse(photo, "office.jpg", Spec, remover);
+        Assert.True(result.Check.Ok, result.Check.Problem);
+    }
+
     [Fact]
     public void A_remover_that_finds_nobody_says_so_plainly()
     {

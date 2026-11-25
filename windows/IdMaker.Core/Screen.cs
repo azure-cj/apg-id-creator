@@ -109,7 +109,7 @@ public sealed record CheckView(
     string FileLine, bool SaveEnabled, string SaveTitle, bool PicturesEnabled, bool AddAnotherEnabled);
 
 /// <summary>One step in the bar across the top of the form.</summary>
-public sealed record StepChip(string Label, bool Locked, bool Current, bool Done, string Says, string ToolTip);
+public sealed record StepChip(string Label, bool Locked, bool Current, bool Done, string Says, string ToolTip, string Short);
 
 public sealed record FooterView(
     bool BlockedShown, string BlockedText, bool StatusShown, string StatusText,
@@ -145,6 +145,19 @@ public sealed record Screen(
     /// <summary>How many issued IDs the drawer lists. The two windows differ: see the decision log.</summary>
     public static int IssuedListed(HostPlatform platform) => platform == HostPlatform.Windows ? 25 : 12;
 
+    /// <summary>How many of the issued IDs show before the list is opened: the latest few, the ones looked for most.</summary>
+    public const int IssuedFolded = 3;
+
+    /// <summary>
+    /// How much of the Issued IDs list shows, and what the button under it
+    /// says: the latest IssuedFolded while it is folded, all of them once
+    /// opened. A list no longer than that has no button ("").
+    /// </summary>
+    public static (int Shown, string Toggle) IssuedFold(int rows, bool open) =>
+        rows <= IssuedFolded ? (rows, "")
+        : open ? (rows, "Show fewer")
+        : (IssuedFolded, $"Show all {rows}");
+
     /// <summary>
     /// The screen for the form as it stands. A refusal that has been put
     /// right is cleared on the way (Session.ClearBlockedIfFixed), as the
@@ -172,7 +185,8 @@ public sealed record Screen(
                 SheetShown: input.Loaded && onCheck,
                 Caption: onCheck
                     ? (s.Layout == SheetMode.Duplex ? "Print both sides, then cut along the marks." : "Cut along the marks and stick each pair back to back.")
-                    : input.Front ? "" : "The back is the same on every card.",
+                    // both sides have a line, so the card stays where it is when it is turned over
+                    : input.Front ? "The front updates as you type." : "The back is the same on every card.",
                 CardSays: input.Front
                     ? $"Front of the ID card for {(s.PrintedName.Length > 0 ? s.PrintedName : "a new hire")}"
                     : "Back of the ID card"),
@@ -196,7 +210,9 @@ public sealed record Screen(
         var fit = s.Touched.Contains(Field.Last) && s.Touched.Contains(Field.First) ? p[Field.NameFit] : "";
         return new NameView(
             shown(Field.Last), shown(Field.First), shown(Field.Middle), shown(Field.Suffix),
-            Preview: fit.Length > 0 ? fit : $"On the card: {(s.PrintedName.Length > 0 ? s.PrintedName : "—")}",
+            // The name as it prints is on the card itself, with where it prints
+            // outlined, so this line is only for a name that will not fit.
+            Preview: fit,
             PreviewIsError: fit.Length > 0);
     }
 
@@ -334,21 +350,23 @@ public sealed record Screen(
                 Says: locked ? $"{label}. Locked until step {stop + 1}, {Session.Steps[stop].Label}, is finished."
                     : current ? $"{label}. Current step."
                     : $"{label}{(done ? ". Finished." : "")}",
-                ToolTip: locked ? $"Finish {Session.Steps[stop].Label.ToLowerInvariant()} first" : ""));
+                ToolTip: locked ? $"Finish {Session.Steps[stop].Label.ToLowerInvariant()} first" : "",
+                Short: Session.Steps[i].Short));
         }
         return chips;
     }
 
     private static FooterView FooterLine(Session s, Dictionary<Field, string> p, bool onCheck, ScreenInput input)
     {
-        // the line under the buttons: a refusal while there is one, otherwise the quiet standing hint
-        var missingHere = Session.StepProblems(s.StepIndex, p);
+        // The line under the buttons: a refusal while there is one. On the steps
+        // before the check there is no standing hint any more: the step's own fields say
+        // what they need once Next is pressed. On the check step, where the
+        // fields are not in view, it still names anything that came undone.
         var missingAll = p.Where(kv => kv.Value.Length > 0).Select(kv => kv.Key).ToList();
         // after "stop adding" the form is empty on purpose and the job is whatever is queued
         var queueOnly = onCheck && s.Queue.Count > 0 && !s.StartedCard;
         var status = !input.Loaded ? ""
             : onCheck ? (missingAll.Count > 0 && !queueOnly ? $"Still needed: {string.Join(", ", missingAll.Select(Session.FieldLabel))}." : "")
-            : missingHere.Count > 0 ? $"Still needed: {string.Join(", ", missingHere.Select(Session.FieldLabel))}."
             : "";
         return new FooterView(
             BlockedShown: s.BlockedAbout is not null,
@@ -357,7 +375,8 @@ public sealed record Screen(
             StatusText: status,
             BackShown: s.StepIndex > 0 && !(onCheck && input.Saved),
             NextShown: !onCheck,
-            NextTitle: s.StepIndex == Session.LastStep - 1 ? "Check the card" : "Next",
+            // the same word on every step, so the way on always reads the same
+            NextTitle: "Next",
             // Next is never disabled for an unfinished step. A disabled button
             // is a dead end: it cannot be focused and it cannot explain
             // itself. Pressing it is how you ask what is missing.
@@ -420,9 +439,8 @@ public sealed record Screen(
         var refused = register.Refused;
         return new RegisterView(
             ExportEnabled: all.Count > 0,
-            Note: all.Count > 0
-                ? "The most recent cards issued on this computer. Each one is also written to the shared register, which is what the duplicate check reads."
-                : "Nothing issued yet. Every card you save is listed here, and written to the shared register.",
+            // short; why the list matters is behind the panel's information mark
+            Note: all.Count > 0 ? "Latest cards issued on this computer." : "No cards issued yet.",
             Key: string.Join("|", all.Take(listed).Select(e => e.Id + e.IssuedAt)) + all.Count,
             Rows: all.Take(listed).Select(e => new IssuedRow(e.Id + (e.Replacement ? " (replacement)" : ""), e.IssuedOn, $"{e.Name} · {e.Title}")).ToList(),
             More: all.Count > listed ? $"… and {all.Count - listed} more in the saved list." : "",
@@ -468,15 +486,23 @@ public sealed record Screen(
     public static FocusTarget LandingFor(Session s, int step) => step switch
     {
         (int)Step.Name => FocusTarget.Last,
-        // the step's first question until it is answered, then the job title
-        (int)Step.Title => s.Kind.Length == 0 ? FocusTarget.Kind : FocusTarget.TitlePicked,
-        (int)Step.Number => FocusTarget.Seq,
+        // the step's first question until it is answered, then the job title,
+        // then the number once the job is settled
+        (int)Step.Title => s.Kind.Length == 0 ? FocusTarget.Kind
+            : JobSettled(s) ? FocusTarget.Seq : FocusTarget.TitlePicked,
         (int)Step.Photo => FocusTarget.PhotoButton,
         (int)Step.Sign => FocusTarget.SignButton,
         // Never "Start a new ID": arriving at a step is a move to another step, and that
         // forgets the save (AfterMove). The window sends the cursor there itself, after a save.
         _ => FocusTarget.SaveButton,
     };
+
+    /// <summary>Who the ID is for and the job are answered and fit: what is left on the step is the number.</summary>
+    private static bool JobSettled(Session s)
+    {
+        var p = s.Problems();
+        return new[] { Field.Kind, Field.Title, Field.Title2, Field.TitleFit }.All(f => p[f].Length == 0);
+    }
 
     /// <summary>
     /// What follows a move, however it was made: Next, Back, a step chip, an
@@ -506,16 +532,31 @@ public sealed record Screen(
 
     /// <summary>The three lines under the batch tool's choosers.</summary>
     public static (string List, string Photos, string Signatures) BatchChosen(string? listPath, int photos, int signatures) => (
-        listPath is null ? "Columns: last, first, title, seq, and optionally middle, suffix, title2, year, photo, signature, replacement." : Path.GetFileName(listPath),
-        photos > 0 ? $"{photos} photo{Words.S(photos)} chosen." : "Choose every photo. They are matched to the list by file name.",
-        signatures > 0 ? $"{signatures} signature{Words.S(signatures)} chosen." : "Photos or scans of signatures on white paper. Rows without one get a card with no signature.");
+        // short; what the columns are and how files are matched is behind the panel's information marks
+        listPath is null ? "No list chosen yet." : Path.GetFileName(listPath),
+        photos > 0 ? $"{photos} photo{Words.S(photos)} chosen." : "No photos chosen yet.",
+        // "optional" is said here, in the line under the name, rather than in a tag beside it
+        signatures > 0 ? $"{signatures} signature{Words.S(signatures)} chosen." : "Optional: rows without one get no signature.");
 
     /// <summary>What the chosen batch layout comes to on the chosen paper.</summary>
     public static string BatchLayoutLine(string layout, string paper)
     {
-        if (layout == Batch.LayoutCards) return "Two pages per person, each the size of the card.";
+        if (layout == Batch.LayoutCards) return "Two card-sized pages per person.";
         var plan = Sheets.Plan(paper, layout == Batch.LayoutPairs ? SheetMode.Pairs : SheetMode.Duplex);
         return plan is null ? "" : $"{plan.PerSheet} cards per sheet ({plan.Cols} × {plan.Rows}, {(plan.Landscape ? "landscape" : "portrait")}).";
+    }
+
+    /// <summary>
+    /// A batch's outcome at a glance: how many cards were made, how many of
+    /// those want a look (a warning, or no signature), and how many rows were
+    /// skipped; and the rows in the order to read them: the skipped first,
+    /// then those to look at, then the rest, each group in list order.
+    /// </summary>
+    public static (int Made, int ToCheck, int Skipped, IReadOnlyList<BatchRowResult> Rows) BatchSummary(IReadOnlyList<BatchRowResult> results)
+    {
+        static int Rank(BatchRowResult r) => !r.Ok ? 0 : r.Warnings.Count > 0 || r.NoSignature ? 1 : 2;
+        var rows = results.Select((r, i) => (r, i)).OrderBy(x => Rank(x.r)).ThenBy(x => x.i).Select(x => x.r).ToList();
+        return (results.Count(r => r.Ok), results.Count(r => Rank(r) == 1), results.Count(r => !r.Ok), rows);
     }
 
     /// <summary>How one row of a batch is reported. The words say which it is; the tone only agrees with them.</summary>

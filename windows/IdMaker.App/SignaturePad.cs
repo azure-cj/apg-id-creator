@@ -285,17 +285,18 @@ public sealed class SignWindow : Window
         WindowState = WindowState.Maximized;
         ShowInTaskbar = false;
         Theme.Paint(this, BackgroundProperty, "Color.Tray");
-        FontFamily = new FontFamily("Segoe UI");
+        SetResourceReference(FontFamilyProperty, "Font.Ui");          // Poppins, as the main window (Theme.xaml)
         UseLayoutRounding = true;
 
         var heading = new TextBlock
         {
             Text = string.IsNullOrWhiteSpace(signerName) ? "Sign here" : $"{signerName}, sign here",
-            FontSize = 28, FontWeight = FontWeights.SemiBold,
+            FontSize = 28, FontWeight = FontWeights.Normal,
             HorizontalAlignment = HorizontalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
         };
         _status.FontSize = 15;
         Theme.Paint(heading, TextBlock.ForegroundProperty, "Color.TrayInk");
+        heading.SetResourceReference(TextBlock.FontFamilyProperty, "Font.Display");     // a heading: Orbitron
         Theme.Paint(_status, TextBlock.ForegroundProperty, "Color.TrayMuted");
         _status.HorizontalAlignment = HorizontalAlignment.Center;
         _status.Margin = new Thickness(0, 8, 0, 0);
@@ -303,10 +304,11 @@ public sealed class SignWindow : Window
         _status.TextAlignment = TextAlignment.Center;
         AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
 
-        _clear = MakeButton("Clear", "Button.OnTray", (_, _) => { _pad.Clear(); _pad.Focus(); });
-        var cancel = MakeButton("Cancel", "Button.OnTray", (_, _) => Close());
+        // each button wears the key that does the same, so the keyboard is learnt by looking
+        _clear = MakeButton("Clear", "Backspace", "Button.OnTray", (_, _) => { _pad.Clear(); _pad.Focus(); });
+        var cancel = MakeButton("Cancel", "Esc", "Button.OnTray", (_, _) => Close());
         cancel.IsCancel = true;                                       // Escape
-        _done = MakeButton("Use this signature", "Button.Primary", (_, _) => Finish());
+        _done = MakeButton("Use this signature", "Enter", "Button.Primary", (_, _) => Finish());
         _done.IsDefault = true;                                       // Enter
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 24, 0, 0) };
@@ -354,9 +356,23 @@ public sealed class SignWindow : Window
         SizeChanged += (_, _) => KeepPointerInside();
     }
 
-    private static Button MakeButton(string text, string style, RoutedEventHandler click)
+    private static Button MakeButton(string text, string key, string style, RoutedEventHandler click)
     {
-        var b = new Button { Content = text, Style = Theme.Style(style), Margin = new Thickness(8, 0, 8, 0), MinWidth = 150, MinHeight = 52, FontSize = 17 };
+        // the word, then a small key cap in the button's own colour, half as loud
+        var cap = new Border
+        {
+            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 2),
+            Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7,
+            Child = new TextBlock { Text = key, FontSize = 13, FontWeight = FontWeights.Normal },
+        };
+        cap.SetBinding(Border.BorderBrushProperty, new System.Windows.Data.Binding(nameof(Foreground)) { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(Button), 1) });
+        var content = new StackPanel { Orientation = Orientation.Horizontal };
+        content.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center });
+        content.Children.Add(cap);
+        var b = new Button { Content = content, Style = Theme.Style(style), Margin = new Thickness(8, 0, 8, 0), MinWidth = 150, MinHeight = 52, FontSize = 17 };
+        // a screen reader hears the action and its key, as one name
+        AutomationProperties.SetName(b, text);
+        AutomationProperties.SetAcceleratorKey(b, key);
         b.Click += click;
         return b;
     }
@@ -396,7 +412,10 @@ public sealed class SignWindow : Window
         if (_holding) return;
         _holding = true;
         Theme.Paint(_padFrame, Border.BorderBrushProperty, "Color.TrayInk");
-        Keyboard.ClearFocus();                                // so Enter and Space cannot press a focused button
+        // The window itself takes the keys, so Enter and Space cannot press a
+        // focused button. Not ClearFocus: with nothing focused, Windows hands the
+        // keys to no one, and Backspace and Esc never reached KeysWhileHolding.
+        Keyboard.Focus(this);
         Refresh();
         KeepPointerInside();
     }
@@ -416,7 +435,13 @@ public sealed class SignWindow : Window
     //   Esc        let the pointer go, and stay on this screen
     private void KeysWhileHolding(object sender, KeyEventArgs e)
     {
-        if (!_holding) return;
+        // Backspace clears whenever there is ink, as its key cap on Clear says;
+        // Enter and Esc already press Use this signature and Cancel
+        if (!_holding)
+        {
+            if (e.Key is Key.Back or Key.Delete && _pad.HasInk) { _pad.Clear(); e.Handled = true; }
+            return;
+        }
         e.Handled = true;
         switch (e.Key)
         {

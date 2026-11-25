@@ -163,11 +163,11 @@ public class HomeTests
         Assert.Equal(new[] { Batch.LayoutDuplex, Batch.LayoutPairs, Batch.LayoutCards }, TagsIn("CmbBatchLayout"));
         Assert.Equal(new[] { PersonKind.Employee, PersonKind.Intern }, TagsIn("CmbKind"));
 
-        // the three Edit links on the last step go to the first three steps, by number
+        // the three Edit links on the last step go to the name and the job step (the number shares the job's page), by number
         var edits = doc.Descendants().Where(e => (string?)e.Attribute("Click") == "SummaryEdit_Click").Select(e => (string?)e.Attribute("Tag") ?? "").ToList();
-        Assert.Equal(new[] { (int)Step.Name, (int)Step.Title, (int)Step.Number }.Select(n => n.ToString(CultureInfo.InvariantCulture)), edits);
+        Assert.Equal(new[] { (int)Step.Name, (int)Step.Title, (int)Step.Title }.Select(n => n.ToString(CultureInfo.InvariantCulture)), edits);
         // and the window shows one panel per step
-        var panels = new[] { "StepName", "StepTitle", "StepNumber", "StepPhoto", "StepSign", "StepCheck" };
+        var panels = new[] { "StepName", "StepTitle", "StepPhoto", "StepSign", "StepCheck" };
         Assert.Equal(Session.Steps.Length, panels.Length);
         Assert.All(panels, panel => Assert.NotNull(Attribute(panel, "Visibility")));
     }

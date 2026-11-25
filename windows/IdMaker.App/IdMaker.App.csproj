@@ -30,6 +30,8 @@
     <Content Include="..\..\assets\logo.png" Link="Assets\logo.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Fonts\*.ttf" CopyToOutputDirectory="PreserveNewest" />
     <Resource Include="AppIcon.ico" />
+    <!-- the window's own fonts (Poppins, Orbitron; UiFonts/README.md), built in so nothing needs installing -->
+    <Resource Include="UiFonts\*.ttf" />
   </ItemGroup>
 
 </Project>

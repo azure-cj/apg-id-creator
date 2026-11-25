@@ -30,12 +30,13 @@ Issues, ranked by what they could cost, are at the [end](#issues).
 
 ## 1. The form's steps
 
-**Purpose.** Which of the six steps is open. **Code:** `IdMaker.Core/Session.cs`
+**Purpose.** Which of the five steps is open. **Code:** `IdMaker.Core/Session.cs`
 (`FurthestStep`, `GoStep`, `NextStep`, `ChipPressed`, `AddAnother`,
 `CancelAdding`, `RemoveFromQueue`, `ClearCard`).
 
-**States.** `StepIndex` 0–5: Name, Job title, Number, Photo, Signature,
-Check. On Check there are two sub-states the screen tells apart: a
+**States.** `StepIndex` 0–4: Name, Job & number, Photo, Signature,
+Check. The employee number shares step 1 with the job title (it used to be
+a step of its own, which left a page nearly empty). On Check there are two sub-states the screen tells apart: a
 finished card on the form (`Ready()`), or a blank form with cards in
 `Queue` ("printing what is already queued").
 
@@ -53,15 +54,15 @@ finished card on the form (`Ready()`), or a blank form with cards in
 | --- | --- | --- | --- | --- | --- |
 | any | Next | a step before this one is unfinished | first unfinished step | refusal names that step | `NextStep` |
 | n | Next | this step unfinished | n | its fields marked touched; refusal names the reason | `NextStep` |
-| n < 5 | Next | this step finished | n + 1 | arriving at 5 fixes `ReviewEntry` | `NextStep` → `GoStep` |
+| n < 4 | Next | this step finished | n + 1 | arriving at 4 fixes `ReviewEntry` | `NextStep` → `GoStep` |
 | any | chip i | i ≤ furthest | i | | `ChipPressed` |
 | any | chip i | i > furthest | furthest | refusal names the step in the way | `ChipPressed` |
 | n > 0 | Back | | n − 1 | | `Back` |
-| 5 | Add another ID | card finished | 0 | card moved to `Queue`; form cleared | `AddAnother` |
-| < 5 | Stop adding | queue not empty | 5 (forced) | form cleared, queue kept | `CancelAdding` |
-| 5 | Remove queued card | it was the last, and the form is blank | 0 | | `RemoveFromQueue` |
-| 5 | Start a new ID | print saved | 0 | form and queue cleared | `NewId` |
-| any | register answers late | the number is a duplicate | 2 | refusal about step 3 | `SettleDuplicate` |
+| 4 | Add another ID | card finished | 0 | card moved to `Queue`; form cleared | `AddAnother` |
+| < 4 | Stop adding | queue not empty | 4 (forced) | form cleared, queue kept | `CancelAdding` |
+| 4 | Remove queued card | it was the last, and the form is blank | 0 | | `RemoveFromQueue` |
+| 4 | Start a new ID | print saved | 0 | form and queue cleared | `NewId` |
+| any | register answers late | the number is a duplicate | 1 | refusal about step 2 | `SettleDuplicate` |
 
 **Invalid states and how they are prevented.**
 
@@ -101,7 +102,7 @@ queue of the print in progress.
 | any | number or year typed | no shared register, or number invalid | Free | token advanced | `RefreshDuplicate` |
 | any | number or year typed | index in memory | Free / Taken | answered at once, no request | `RefreshDuplicate` |
 | any | number or year typed | index not read yet | Pending | one read started | `RefreshDuplicate` |
-| Pending | read succeeds | token unchanged | Free / Taken | may send the form back to step 3 | `SettleWhenLoaded` |
+| Pending | read succeeds | token unchanged | Free / Taken | may send the form back to step 2 | `SettleWhenLoaded` |
 | Pending | read fails, or nobody is signed in | token unchanged | Unreachable | | `SettleWhenLoaded` |
 | Pending | read finishes | token changed | (unchanged) | answer dropped | `SettleWhenLoaded` |
 
