@@ -30,6 +30,8 @@
     <Content Include="..\..\assets\logo.png" Link="Assets\logo.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Fonts\*.ttf" CopyToOutputDirectory="PreserveNewest" />
     <Resource Include="AppIcon.ico" />
+    <!-- the same icon for the rail, at 256 px so it stays sharp at any display scaling -->
+    <Resource Include="AppIcon.png" />
     <!-- the window's own fonts (Poppins, Orbitron; UiFonts/README.md), built in so nothing needs installing -->
     <Resource Include="UiFonts\*.ttf" />
   </ItemGroup>

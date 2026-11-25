@@ -387,7 +387,7 @@ Most changes are numbers in `IdMaker.Core/Config.cs`.
 | Different number format | `EmployeePrefix`, `EmployeeDigits`, `EmployeeLabel` |
 | Paper sizes, margins, crop marks | `Papers`, `SheetMarginMm`, `SheetGapMm`, `CropMark*` |
 | New card artwork, built in | replace `assets/front-template.png` and `assets/back.png` at the top of the repository (638 × 1004 or 638 × 1011), re-trace `FrontOutline` and `PhotoArea` if the band or the photo window moved |
-| Change the app's icon | `IdMaker.App/AppIcon.ico`. The logo it is made from is `assets/id-maker-logo.png`, and the editable original is in Canva ("Logo - Employee IDs", page 4) |
+| Change the app's icon | `assets/id-maker-logo.png` is the icon as the company issued it for the ID Maker (1500 × 1500, one of the set every APG system uses; never recoloured or cropped). Made from it: `IdMaker.App/AppIcon.ico` (16 to 256 px: window, taskbar, installer), `IdMaker.App/AppIcon.png` (256 px: the rail, shown at 32 px on both Windows and Mac), and the Mac's `.icns` (`mac/make-icon.sh`, at packaging) |
 | Restyle the window after a rebrand | `IdMaker.App/Colors.Light.xaml` and `Colors.Dark.xaml`, which must keep the same names. None of them touch the printed card |
 | Point at a different register | the `FIREBASE_PROJECT_ID` and `FIREBASE_API_KEY` repository secrets, used by the release build; neither is in the source. See `register/README.md` |
 | The version | `CardConfig.AppVersion`, and `Version` in `IdMaker.App.csproj` and `app.manifest` |

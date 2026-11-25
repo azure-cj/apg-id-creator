@@ -38,6 +38,8 @@
     <BundleResource Include="..\..\windows\IdMaker.App\Fonts\Montserrat-ExtraBold.ttf" LogicalName="Fonts/Montserrat-ExtraBold.ttf" />
     <BundleResource Include="..\..\windows\IdMaker.App\Fonts\Poppins-Bold.ttf" LogicalName="Fonts/Poppins-Bold.ttf" />
     <BundleResource Include="..\..\windows\IdMaker.Vision\Models\modnet.onnx" LogicalName="Models/modnet.onnx" />
+    <!-- The app's own icon for the rail, the same file the Windows rail shows. -->
+    <BundleResource Include="..\..\windows\IdMaker.App\AppIcon.png" LogicalName="Assets/AppIcon.png" />
     <!-- Made from assets/id-maker-logo.png by mac/make-icon.sh, which needs a Mac; packaging runs it first. -->
     <BundleResource Include="AppIcon.icns" Condition="Exists('AppIcon.icns')" />
   </ItemGroup>
